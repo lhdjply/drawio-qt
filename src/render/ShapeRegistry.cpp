@@ -99,6 +99,9 @@ QVector<ShapeDefinition> toolboxShapes()
         shapes.append(definition);
     };
 
+    add(QStringLiteral("basic.waypoint"), QStringLiteral("连接点"),
+        QStringLiteral("shape=waypoint;size=8;fillColor=#000000;strokeColor=#000000;"),
+        QSizeF(20, 20), QStringLiteral("basic"));
     add(QStringLiteral("rectangle"), QStringLiteral("矩形"),
         QStringLiteral("rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(140, 70), QStringLiteral("basic"));
