@@ -158,66 +158,66 @@ if (DRAWIO_QT_WARNINGS)
 endif()
 
 file(GLOB_RECURSE DRAWIO_IMAGE_FILES
-    "${CMAKE_CURRENT_SOURCE_DIR}/resources/drawio/img/lib/*")
+    "${CMAKE_CURRENT_SOURCE_DIR}/resources/assets/drawio/img/lib/*")
 
 qt_add_resources(drawioqt_lib "drawio_image_resources"
     PREFIX "/"
-    BASE "${CMAKE_CURRENT_SOURCE_DIR}/resources"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/resources/assets"
     FILES ${DRAWIO_IMAGE_FILES})
 
 qt_add_resources(drawioqt_lib "drawioqt_resources"
     PREFIX "/"
-    BASE "resources"
+    BASE "resources/assets"
     FILES
-        resources/icons/app.png
-        resources/icons/new.svg
-        resources/icons/open.svg
-        resources/icons/save.svg
-        resources/icons/undo.svg
-        resources/icons/redo.svg
-        resources/icons/delete.svg
-        resources/icons/zoom-in.svg
-        resources/icons/zoom-out.svg
-        resources/icons/fit.svg
-        resources/icons/print.svg
-        resources/icons/export.svg
-        resources/icons/grid.svg
-        resources/icons/select.svg
-        resources/icons/tab-close.svg
-        resources/icons/tab-close-dark.svg
-        resources/icons/connector.svg
-        resources/icons/pan.svg
-        resources/icons/text.svg
-        resources/icons/image.svg
-        resources/icons/group.svg
-        resources/icons/ungroup.svg
-        resources/icons/shapes/rectangle.svg
-        resources/icons/shapes/rounded.svg
-        resources/icons/shapes/ellipse.svg
-        resources/icons/shapes/triangle.svg
-        resources/icons/shapes/diamond.svg
-        resources/icons/shapes/hexagon.svg
-        resources/icons/shapes/cylinder.svg
-        resources/icons/shapes/cloud.svg
-        resources/icons/shapes/parallelogram.svg
-        resources/icons/shapes/trapezoid.svg
-        resources/icons/shapes/document.svg
-        resources/icons/shapes/note.svg
-        resources/icons/shapes/callout.svg
-        resources/icons/shapes/actor.svg
-        resources/icons/shapes/arrow.svg
-        resources/icons/shapes/text.svg
-        resources/icons/shapes/line.svg
-        resources/icons/shapes/image.svg
-        resources/icons/shapes/swimlane.svg
-        resources/icons/shapes/process.svg
-        resources/icons/shapes/circle.svg
-        resources/icons/shapes/database.svg
-        resources/icons/shapes/terminator.svg
-        resources/icons/shapes/step.svg
-        resources/examples/basic-flow.drawio
-        resources/examples/uml-class.drawio
-        resources/examples/network.drawio
+        resources/assets/icons/app.png
+        resources/assets/icons/new.svg
+        resources/assets/icons/open.svg
+        resources/assets/icons/save.svg
+        resources/assets/icons/undo.svg
+        resources/assets/icons/redo.svg
+        resources/assets/icons/delete.svg
+        resources/assets/icons/zoom-in.svg
+        resources/assets/icons/zoom-out.svg
+        resources/assets/icons/fit.svg
+        resources/assets/icons/print.svg
+        resources/assets/icons/export.svg
+        resources/assets/icons/grid.svg
+        resources/assets/icons/select.svg
+        resources/assets/icons/tab-close.svg
+        resources/assets/icons/tab-close-dark.svg
+        resources/assets/icons/connector.svg
+        resources/assets/icons/pan.svg
+        resources/assets/icons/text.svg
+        resources/assets/icons/image.svg
+        resources/assets/icons/group.svg
+        resources/assets/icons/ungroup.svg
+        resources/assets/icons/shapes/rectangle.svg
+        resources/assets/icons/shapes/rounded.svg
+        resources/assets/icons/shapes/ellipse.svg
+        resources/assets/icons/shapes/triangle.svg
+        resources/assets/icons/shapes/diamond.svg
+        resources/assets/icons/shapes/hexagon.svg
+        resources/assets/icons/shapes/cylinder.svg
+        resources/assets/icons/shapes/cloud.svg
+        resources/assets/icons/shapes/parallelogram.svg
+        resources/assets/icons/shapes/trapezoid.svg
+        resources/assets/icons/shapes/document.svg
+        resources/assets/icons/shapes/note.svg
+        resources/assets/icons/shapes/callout.svg
+        resources/assets/icons/shapes/actor.svg
+        resources/assets/icons/shapes/arrow.svg
+        resources/assets/icons/shapes/text.svg
+        resources/assets/icons/shapes/line.svg
+        resources/assets/icons/shapes/image.svg
+        resources/assets/icons/shapes/swimlane.svg
+        resources/assets/icons/shapes/process.svg
+        resources/assets/icons/shapes/circle.svg
+        resources/assets/icons/shapes/database.svg
+        resources/assets/icons/shapes/terminator.svg
+        resources/assets/icons/shapes/step.svg
+        resources/assets/examples/basic-flow.drawio
+        resources/assets/examples/uml-class.drawio
+        resources/assets/examples/network.drawio
 )
 
 add_executable(drawio-qt src/main.cpp)
@@ -247,13 +247,13 @@ if (UNIX AND NOT APPLE)
         "${CMAKE_BINARY_DIR}/${DRAWIO_QT_APP_NAME}.desktop" @ONLY)
     install(FILES "${CMAKE_BINARY_DIR}/${DRAWIO_QT_APP_NAME}.desktop"
         DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
-    install(FILES resources/icons/app.png
+    install(FILES resources/assets/icons/app.png
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
         RENAME drawio-qt.png)
     install(FILES resources/linux/drawio-qt-mime.xml
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mime/packages
         RENAME drawio-qt.xml)
-    install(DIRECTORY resources/examples/
+    install(DIRECTORY resources/assets/examples/
         DESTINATION ${CMAKE_INSTALL_DATADIR}/drawio-qt/examples)
 endif()
 

@@ -21,7 +21,7 @@
 ;   https://github.com/kira-96/Inno-Setup-Chinese-Simplified-Translation），
 ; 按原样随仓库分发，要求 Inno Setup 6.5.0+。
 ;
-; drawio-qt.ico 由 resources/icons/app.png 生成（16/24/32/48/64/128/256 全 PNG 帧）。
+; drawio-qt.ico 由 resources/assets/icons/app.png 生成（16/24/32/48/64/128/256 全 PNG 帧）。
 ; exe 自身的 PE 图标来自 resources/win/drawio-qt.rc，与本脚本是同一份 ico；
 ; 这里仍随包装进 {app}，供安装程序、快捷方式与卸载项使用。
 

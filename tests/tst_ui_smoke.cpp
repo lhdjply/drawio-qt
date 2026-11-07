@@ -49,7 +49,7 @@ private slots:
         window.show();
 
         const QString example = QStringLiteral(DRAWIO_QT_SOURCE_DIR)
-            + QStringLiteral("/resources/examples/basic-flow.drawio");
+            + QStringLiteral("/resources/assets/examples/basic-flow.drawio");
         QVERIFY(QFileInfo::exists(example));
         QVERIFY(window.openFile(example));
 
@@ -125,7 +125,7 @@ private slots:
         (void)QTest::qWaitForWindowExposed(&window);
 
         const QString example = QStringLiteral(DRAWIO_QT_SOURCE_DIR)
-            + QStringLiteral("/resources/examples/basic-flow.drawio");
+            + QStringLiteral("/resources/assets/examples/basic-flow.drawio");
         QVERIFY(window.openFile(example));
         window.view()->setDarkTheme(true);
         QCoreApplication::processEvents();
