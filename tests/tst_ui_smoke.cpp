@@ -333,6 +333,78 @@ private slots:
         QCOMPARE(edge->targetId, bId);
     }
 
+    void draggingSnapsToAlignmentGuides()
+    {
+        MainWindow window;
+        window.resize(1000, 700);
+        window.show();
+        (void)QTest::qWaitForWindowExposed(&window);
+
+        DiagramView *view = window.view();
+        view->page()->settings.grid = false; // isolate guide snapping from grid snapping
+        view->setGuidesVisible(true);
+
+        Cell *anchor = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                      QPointF(100, 100));
+        Cell *moving = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                      QPointF(300, 220));
+        view->setSelection({moving->id});
+
+        const double anchorLeft = anchor->absoluteRect().left();
+        const double movingLeft = moving->absoluteRect().left();
+        const QPointF start = moving->absoluteRect().center();
+
+        // Stop 3 px short of the alignment: the guide should pull it in.
+        const QPointF end = start + QPointF(anchorLeft - movingLeft + 3.0, 0);
+
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier,
+                          view->toView(start).toPoint());
+        QTest::mouseMove(view, view->toView(end).toPoint());
+        QCoreApplication::processEvents();
+
+        // Capture the guide while the drag is still active.
+        const QImage guideShot = window.grab().toImage();
+        QVERIFY(!guideShot.isNull());
+        guideShot.save(QStringLiteral(DRAWIO_QT_BINARY_DIR) + QStringLiteral("/guides.png"));
+
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier,
+                            view->toView(end).toPoint());
+        QCoreApplication::processEvents();
+
+        QCOMPARE(moving->absoluteRect().left(), anchorLeft);
+    }
+
+    void resizingSnapsToAlignmentGuides()
+    {
+        MainWindow window;
+        window.resize(1000, 700);
+        window.show();
+        (void)QTest::qWaitForWindowExposed(&window);
+
+        DiagramView *view = window.view();
+        view->page()->settings.grid = false;
+        view->setGuidesVisible(true);
+
+        Cell *anchor = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                      QPointF(600, 100));
+        Cell *moving = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                      QPointF(360, 300));
+        view->setSelection({moving->id});
+
+        // Drag the right edge to within 3 px of the anchor's right edge.
+        const QRectF before = moving->absoluteRect();
+        const QPointF corner = view->toView(before.bottomRight());
+        const double targetX = anchor->absoluteRect().right();
+        const QPointF end = view->toView(QPointF(targetX - 3.0, before.bottom()));
+
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, corner.toPoint());
+        QTest::mouseMove(view, end.toPoint());
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, end.toPoint());
+        QCoreApplication::processEvents();
+
+        QCOMPARE(moving->absoluteRect().right(), anchor->absoluteRect().right());
+    }
+
     void resizeWithMouseHandles()
     {
         MainWindow window;

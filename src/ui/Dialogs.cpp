@@ -468,6 +468,7 @@ void showShortcutsDialog(QWidget *parent)
         "<tr><td>中键拖动 / 空格 + 拖动</td><td>平移画布</td></tr>"
         "<tr><td>Ctrl + G / Ctrl + Shift + U</td><td>组合 / 取消组合</td></tr>"
         "<tr><td>方向键 / Shift + 方向键</td><td>移动所选（1px / 10px）</td></tr>"
+        "<tr><td>Alt + 拖动</td><td>临时关闭对齐参考线与网格吸附</td></tr>"
         "<tr><td>F11</td><td>全屏</td></tr>"
         "</table>");
 

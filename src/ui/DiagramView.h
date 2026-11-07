@@ -80,6 +80,8 @@ public:
     bool isGridVisible() const { return m_gridVisible; }
     void setPageVisible(bool visible);
     bool isPageVisible() const { return m_pageVisible; }
+    void setGuidesVisible(bool visible);
+    bool guidesVisible() const { return m_guidesVisible; }
     void setDarkTheme(bool dark);
     bool isDarkTheme() const { return m_dark; }
 
@@ -184,6 +186,31 @@ private:
 
     void paintSelectionOverlay(QPainter &painter);
     void paintConnectionPreview(QPainter &painter);
+
+    struct Guide
+    {
+        bool visible = false;
+        double position = 0.0;
+        double from = 0.0;
+        double to = 0.0;
+    };
+
+    struct SnapResult
+    {
+        bool found = false;
+        double offset = 0.0;
+        double position = 0.0;
+        double from = 0.0;
+        double to = 0.0;
+    };
+
+    SnapResult findVerticalSnap(const QRectF &moving, double threshold) const;
+    SnapResult findHorizontalSnap(const QRectF &moving, double threshold) const;
+    SnapResult findEdgeSnap(double value, bool vertical, const QRectF &target,
+                            double threshold) const;
+    bool isCellMoving(const Cell *cell) const;
+    void clearGuides();
+    void paintGuides(QPainter &painter);
     QVector<QRectF> handleRects() const;
     int handleAt(const QPointF &viewPoint) const;
     QRectF selectionBoundsInView() const;
@@ -201,7 +228,7 @@ private:
     void beginConnect(Cell *source, const QPointF &scenePoint);
 
     void updateMove(const QPointF &scenePoint, bool constrain);
-    void updateResize(const QPointF &scenePoint, bool keepRatio);
+    void updateResize(const QPointF &scenePoint, bool keepRatio, bool disableSnap);
     void updateConnect(const QPointF &scenePoint, bool snap);
     void finishDrag();
 
@@ -221,6 +248,9 @@ private:
     QPointF m_pan;
     bool m_gridVisible = true;
     bool m_pageVisible = true;
+    bool m_guidesVisible = true;
+    Guide m_verticalGuide;
+    Guide m_horizontalGuide;
     bool m_dark = false;
     Tool m_tool = Tool::Select;
 

@@ -156,6 +156,16 @@ void AppSettings::setPageVisible(bool visible)
     m_settings->setValue(QStringLiteral("view/page"), visible);
 }
 
+bool AppSettings::guidesVisible() const
+{
+    return m_settings->value(QStringLiteral("view/guides"), true).toBool();
+}
+
+void AppSettings::setGuidesVisible(bool visible)
+{
+    m_settings->setValue(QStringLiteral("view/guides"), visible);
+}
+
 bool AppSettings::autoSaveEnabled() const
 {
     return m_settings->value(QStringLiteral("editor/autoSave"), true).toBool();

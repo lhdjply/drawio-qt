@@ -301,6 +301,206 @@ void DiagramView::setPageVisible(bool visible)
     update();
 }
 
+void DiagramView::setGuidesVisible(bool visible)
+{
+    m_guidesVisible = visible;
+
+    if (!visible)
+    {
+        clearGuides();
+    }
+
+    update();
+}
+
+bool DiagramView::isCellMoving(const Cell *cell) const
+{
+    if (cell == nullptr)
+    {
+        return false;
+    }
+
+    if (m_selection.contains(cell->id))
+    {
+        return true;
+    }
+
+    for (const Cell *parent = cell->parent; parent != nullptr; parent = parent->parent)
+    {
+        if (m_selection.contains(parent->id))
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
+DiagramView::SnapResult DiagramView::findVerticalSnap(const QRectF &moving,
+                                                     double threshold) const
+{
+    SnapResult best;
+
+    if (m_page == nullptr)
+    {
+        return best;
+    }
+
+    const double movingValues[3] = {moving.left(), moving.center().x(), moving.right()};
+
+    for (Cell *cell : m_page->cells())
+    {
+        if (!cell->isVertex() || !cell->visible || isCellMoving(cell))
+        {
+            continue;
+        }
+
+        const QRectF other = cell->absoluteRect();
+
+        if (other.isEmpty())
+        {
+            continue;
+        }
+
+        const double otherValues[3] = {other.left(), other.center().x(), other.right()};
+
+        for (const double movingValue : movingValues)
+        {
+            for (const double otherValue : otherValues)
+            {
+                const double difference = otherValue - movingValue;
+
+                if (qAbs(difference) <= threshold
+                    && (!best.found || qAbs(difference) < qAbs(best.offset)))
+                {
+                    best.found = true;
+                    best.offset = difference;
+                    best.position = otherValue;
+                    best.from = qMin(moving.top(), other.top()) - 12.0;
+                    best.to = qMax(moving.bottom(), other.bottom()) + 12.0;
+                }
+            }
+        }
+    }
+
+    return best;
+}
+
+DiagramView::SnapResult DiagramView::findEdgeSnap(double value, bool vertical,
+                                                  const QRectF &target,
+                                                  double threshold) const
+{
+    SnapResult best;
+
+    if (m_page == nullptr)
+    {
+        return best;
+    }
+
+    for (Cell *cell : m_page->cells())
+    {
+        if (!cell->isVertex() || !cell->visible || isCellMoving(cell))
+        {
+            continue;
+        }
+
+        const QRectF other = cell->absoluteRect();
+
+        if (other.isEmpty())
+        {
+            continue;
+        }
+
+        const double values[3] = {
+            vertical ? other.left() : other.top(),
+            vertical ? other.center().x() : other.center().y(),
+            vertical ? other.right() : other.bottom(),
+        };
+
+        for (const double candidate : values)
+        {
+            const double difference = candidate - value;
+
+            if (qAbs(difference) <= threshold
+                && (!best.found || qAbs(difference) < qAbs(best.offset)))
+            {
+                best.found = true;
+                best.offset = difference;
+                best.position = candidate;
+
+                if (vertical)
+                {
+                    best.from = qMin(target.top(), other.top()) - 12.0;
+                    best.to = qMax(target.bottom(), other.bottom()) + 12.0;
+                }
+                else
+                {
+                    best.from = qMin(target.left(), other.left()) - 12.0;
+                    best.to = qMax(target.right(), other.right()) + 12.0;
+                }
+            }
+        }
+    }
+
+    return best;
+}
+
+DiagramView::SnapResult DiagramView::findHorizontalSnap(const QRectF &moving,
+                                                       double threshold) const
+{
+    SnapResult best;
+
+    if (m_page == nullptr)
+    {
+        return best;
+    }
+
+    const double movingValues[3] = {moving.top(), moving.center().y(), moving.bottom()};
+
+    for (Cell *cell : m_page->cells())
+    {
+        if (!cell->isVertex() || !cell->visible || isCellMoving(cell))
+        {
+            continue;
+        }
+
+        const QRectF other = cell->absoluteRect();
+
+        if (other.isEmpty())
+        {
+            continue;
+        }
+
+        const double otherValues[3] = {other.top(), other.center().y(), other.bottom()};
+
+        for (const double movingValue : movingValues)
+        {
+            for (const double otherValue : otherValues)
+            {
+                const double difference = otherValue - movingValue;
+
+                if (qAbs(difference) <= threshold
+                    && (!best.found || qAbs(difference) < qAbs(best.offset)))
+                {
+                    best.found = true;
+                    best.offset = difference;
+                    best.position = otherValue;
+                    best.from = qMin(moving.left(), other.left()) - 12.0;
+                    best.to = qMax(moving.right(), other.right()) + 12.0;
+                }
+            }
+        }
+    }
+
+    return best;
+}
+
+void DiagramView::clearGuides()
+{
+    m_verticalGuide = Guide{};
+    m_horizontalGuide = Guide{};
+}
+
 void DiagramView::setDarkTheme(bool dark)
 {
     m_dark = dark;
@@ -634,8 +834,70 @@ void DiagramView::paintEvent(QPaintEvent *event)
     DiagramRenderer::paint(painter, *m_page, options);
     painter.restore();
 
+    paintGuides(painter);
     paintSelectionOverlay(painter);
     paintConnectionPreview(painter);
+}
+
+void DiagramView::paintGuides(QPainter &painter)
+{
+    if (!m_guidesVisible
+        || (!m_verticalGuide.visible && !m_horizontalGuide.visible))
+    {
+        return;
+    }
+
+    painter.save();
+    QPen pen(QColor(0x1A, 0x73, 0xE8, 210));
+    pen.setStyle(Qt::DashLine);
+    pen.setWidthF(1.0);
+    painter.setPen(pen);
+
+    const auto drawGuide = [this, &painter, &pen](const Guide &guide, bool vertical)
+    {
+        if (!guide.visible)
+        {
+            return;
+        }
+
+        QPointF start;
+        QPointF end;
+
+        if (vertical)
+        {
+            start = toView(QPointF(guide.position, guide.from));
+            end = toView(QPointF(guide.position, guide.to));
+        }
+        else
+        {
+            start = toView(QPointF(guide.from, guide.position));
+            end = toView(QPointF(guide.to, guide.position));
+        }
+
+        painter.drawLine(start, end);
+
+        // Small perpendicular ticks make the guide readable over dark shapes.
+        constexpr double tick = 4.0;
+        painter.setPen(QPen(QColor(0x1A, 0x73, 0xE8, 230), 1.4));
+
+        if (vertical)
+        {
+            painter.drawLine(start + QPointF(-tick, 0), start + QPointF(tick, 0));
+            painter.drawLine(end + QPointF(-tick, 0), end + QPointF(tick, 0));
+        }
+        else
+        {
+            painter.drawLine(start + QPointF(0, -tick), start + QPointF(0, tick));
+            painter.drawLine(end + QPointF(0, -tick), end + QPointF(0, tick));
+        }
+
+        QPen dashed = pen;
+        painter.setPen(dashed);
+    };
+
+    drawGuide(m_verticalGuide, true);
+    drawGuide(m_horizontalGuide, false);
+    painter.restore();
 }
 
 void DiagramView::paintSelectionOverlay(QPainter &painter)
@@ -1030,6 +1292,7 @@ void DiagramView::beginMarquee(const QPointF &scenePoint)
 void DiagramView::beginMove(const QPointF &scenePoint)
 {
     m_dragMode = DragMode::Move;
+    clearGuides();
     m_dragStartScene = scenePoint;
     m_dragStartBounds = selectionBounds();
     m_dragBeforeXml = MxFileIO::pageToXml(*m_page, false);
@@ -1136,14 +1399,48 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
     if (m_dragMode == DragMode::Move)
     {
         QPointF delta = scenePoint - m_dragStartScene;
+        clearGuides();
 
-        if (!(event->modifiers() & Qt::AltModifier) && m_page->settings.grid)
+        const bool disableSnap = (event->modifiers() & Qt::AltModifier) != 0;
+
+        if (!disableSnap && m_guidesVisible)
+        {
+            const double threshold = 6.0 / qMax(m_zoom, 0.01);
+            const QRectF moving = m_dragStartBounds.translated(delta);
+
+            const SnapResult vertical = findVerticalSnap(moving, threshold);
+
+            if (vertical.found)
+            {
+                delta.setX(delta.x() + vertical.offset);
+                m_verticalGuide = Guide{true, vertical.position, vertical.from,
+                                        vertical.to};
+            }
+
+            const SnapResult horizontal = findHorizontalSnap(moving, threshold);
+
+            if (horizontal.found)
+            {
+                delta.setY(delta.y() + horizontal.offset);
+                m_horizontalGuide = Guide{true, horizontal.position, horizontal.from,
+                                          horizontal.to};
+            }
+        }
+
+        if (!disableSnap && m_page->settings.grid)
         {
             const int grid = qMax(1, m_page->settings.gridSize);
             const QPointF target = m_dragStartBounds.topLeft() + delta;
-            const QPointF snapped(qRound(target.x() / grid) * grid,
-                                  qRound(target.y() / grid) * grid);
-            delta = snapped - m_dragStartBounds.topLeft();
+
+            if (!m_verticalGuide.visible)
+            {
+                delta.setX(qRound(target.x() / grid) * grid - m_dragStartBounds.left());
+            }
+
+            if (!m_horizontalGuide.visible)
+            {
+                delta.setY(qRound(target.y() / grid) * grid - m_dragStartBounds.top());
+            }
         }
 
         if (!delta.isNull())
@@ -1187,7 +1484,8 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
 
     if (m_dragMode == DragMode::Resize)
     {
-        updateResize(scenePoint, event->modifiers() & Qt::ShiftModifier);
+        updateResize(scenePoint, event->modifiers() & Qt::ShiftModifier,
+                     event->modifiers() & Qt::AltModifier);
         return;
     }
 
@@ -1212,7 +1510,8 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
     }
 }
 
-void DiagramView::updateResize(const QPointF &scenePoint, bool keepRatio)
+void DiagramView::updateResize(const QPointF &scenePoint, bool keepRatio,
+                               bool disableSnap)
 {
     QRectF rect = m_dragStartBounds;
     const QPointF delta = scenePoint - m_dragStartScene;
@@ -1313,6 +1612,61 @@ void DiagramView::updateResize(const QPointF &scenePoint, bool keepRatio)
         else
         {
             target.setHeight(height);
+        }
+    }
+
+    clearGuides();
+
+    if (!disableSnap && m_guidesVisible)
+    {
+        const double threshold = 6.0 / qMax(m_zoom, 0.01);
+        const bool dragsLeft = m_resizeHandle == 0 || m_resizeHandle == 6
+            || m_resizeHandle == 7;
+        const bool dragsRight = m_resizeHandle == 2 || m_resizeHandle == 3
+            || m_resizeHandle == 4;
+        const bool dragsTop = m_resizeHandle == 0 || m_resizeHandle == 1
+            || m_resizeHandle == 2;
+        const bool dragsBottom = m_resizeHandle == 4 || m_resizeHandle == 5
+            || m_resizeHandle == 6;
+
+        if (dragsLeft || dragsRight)
+        {
+            const SnapResult snap = findEdgeSnap(dragsLeft ? target.left() : target.right(),
+                                                 true, target, threshold);
+
+            if (snap.found)
+            {
+                if (dragsLeft)
+                {
+                    target.setLeft(qMin(target.left() + snap.offset, target.right() - 10.0));
+                }
+                else
+                {
+                    target.setRight(qMax(target.right() + snap.offset, target.left() + 10.0));
+                }
+
+                m_verticalGuide = Guide{true, snap.position, snap.from, snap.to};
+            }
+        }
+
+        if (dragsTop || dragsBottom)
+        {
+            const SnapResult snap = findEdgeSnap(dragsTop ? target.top() : target.bottom(),
+                                                 false, target, threshold);
+
+            if (snap.found)
+            {
+                if (dragsTop)
+                {
+                    target.setTop(qMin(target.top() + snap.offset, target.bottom() - 10.0));
+                }
+                else
+                {
+                    target.setBottom(qMax(target.bottom() + snap.offset, target.top() + 10.0));
+                }
+
+                m_horizontalGuide = Guide{true, snap.position, snap.from, snap.to};
+            }
         }
     }
 
@@ -1434,6 +1788,7 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
     {
         const bool wasResize = m_dragMode == DragMode::Resize;
         m_dragMode = DragMode::None;
+        clearGuides();
 
         if (m_dragMoved && !m_dragBeforeXml.isEmpty() && m_page != nullptr)
         {

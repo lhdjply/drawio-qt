@@ -9,6 +9,10 @@ PNG/SVG/PDF/HTML/XML 导出、打印以及命令行批量导出。
 
 ![drawio-qt 编辑器截图](docs/screenshot-editor.png)
 
+拖动时的对齐参考线：
+
+![对齐参考线](docs/screenshot-guides.png)
+
 深色模式：
 
 ![drawio-qt 深色模式](docs/screenshot-dark.png)
@@ -17,6 +21,8 @@ PNG/SVG/PDF/HTML/XML 导出、打印以及命令行批量导出。
 
 - **原生绘图编辑器**：选择、框选、移动、缩放、旋转、对齐、分布、组合/取消组合、
   层级调整、复制/粘贴/复制副本、方向键微调、网格吸附、缩放与平移。
+- **对齐参考线**：拖动/缩放时自动寻找其它图形的左/中/右、上/中/下对齐位置，
+  显示蓝色虚线并吸附；按住 Alt 可临时关闭参考线与网格吸附。
 - **原生形状库（210+ 矢量形状）**：基本形状、流程图、箭头、UML、ER、BPMN、网络、
   电气符号（电阻/电容/电感/二极管/三极管/电池/接地/逻辑门等 34 种）、平面图、
   信息图、SysML、ArchiMate、集成模式、Bootstrap、Kubernetes、界面原型、C4、DFD 等。

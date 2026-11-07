@@ -42,6 +42,9 @@ public:
     bool pageVisible() const;
     void setPageVisible(bool visible);
 
+    bool guidesVisible() const;
+    void setGuidesVisible(bool visible);
+
     bool autoSaveEnabled() const;
     void setAutoSaveEnabled(bool enabled);
 

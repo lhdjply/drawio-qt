@@ -127,6 +127,7 @@ private:
     QAction *m_resetZoomAction = nullptr;
     QAction *m_fitAction = nullptr;
     QAction *m_gridAction = nullptr;
+    QAction *m_guidesAction = nullptr;
     QAction *m_pageViewAction = nullptr;
     QAction *m_darkAction = nullptr;
     QAction *m_fullScreenAction = nullptr;

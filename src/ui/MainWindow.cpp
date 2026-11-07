@@ -250,6 +250,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_pageViewAction->setChecked(AppSettings::instance().pageVisible());
     m_gridAction->setChecked(AppSettings::instance().gridVisible());
     m_view->setGridVisible(AppSettings::instance().gridVisible());
+    m_view->setGuidesVisible(m_guidesAction->isChecked());
     m_view->setPageVisible(AppSettings::instance().pageVisible());
 
     const QByteArray geometry = AppSettings::instance().windowGeometry();
@@ -499,6 +500,16 @@ void MainWindow::createActions()
     });
     m_gridAction->setCheckable(true);
     m_gridAction->setChecked(true);
+
+    m_guidesAction = makeAction(QStringLiteral("对齐参考线"), QKeySequence(), QIcon(),
+                                [this]()
+    {
+        const bool visible = m_guidesAction->isChecked();
+        m_view->setGuidesVisible(visible);
+        AppSettings::instance().setGuidesVisible(visible);
+    });
+    m_guidesAction->setCheckable(true);
+    m_guidesAction->setChecked(AppSettings::instance().guidesVisible());
 
     m_pageViewAction = makeAction(QStringLiteral("显示页面边界"), QKeySequence(), QIcon(),
                                   [this]()
@@ -754,6 +765,7 @@ void MainWindow::createMenus()
     viewMenu->addAction(m_fitAction);
     viewMenu->addSeparator();
     viewMenu->addAction(m_gridAction);
+    viewMenu->addAction(m_guidesAction);
     viewMenu->addAction(m_pageViewAction);
     viewMenu->addAction(m_darkAction);
     viewMenu->addSeparator();
