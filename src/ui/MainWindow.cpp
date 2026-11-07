@@ -883,6 +883,10 @@ void MainWindow::createMenus()
     m_arrangeSelectionActions.append(sameSize);
 
     arrangeMenu->addSeparator();
+    arrangeMenu->addAction(m_groupAction);
+    arrangeMenu->addAction(m_ungroupAction);
+
+    arrangeMenu->addSeparator();
     arrangeMenu->addAction(m_frontAction);
     arrangeMenu->addAction(m_backAction);
     arrangeMenu->addAction(m_forwardAction);
@@ -1027,7 +1031,19 @@ void MainWindow::updateActions()
     m_backwardAction->setEnabled(hasSelection);
 
     m_groupAction->setEnabled(selectedCount >= 2);
-    m_ungroupAction->setEnabled(hasSelection);
+
+    bool hasSelectedGroup = false;
+
+    for (Cell *cell : m_view->selectedCellObjects())
+    {
+        if (cell->isGroup())
+        {
+            hasSelectedGroup = true;
+            break;
+        }
+    }
+
+    m_ungroupAction->setEnabled(hasSelectedGroup);
 
     for (QAction *action : m_arrangeSelectionActions)
     {

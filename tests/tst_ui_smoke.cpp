@@ -249,6 +249,16 @@ private slots:
         QVERIFY(alignMenu->actions().size() >= 6);
         QVERIFY(layoutMenu->actions().size() >= 5);
 
+        QStringList arrangeTexts;
+
+        for (QAction *action : arrangeMenu->actions())
+        {
+            arrangeTexts.append(action->text());
+        }
+
+        QVERIFY(arrangeTexts.contains(QStringLiteral("组合")));
+        QVERIFY(arrangeTexts.contains(QStringLiteral("取消组合")));
+
         // The right hand format panel no longer contains an arrange section.
         auto *panel = window.findChild<FormatPanel *>();
         QVERIFY(panel != nullptr);
