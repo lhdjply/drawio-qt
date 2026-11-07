@@ -250,7 +250,7 @@ if (UNIX AND NOT APPLE)
     install(FILES resources/icons/app.png
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
         RENAME drawio-qt.png)
-    install(FILES packaging/drawio-qt-mime.xml
+    install(FILES resources/linux/drawio-qt-mime.xml
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mime/packages
         RENAME drawio-qt.xml)
     install(DIRECTORY resources/examples/
