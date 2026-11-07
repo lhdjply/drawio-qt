@@ -55,7 +55,6 @@ private:
     QCheckBox *m_shadow = nullptr;
 
     QComboBox *m_edgeStyle = nullptr;
-    QComboBox *m_arrowShape = nullptr;
     QComboBox *m_startArrow = nullptr;
     QComboBox *m_endArrow = nullptr;
     QSpinBox *m_startSize = nullptr;
