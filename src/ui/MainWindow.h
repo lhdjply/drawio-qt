@@ -32,6 +32,9 @@ public:
     ~MainWindow() override;
 
     bool openFile(const QString &path);
+    /// Opens the first file in this window and the remaining ones in new
+    /// windows, matching draw.io's multi-file open behaviour.
+    void openFiles(const QStringList &paths);
     void newDocument();
 
     Document *document() const { return m_document; }
@@ -53,6 +56,13 @@ private:
     void createDocks();
     void createStatusBar();
     void createPageTabs();
+    void createFileTabs();
+    int addDocumentTab(Document *document);
+    void switchToDocument(int index);
+    void closeDocumentTab(int index);
+    void connectDocument(Document *document);
+    Document *documentAt(int index) const;
+    QString documentTabName(Document *document) const;
 
     void updateTitle();
     void updateActions();
@@ -94,6 +104,8 @@ private:
     ShapeToolbox *m_toolbox = nullptr;
     FormatPanel *m_formatPanel = nullptr;
     QTabBar *m_pageTabs = nullptr;
+    QTabBar *m_fileTabs = nullptr;
+    QVector<Document *> m_documents;
     QTimer *m_autoSaveTimer = nullptr;
     QFileSystemWatcher *m_watcher = nullptr;
     QMenu *m_recentMenu = nullptr;

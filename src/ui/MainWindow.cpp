@@ -70,7 +70,6 @@ QIcon iconFor(const QString &name)
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
-    , m_document(new Document(this))
 {
     setAcceptDrops(true);
     setDockNestingEnabled(true);
@@ -81,6 +80,9 @@ MainWindow::MainWindow(QWidget *parent)
     centralLayout->setContentsMargins(0, 0, 0, 0);
     centralLayout->setSpacing(0);
 
+    createFileTabs();
+    centralLayout->addWidget(m_fileTabs->parentWidget());
+
     m_view = new DiagramView(central);
     centralLayout->addWidget(m_view, 1);
 
@@ -89,7 +91,12 @@ MainWindow::MainWindow(QWidget *parent)
 
     setCentralWidget(central);
 
+    m_fileTabs->blockSignals(true);
+    m_document = new Document(this);
     m_view->setDocument(m_document);
+    addDocumentTab(m_document);
+    connectDocument(m_document);
+    m_fileTabs->blockSignals(false);
 
     createActions();
     createMenus();
@@ -139,35 +146,8 @@ MainWindow::MainWindow(QWidget *parent)
     {
         if (!paths.isEmpty())
         {
-            openFile(paths.first());
+            openFiles(paths);
         }
-    });
-
-    connect(m_document, &Document::modifiedChanged, this, [this](bool)
-    {
-        updateTitle();
-        updateActions();
-    });
-    connect(m_document, &Document::pagesChanged, this, [this]()
-    {
-        updatePageTabs();
-        updateActions();
-    });
-    connect(m_document, &Document::currentPageChanged, this, [this](int index)
-    {
-        updatePageTabs();
-        m_view->refreshFromDocument();
-        updateStatus();
-
-        if (index >= 0 && m_pageTabs != nullptr)
-        {
-            QSignalBlocker blocker(m_pageTabs);
-            m_pageTabs->setCurrentIndex(index);
-        }
-    });
-    connect(m_document, &Document::filePathChanged, this, [this](const QString &)
-    {
-        updateTitle();
     });
 
     // --- auto save --------------------------------------------------------
@@ -251,6 +231,173 @@ MainWindow::MainWindow(QWidget *parent)
 MainWindow::~MainWindow() = default;
 
 // --- UI construction -----------------------------------------------------
+
+void MainWindow::createFileTabs()
+{
+    auto *container = new QWidget(this);
+    container->setObjectName(QStringLiteral("fileTabContainer"));
+    auto *layout = new QHBoxLayout(container);
+    layout->setContentsMargins(8, 4, 8, 0);
+    layout->setSpacing(0);
+
+    m_fileTabs = new QTabBar(container);
+    m_fileTabs->setObjectName(QStringLiteral("fileTabs"));
+    m_fileTabs->setDocumentMode(true);
+    m_fileTabs->setDrawBase(false);
+    m_fileTabs->setExpanding(false);
+    m_fileTabs->setUsesScrollButtons(true);
+    m_fileTabs->setTabsClosable(true);
+    m_fileTabs->setElideMode(Qt::ElideRight);
+    m_fileTabs->setMovable(false);
+    layout->addWidget(m_fileTabs, 1);
+
+    auto *addTab = new QToolButton(container);
+    addTab->setObjectName(QStringLiteral("fileTabAdd"));
+    addTab->setText(QStringLiteral("＋"));
+    addTab->setToolTip(QStringLiteral("新建标签页"));
+    addTab->setAutoRaise(true);
+    addTab->setFixedSize(26, 26);
+    layout->addWidget(addTab);
+    connect(addTab, &QToolButton::clicked, this, &MainWindow::newDocument);
+
+    connect(m_fileTabs, &QTabBar::currentChanged, this, [this](int index)
+    {
+        if (index >= 0)
+        {
+            switchToDocument(index);
+        }
+    });
+    connect(m_fileTabs, &QTabBar::tabCloseRequested, this, &MainWindow::closeDocumentTab);
+}
+
+Document *MainWindow::documentAt(int index) const
+{
+    if (index < 0 || index >= m_documents.size())
+    {
+        return nullptr;
+    }
+
+    return m_documents.at(index);
+}
+
+QString MainWindow::documentTabName(Document *document) const
+{
+    if (document == nullptr)
+    {
+        return QStringLiteral("未命名");
+    }
+
+    const QString path = document->filePath();
+    const QString name = path.isEmpty() ? QStringLiteral("未命名")
+                                        : QFileInfo(path).fileName();
+    return document->isModified() ? name + QLatin1Char('*') : name;
+}
+
+int MainWindow::addDocumentTab(Document *document)
+{
+    m_documents.append(document);
+    const int index = m_fileTabs->addTab(documentTabName(document));
+    m_fileTabs->setTabToolTip(index, document->filePath().isEmpty()
+                                      ? QStringLiteral("未命名")
+                                      : document->filePath());
+    m_fileTabs->setCurrentIndex(index);
+    return index;
+}
+
+void MainWindow::switchToDocument(int index)
+{
+    Document *document = documentAt(index);
+
+    if (document == nullptr || document == m_document)
+    {
+        return;
+    }
+
+    if (m_view != nullptr)
+    {
+        m_view->commitEditing();
+    }
+
+    if (m_document != nullptr)
+    {
+        disconnect(m_document, nullptr, this, nullptr);
+    }
+
+    m_document = document;
+
+    if (m_fileTabs != nullptr && m_fileTabs->currentIndex() != index)
+    {
+        QSignalBlocker blocker(m_fileTabs);
+        m_fileTabs->setCurrentIndex(index);
+    }
+
+    if (m_view != nullptr)
+    {
+        m_view->setDocument(m_document);
+    }
+
+    connectDocument(m_document);
+
+    if (m_formatPanel != nullptr)
+    {
+        m_formatPanel->setView(m_view);
+    }
+
+    updatePageTabs();
+    updateTitle();
+    updateActions();
+    updateStatus();
+    watchCurrentFile(!m_document->filePath().isEmpty());
+}
+
+void MainWindow::connectDocument(Document *document)
+{
+    if (document == nullptr)
+    {
+        return;
+    }
+
+    connect(document, &Document::modifiedChanged, this, [this, document](bool)
+    {
+        if (document == m_document)
+        {
+            updateTitle();
+            updateActions();
+        }
+    });
+    connect(document, &Document::pagesChanged, this, [this, document]()
+    {
+        if (document == m_document)
+        {
+            updatePageTabs();
+            updateActions();
+        }
+    });
+    connect(document, &Document::currentPageChanged, this, [this, document](int index)
+    {
+        if (document != m_document)
+        {
+            return;
+        }
+
+        updatePageTabs();
+        m_view->refreshFromDocument();
+        updateStatus();
+
+        if (index >= 0 && m_pageTabs != nullptr)
+        {
+            QSignalBlocker blocker(m_pageTabs);
+            m_pageTabs->setCurrentIndex(index);
+        }
+    });
+    connect(document, &Document::filePathChanged, this, [this, document](const QString &)
+    {
+        if (document == m_document)
+        {
+            updateTitle();
+        }
+    });
+}
 
 void MainWindow::createPageTabs()
 {
@@ -376,10 +523,13 @@ void MainWindow::createActions()
         pageSetup();
     });
 
-    m_closeAction = makeAction(QStringLiteral("关闭窗口"), key(QStringLiteral("Ctrl+W")),
+    m_closeAction = makeAction(QStringLiteral("关闭标签页"), key(QStringLiteral("Ctrl+W")),
                                QIcon(), [this]()
     {
-        close();
+        if (m_fileTabs != nullptr)
+        {
+            closeDocumentTab(m_fileTabs->currentIndex());
+        }
     });
 
     m_quitAction = makeAction(QStringLiteral("退出"), key(QStringLiteral("Ctrl+Q")), QIcon(),
@@ -924,10 +1074,24 @@ void MainWindow::createStatusBar()
 void MainWindow::updateTitle()
 {
     setWindowTitle(m_document->title());
+
+    if (m_fileTabs != nullptr && m_fileTabs->currentIndex() >= 0)
+    {
+        const int index = m_fileTabs->currentIndex();
+        m_fileTabs->setTabText(index, documentTabName(m_document));
+        m_fileTabs->setTabToolTip(index, m_document->filePath().isEmpty()
+                                         ? QStringLiteral("未命名")
+                                         : m_document->filePath());
+    }
 }
 
 void MainWindow::updateActions()
 {
+    if (m_saveAction == nullptr)
+    {
+        return;
+    }
+
     const bool hasDocument = m_document != nullptr && m_document->currentPage() != nullptr;
     const bool hasSelection = m_view->hasSelection();
     const int selectedCount = m_view->selection().size();
@@ -1079,16 +1243,68 @@ void MainWindow::saveAs()
 
 void MainWindow::openDialog()
 {
-    const QString path = QFileDialog::getOpenFileName(
+    const QStringList paths = QFileDialog::getOpenFileNames(
         this, QStringLiteral("打开"),
         AppSettings::instance().lastOpenDir(),
         QStringLiteral("draw.io 文件 (*.drawio *.dio *.xml *.svg *.png *.pdf);;"
                        "所有文件 (*)"));
 
-    if (!path.isEmpty())
+    if (!paths.isEmpty())
     {
-        openFile(path);
+        openFiles(paths);
     }
+}
+
+void MainWindow::openFiles(const QStringList &paths)
+{
+    for (const QString &path : paths)
+    {
+        if (!path.isEmpty())
+        {
+            openFile(path);
+        }
+    }
+}
+
+void MainWindow::closeDocumentTab(int index)
+{
+    Document *document = documentAt(index);
+
+    if (document == nullptr)
+    {
+        return;
+    }
+
+    if (document != m_document)
+    {
+        switchToDocument(index);
+    }
+
+    if (!maybeSave())
+    {
+        return;
+    }
+
+    disconnect(document, nullptr, this, nullptr);
+
+    if (document == m_document)
+    {
+        m_document = nullptr;
+    }
+
+    m_documents.removeAt(index);
+    m_fileTabs->removeTab(index);
+    document->deleteLater();
+
+    if (m_documents.isEmpty())
+    {
+        close();
+        return;
+    }
+
+    const int next = qBound(0, m_fileTabs->currentIndex(), m_documents.size() - 1);
+    m_fileTabs->setCurrentIndex(next);
+    switchToDocument(next);
 }
 
 bool MainWindow::openFile(const QString &path)
@@ -1096,6 +1312,14 @@ bool MainWindow::openFile(const QString &path)
     if (!maybeSave())
     {
         return false;
+    }
+
+    const bool blank = m_document != nullptr && m_document->filePath().isEmpty()
+        && m_document->pageCount() == 1 && !m_document->isModified();
+
+    if (!blank)
+    {
+        switchToDocument(addDocumentTab(new Document(this)));
     }
 
     QString error;
@@ -1177,13 +1401,14 @@ void MainWindow::refreshRecentMenu()
 
 void MainWindow::newDocument()
 {
-    if (!maybeSave())
+    if (m_fileTabs == nullptr)
     {
         return;
     }
 
+    Document *document = new Document(this);
+    switchToDocument(addDocumentTab(document));
     m_view->undoStack()->clear();
-    m_document->newDocument();
     m_view->refreshFromDocument();
     m_view->fitToWindow();
     updateTitle();
@@ -1616,6 +1841,54 @@ void MainWindow::updateTabStyle()
                        "QTabBar::close-button:hover { background: rgba(127,127,127,0.25);"
                        " border-radius: 2px; }")
             .arg(closeIcon));
+
+    if (m_fileTabs != nullptr)
+    {
+        QWidget *container = m_fileTabs->parentWidget();
+
+        if (container != nullptr)
+        {
+            container->setStyleSheet(
+                dark ? QStringLiteral("#fileTabContainer { background: #1a1d21;"
+                                      " border-bottom: 1px solid #33383f; }")
+                     : QStringLiteral("#fileTabContainer { background: #f3f5f8;"
+                                      " border-bottom: 1px solid #dde2e8; }"));
+        }
+
+        const QString tabStyle = dark
+            ? QStringLiteral(
+                  "QTabBar::tab { background: #262b31; color: #9aa4b0;"
+                  " border: 1px solid #3a4048; border-bottom: none;"
+                  " border-top-left-radius: 8px; border-top-right-radius: 8px;"
+                  " padding: 8px 20px; margin: 6px 3px 0 0; min-width: 110px; }"
+                  "QTabBar::tab:selected { background: #1e2227; color: #8ab4f8;"
+                  " border-color: #4a5563; font-weight: 600; }"
+                  "QTabBar::tab:hover:!selected { background: #2d333a; color: #c7d0da; }"
+                  "QTabBar::close-button { image: url(%1); subcontrol-position: right;"
+                  " margin-left: 8px; }"
+                  "QTabBar::close-button:hover { background: rgba(255,255,255,0.12);"
+                  " border-radius: 3px; }"
+                  "#fileTabAdd { border: none; border-radius: 4px; color: #9aa4b0;"
+                  " font-size: 17px; margin-top: 5px; }"
+                  "#fileTabAdd:hover { background: #2d333a; color: #ffffff; }")
+            : QStringLiteral(
+                  "QTabBar::tab { background: #e9edf3; color: #5b6573;"
+                  " border: 1px solid #d8dee6; border-bottom: none;"
+                  " border-top-left-radius: 8px; border-top-right-radius: 8px;"
+                  " padding: 8px 20px; margin: 6px 3px 0 0; min-width: 110px; }"
+                  "QTabBar::tab:selected { background: #ffffff; color: #1a73e8;"
+                  " border-color: #d8dee6; font-weight: 600; }"
+                  "QTabBar::tab:hover:!selected { background: #dfe5ee; color: #374151; }"
+                  "QTabBar::close-button { image: url(%1); subcontrol-position: right;"
+                  " margin-left: 8px; }"
+                  "QTabBar::close-button:hover { background: rgba(0,0,0,0.08);"
+                  " border-radius: 3px; }"
+                  "#fileTabAdd { border: none; border-radius: 4px; color: #5b6573;"
+                  " font-size: 17px; margin-top: 5px; }"
+                  "#fileTabAdd:hover { background: #dfe5ee; color: #1a73e8; }");
+
+        m_fileTabs->setStyleSheet(tabStyle.arg(closeIcon));
+    }
 }
 
 // --- drafts --------------------------------------------------------------
@@ -1816,18 +2089,34 @@ bool MainWindow::maybeSave()
 
 void MainWindow::closeEvent(QCloseEvent *event)
 {
-    if (!maybeSave())
+    if (!m_documents.isEmpty())
     {
-        event->ignore();
-        return;
+        for (int index = 0; index < m_documents.size(); ++index)
+        {
+            switchToDocument(index);
+
+            if (!maybeSave())
+            {
+                event->ignore();
+                return;
+            }
+        }
     }
 
     AppSettings::instance().setWindowGeometry(saveGeometry());
     AppSettings::instance().setWindowState(saveState());
     AppSettings::instance().sync();
 
-    m_autoSaveTimer->stop();
-    watchCurrentFile(false);
+    if (m_autoSaveTimer != nullptr)
+    {
+        m_autoSaveTimer->stop();
+    }
+
+    if (m_document != nullptr)
+    {
+        watchCurrentFile(false);
+    }
+
     event->accept();
 }
 
@@ -1841,14 +2130,20 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *event)
 
 void MainWindow::dropEvent(QDropEvent *event)
 {
+    QStringList paths;
+
     for (const QUrl &url : event->mimeData()->urls())
     {
         if (url.isLocalFile())
         {
-            openFile(url.toLocalFile());
-            event->acceptProposedAction();
-            return;
+            paths.append(url.toLocalFile());
         }
+    }
+
+    if (!paths.isEmpty())
+    {
+        openFiles(paths);
+        event->acceptProposedAction();
     }
 }
 

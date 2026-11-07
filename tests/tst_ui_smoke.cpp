@@ -22,6 +22,8 @@
 #include <QTimer>
 #include <QUndoStack>
 #include <QListWidget>
+#include <QTabBar>
+#include <QTemporaryDir>
 #include <QtTest>
 
 using namespace dq;
@@ -388,6 +390,51 @@ private slots:
         }
 
         QCOMPARE(dialog.enabledCategories(), QStringList{QStringLiteral("__none__")});
+    }
+
+    void closingLastTabDoesNotCrash()
+    {
+        MainWindow window;
+        window.show();
+
+        auto *tabs = window.findChild<QTabBar *>(QStringLiteral("fileTabs"));
+        QVERIFY(tabs != nullptr);
+        QCOMPARE(tabs->count(), 1);
+
+        QVERIFY(QMetaObject::invokeMethod(tabs, "tabCloseRequested", Q_ARG(int, 0)));
+        QCoreApplication::processEvents();
+        QVERIFY(!window.isVisible());
+    }
+
+    void opensMultipleFilesInTabs()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+
+        const QString first = dir.filePath(QStringLiteral("first.drawio"));
+        const QString second = dir.filePath(QStringLiteral("second.drawio"));
+        const QString xml = QStringLiteral(
+            "<mxfile><diagram id=\"p\" name=\"p\"><mxGraphModel><root>"
+            "<mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+            "</root></mxGraphModel></diagram></mxfile>");
+
+        for (const QString &path : {first, second})
+        {
+            QFile file(path);
+            QVERIFY(file.open(QIODevice::WriteOnly));
+            file.write(xml.toUtf8());
+        }
+
+        MainWindow window;
+        window.show();
+        QVERIFY(window.openFile(first));
+        QVERIFY(window.openFile(second));
+
+        auto *tabs = window.findChild<QTabBar *>(QStringLiteral("fileTabs"));
+        QVERIFY(tabs != nullptr);
+        QCOMPARE(tabs->count(), 2);
+        QCOMPARE(QFileInfo(window.document()->filePath()).fileName(),
+                 QStringLiteral("second.drawio"));
     }
 
     void saveAndReopenDocument()
