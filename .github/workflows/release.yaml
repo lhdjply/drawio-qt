@@ -606,7 +606,7 @@ jobs:
             VERSION="${TAG#v}"                     # v0.1.0 → 0.1.0
 
             # 缺文件时给一句人话，别让 sed / awk 抛 No such file 这种难懂的报错
-            for f in VERSION debian/changelog; do
+            for f in VERSION CHANGELOG.md; do
               if [ ! -f "$f" ]; then
                 echo "::error::$f is missing from the repository root; cannot generate release notes (check that checkout ran)"
                 exit 1
@@ -626,18 +626,20 @@ jobs:
             echo "RELEASE_NAME=${{ env.APP_NAME }} $TAG" >> $GITHUB_ENV
             echo "TAG_NAME=$TAG" >> $GITHUB_ENV
 
-            # 取 changelog 首个版本节：从 "drawio-qt (版本)" 行之后（含）到下一个
-            # "drawio-qt (" 行之前，去掉首尾空行。
-            awk '
-              /^drawio-qt \(/ { if (started) exit; started = 1 }
-              started { lines[++n] = $0 }
+            # 取 "## [<版本>]" 到下一个 "## [" 之间的内容，并去掉首尾空行。
+            # 小节标题按 tag 写法带 v（## [v0.1.0]），这里 v 前缀可有可无，
+            # 免得 VERSION / changelog 的写法互换时匹配不到。
+            awk -v ver="$VERSION" '
+              $0 ~ "^## \\[v?" ver "\\]" { inside = 1; next }
+              inside && /^## \[/ { exit }
+              inside { lines[++n] = $0 }
               END {
                 first = 1
                 while (first <= n && lines[first] ~ /^[[:space:]]*$/) first++
                 while (n >= first && lines[n] ~ /^[[:space:]]*$/) n--
                 for (i = first; i <= n; ++i) print lines[i]
               }
-            ' debian/changelog > "$NOTES_FILE"
+            ' CHANGELOG.md > "$NOTES_FILE"
           else
             echo "PRERELEASE=-p" >> $GITHUB_ENV
             echo "RELEASE_NAME=Continuous build" >> $GITHUB_ENV
@@ -646,13 +648,17 @@ jobs:
             {
               echo "Generated automatically by CI for commit [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})."
               echo
-              echo "See [\`debian/changelog\`](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/debian/changelog) for the full changelog."
+              echo "See [\`CHANGELOG.md\`](https://github.com/${{ github.repository }}/blob/${{ github.sha }}/CHANGELOG.md) at the repository root for the full changelog."
             } > "$NOTES_FILE"
           fi
 
           # 正式版必须带更新日志：宁可让 job 失败，也不要发出一版没有说明的 Release
           if [ ! -s "$NOTES_FILE" ]; then
-            echo "::error::Could not extract the latest section from debian/changelog; add an entry before releasing"
+            if [ "${{ github.ref_type }}" == "tag" ]; then
+              echo "::error::CHANGELOG.md has no ## [v$VERSION] (or ## [$VERSION]) section; add one before releasing"
+            else
+              echo "::error::Release notes are empty"
+            fi
             exit 1
           fi
 
