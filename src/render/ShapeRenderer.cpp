@@ -67,7 +67,9 @@ QPen penFor(const Cell &cell)
         }
         else
         {
-            pen.setStyle(Qt::DashLine);
+            // A slightly wider gap than Qt's default keeps dashed outlines
+            // readable when the canvas is zoomed out.
+            pen.setDashPattern({4.0, 3.0});
         }
     }
 

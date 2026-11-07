@@ -24,7 +24,7 @@ QPen edgePen(const Cell &edge)
 
     if (edge.styleFlag(QStringLiteral("dashed")))
     {
-        pen.setStyle(Qt::DashLine);
+        pen.setDashPattern({4.0, 3.0});
     }
 
     return pen;
