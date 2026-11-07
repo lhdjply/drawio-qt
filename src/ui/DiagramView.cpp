@@ -655,7 +655,7 @@ Cell *DiagramView::cellAt(const QPointF &scenePoint, bool includeEdges) const
             continue;
         }
 
-        if (cell->absoluteRect().contains(scenePoint))
+        if (cell->visualRect().contains(scenePoint))
         {
             return cell;
         }
@@ -783,7 +783,7 @@ QRectF DiagramView::selectionBounds() const
         }
         else
         {
-            rect = cell->absoluteRect();
+            rect = cell->visualRect();
         }
 
         bounds = first ? rect : bounds.united(rect);

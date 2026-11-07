@@ -602,6 +602,7 @@ void paint(QPainter &painter, const Cell &cell)
 
     painter.translate(cell.absolutePosition());
 
+
     const double opacity = qBound(0.0, cell.styleNumber(QStringLiteral("opacity"), 100.0), 100.0);
     painter.setOpacity(opacity / 100.0);
 

@@ -3,6 +3,7 @@
 #include "core/Page.h"
 
 #include <QRegularExpression>
+#include <QTransform>
 
 namespace dq {
 
@@ -81,6 +82,34 @@ QRectF Cell::absoluteRect() const
     }
 
     return QRectF(absolutePosition(), geometry.size());
+}
+
+double Cell::effectiveRotation() const
+{
+    if (!qFuzzyIsNull(rotation))
+    {
+        return rotation;
+    }
+
+    return styleNumber(QStringLiteral("rotation"), 0.0);
+}
+
+QRectF Cell::visualRect() const
+{
+    const QRectF rect = absoluteRect();
+    const double angle = effectiveRotation();
+
+    if (qFuzzyIsNull(angle))
+    {
+        return rect;
+    }
+
+    QTransform transform;
+    transform.translate(rect.center().x(), rect.center().y());
+    transform.rotate(angle);
+    transform.translate(-rect.center().x(), -rect.center().y());
+
+    return transform.mapRect(rect);
 }
 
 QPointF Cell::center() const

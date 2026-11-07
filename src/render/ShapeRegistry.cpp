@@ -765,7 +765,8 @@ bool isLineArt(const Cell &cell)
 {
     const QString key = shapeKey(cell);
     return key == QLatin1String("umlactor") || key == QLatin1String("actor")
-        || key == QLatin1String("line") || key == QLatin1String("connector");
+        || key == QLatin1String("line") || key == QLatin1String("connector")
+        || key.startsWith(QLatin1String("mxgraph.electrical."));
 }
 
 bool isContainerShape(const Cell &cell)
@@ -1833,46 +1834,34 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("mxgraph.electrical.inductors.inductor"))
     {
-        const double rotation = Style::number(style, QStringLiteral("rotation"), 0.0);
-
-        if (qAbs(qAbs(rotation) - 90.0) < 1.0)
-        {
-            // The cell is a tall thin box rotated by ±90; draw the coil across
-            // its height so the rotation turns it into a vertical coil.
-            const double length = h;
-            const double left = (w - length) / 2.0;
-            const double cy = h / 2.0;
-            const double bump = length * 0.24;
-
-            path.moveTo(QPointF(x + left, y + cy));
-            path.lineTo(QPointF(x + left + length * 0.04, y + cy));
-
-            for (int i = 0; i < 4; ++i)
-            {
-                path.arcTo(QRectF(x + left + length * 0.04 + i * bump,
-                                  y + cy - bump / 2.0, bump, bump),
-                           180, -180);
-            }
-
-            path.moveTo(QPointF(x + left + length * 0.96, y + cy));
-            path.lineTo(QPointF(x + left + length, y + cy));
-            return path;
-        }
-
         const double cy = h / 2.0;
-        const double bump = w * 0.2;
+        const double lead = w * 0.04;
+        const double length = w * 0.92;
+        const double spacing = length / 4.0;
+        const double bulge = spacing * 1.35;
+
         path.moveTo(point(0, cy));
-        path.lineTo(point(w * 0.1, cy));
+        path.lineTo(point(lead, cy));
 
         for (int i = 0; i < 4; ++i)
         {
-            path.arcTo(QRectF(x + w * 0.1 + i * bump, y + cy - bump / 2.0,
-                              bump, bump),
-                       180, -180);
+            const double x0 = x + lead + i * spacing;
+            path.moveTo(QPointF(x0, y + cy));
+            path.cubicTo(QPointF(x0 + spacing * 0.25, y + cy - bulge),
+                         QPointF(x0 + spacing * 0.75, y + cy - bulge),
+                         QPointF(x0 + spacing, y + cy));
         }
 
-        path.moveTo(point(w * 0.9, cy));
+        path.moveTo(point(w * 0.96, cy));
         path.lineTo(point(w, cy));
+
+        // Inlet/outlet stubs on opposite sides of the coil. After the ±90°
+        // rotation they become the short horizontal leads at the top and
+        // bottom of the coil, matching draw.io's inductor symbol.
+        path.moveTo(point(0, cy));
+        path.lineTo(point(0, h));
+        path.moveTo(point(w, cy));
+        path.lineTo(point(w, h));
         return path;
     }
 

@@ -7,6 +7,7 @@
 #include <QPainterPath>
 #include <QPolygonF>
 #include <QtMath>
+#include <QTransform>
 
 #include <algorithm>
 #include <limits>
@@ -74,13 +75,25 @@ QPointF axisDirection(const QPointF &vector)
 QPointF perimeterPoint(const Cell &cell, double exitX, double exitY)
 {
     const QRectF rect = cell.absoluteRect();
-    return QPointF(rect.left() + rect.width() * exitX,
-                   rect.top() + rect.height() * exitY);
+    QPointF point(rect.left() + rect.width() * exitX,
+                  rect.top() + rect.height() * exitY);
+    const double angle = cell.effectiveRotation();
+
+    if (!qFuzzyIsNull(angle))
+    {
+        QTransform transform;
+        transform.translate(rect.center().x(), rect.center().y());
+        transform.rotate(angle);
+        transform.translate(-rect.center().x(), -rect.center().y());
+        point = transform.map(point);
+    }
+
+    return point;
 }
 
 QPointF shapeIntersection(const Cell &cell, const QPointF &toward, QPointF *direction)
 {
-    const QRectF rect = cell.absoluteRect();
+    const QRectF rect = cell.visualRect();
     const QPointF center = rect.center();
 
     if (rect.width() <= 0.0 || rect.height() <= 0.0)
@@ -280,6 +293,28 @@ RoutedEdge route(const Page &page, const Cell &edge)
         {
             start = perimeterPoint(*result.sourceCell, exitX.toDouble(), exitY.toDouble());
             sourceDir = axisDirection(start - result.sourceCell->center());
+
+            // Explicit side constraints dominate: exitX=1 means the wire leaves
+            // to the right even when the cell itself is rotated.
+            const double ex = exitX.toDouble();
+            const double ey = exitY.toDouble();
+
+            if (qFuzzyCompare(ex + 1.0, 1.0))
+            {
+                sourceDir = QPointF(-1, 0);
+            }
+            else if (qFuzzyCompare(ex, 1.0))
+            {
+                sourceDir = QPointF(1, 0);
+            }
+            else if (qFuzzyCompare(ey + 1.0, 1.0))
+            {
+                sourceDir = QPointF(0, -1);
+            }
+            else if (qFuzzyCompare(ey, 1.0))
+            {
+                sourceDir = QPointF(0, 1);
+            }
         }
         else
         {
@@ -312,6 +347,36 @@ RoutedEdge route(const Page &page, const Cell &edge)
 
     result.sourceDirection = sourceDir;
     result.targetDirection = targetDir;
+
+    // Free floating edges already store the exact orthogonal polyline. Using
+    // it verbatim keeps the wire lengths identical to draw.io instead of
+    // re-routing and shifting the segments.
+    if (result.sourceCell == nullptr && result.targetCell == nullptr)
+    {
+        QVector<QPointF> given;
+
+        if (!edge.sourcePoint.isNull())
+        {
+            given.append(edge.sourcePoint);
+        }
+
+        given.append(edge.waypoints);
+
+        if (!edge.targetPoint.isNull())
+        {
+            given.append(edge.targetPoint);
+        }
+
+        if (given.size() >= 2)
+        {
+            result.points = simplify(given);
+
+            if (result.points.size() >= 2)
+            {
+                return result;
+            }
+        }
+    }
 
     QVector<QPointF> points;
     points.append(start);

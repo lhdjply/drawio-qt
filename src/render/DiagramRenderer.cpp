@@ -78,13 +78,14 @@ QVector<Cell *> paintOrder(const Page &page)
     QVector<Cell *> result;
     result.reserve(vertices.size() + edges.size());
 
-    // Draw groups before their children, then edges above the shapes.
-    for (Cell *cell : vertices)
+    // draw.io paints edges below vertices, so a filled symbol (for example an
+    // inductor) hides the wire that passes behind it.
+    for (Cell *cell : edges)
     {
         result.append(cell);
     }
 
-    for (Cell *cell : edges)
+    for (Cell *cell : vertices)
     {
         result.append(cell);
     }
@@ -177,7 +178,7 @@ QRectF DiagramRenderer::contentBounds(const Page &page)
 
         if (cell->isVertex())
         {
-            bounds = cell->absoluteRect();
+            bounds = cell->visualRect();
             const double stroke = qMax(1.0, cell->styleNumber(QStringLiteral("strokeWidth"), 1.0));
             bounds = bounds.adjusted(-stroke, -stroke, stroke, stroke);
 
@@ -265,17 +266,17 @@ void DiagramRenderer::paint(QPainter &painter, const Page &page, const RenderOpt
 
     for (Cell *cell : cells)
     {
-        if (cell->isVertex())
+        if (cell->isEdge())
         {
-            ShapeRenderer::paint(painter, *cell);
+            EdgeRenderer::paint(painter, page, *cell);
         }
     }
 
     for (Cell *cell : cells)
     {
-        if (cell->isEdge())
+        if (cell->isVertex())
         {
-            EdgeRenderer::paint(painter, page, *cell);
+            ShapeRenderer::paint(painter, *cell);
         }
     }
 

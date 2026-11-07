@@ -66,8 +66,12 @@ public:
     bool hasFill() const;
     bool hasStroke() const;
 
-    /// Vertex rectangle in the page coordinate system.
+    /// Vertex rectangle in the page coordinate system (unrotated).
     QRectF absoluteRect() const;
+    /// Axis aligned bounds after applying the cell's rotation (geometry or
+    /// style). Connection routing and hit testing use these bounds.
+    QRectF visualRect() const;
+    double effectiveRotation() const;
     /// Top-left of the cell in the page coordinate system.
     QPointF absolutePosition() const;
     QPointF center() const;

@@ -300,7 +300,7 @@ QRectF Page::contentBounds() const
             continue;
         }
 
-        QRectF rect = cell->absoluteRect();
+        QRectF rect = cell->visualRect();
         const double stroke = cell->styleNumber(QStringLiteral("strokeWidth"), 1.0);
         const double margin = std::max(stroke, 1.0) / 2.0 + (cell->styleFlag(QStringLiteral("shadow")) ? 3.0 : 0.0);
         rect = rect.adjusted(-margin, -margin, margin, margin);
@@ -324,7 +324,7 @@ QRectF Page::boundsForCells(const QVector<Cell *> &cells) const
             continue;
         }
 
-        const QRectF rect = cell->absoluteRect();
+        const QRectF rect = cell->visualRect();
         result = first ? rect : result.united(rect);
         first = false;
     }
