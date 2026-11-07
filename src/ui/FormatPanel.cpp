@@ -439,6 +439,11 @@ void FormatPanel::buildUi()
     m_edgeStyle->addItem(QStringLiteral("实体关系"), QStringLiteral("entityRelationEdgeStyle"));
     edgeForm->addRow(QStringLiteral("线路"), m_edgeStyle);
 
+    m_arrowShape = new QComboBox(edgeGroup);
+    m_arrowShape->addItem(QStringLiteral("普通箭头"), QString());
+    m_arrowShape->addItem(QStringLiteral("块状箭头（flexArrow）"), QStringLiteral("flexArrow"));
+    edgeForm->addRow(QStringLiteral("箭头形状"), m_arrowShape);
+
     m_startArrow = new QComboBox(edgeGroup);
     m_endArrow = new QComboBox(edgeGroup);
 
@@ -499,6 +504,22 @@ void FormatPanel::buildUi()
                                m_endArrow->currentData().toString());
         }
     });
+    connect(m_arrowShape, &QComboBox::currentIndexChanged, this, [this](int)
+    {
+        if (m_updating)
+        {
+            return;
+        }
+
+        if (m_arrowShape->currentData().toString() == QLatin1String("flexArrow"))
+        {
+            m_view->applyStyle(QStringLiteral("shape"), QStringLiteral("flexArrow"));
+        }
+        else
+        {
+            m_view->clearStyle(QStringLiteral("shape"));
+        }
+    });
     connect(m_startSize, qOverload<int>(&QSpinBox::valueChanged), this, [this](int value)
     {
         if (!m_updating)
@@ -544,6 +565,7 @@ void FormatPanel::buildUi()
     m_fontSize->setValue(11);
     m_align->setCurrentIndex(1);
     m_verticalAlign->setCurrentIndex(1);
+    m_arrowShape->setCurrentIndex(0);
     m_startArrow->setCurrentIndex(0);
     m_endArrow->setCurrentIndex(1);
     m_startSize->setValue(6);
@@ -669,6 +691,10 @@ void FormatPanel::updateFromSelection()
 
     m_edgeStyle->setCurrentIndex(edgeIndex);
 
+    const bool flexArrow = cell->styleValue(QStringLiteral("shape")).compare(
+        QLatin1String("flexArrow"), Qt::CaseInsensitive) == 0;
+    m_arrowShape->setCurrentIndex(flexArrow ? 1 : 0);
+
     const QString startArrow = cell->styleValue(QStringLiteral("startArrow"), QStringLiteral("none"));
     const QString endArrow = cell->styleValue(QStringLiteral("endArrow"), QStringLiteral("classic"));
     m_startArrow->setCurrentIndex(qMax(0, m_startArrow->findData(startArrow)));
@@ -751,6 +777,7 @@ void FormatPanel::updateEnabled(bool hasSelection, bool hasVertex, bool hasEdge)
     m_underline->setEnabled(hasSelection);
 
     m_edgeStyle->setEnabled(hasEdge);
+    m_arrowShape->setEnabled(hasEdge);
     m_startArrow->setEnabled(hasEdge);
     m_endArrow->setEnabled(hasEdge);
     m_startSize->setEnabled(hasEdge);
