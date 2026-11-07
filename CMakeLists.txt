@@ -56,7 +56,10 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_AUTOMOC ON)
 set(CMAKE_AUTORCC ON)
-set(CMAKE_INCLUDE_CURRENT_DIR ON)
+# 不要开 CMAKE_INCLUDE_CURRENT_DIR：它把源码根目录加进头文件搜索路径，
+# Windows 的文件系统大小写不敏感，Qt 头文件链里的 #include <version>
+# 会命中根目录的 VERSION 文件（内容 v0.1.0）被当 C++ 编译直接报错。
+# 目标自己的 src/ 路径由下面的 target_include_directories 显式给出。
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 # ---------------------------------------------------------------------------
