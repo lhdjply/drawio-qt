@@ -37,11 +37,14 @@ QPointF normalized(const QPointF &vector)
 }
 
 void drawArrowHead(QPainter &painter, const QPointF &tip, const QPointF &direction,
-                   const QString &type, const QColor &color, double size)
+                   const QString &type, const QColor &color, double size,
+                   double strokeWidth = 1.0)
 {
     const QPointF dir = normalized(direction);
     const QPointF normal(-dir.y(), dir.x());
-    const QPointF back = tip - dir * size;
+    // mxMarker.createArrow adds the stroke width to the requested size.
+    const double effective = size + qMax(0.0, strokeWidth);
+    const QPointF back = tip - dir * effective;
 
     painter.save();
     painter.setPen(Qt::NoPen);
@@ -56,39 +59,52 @@ void drawArrowHead(QPainter &painter, const QPointF &tip, const QPointF &directi
     if (type == QLatin1String("open") || type == QLatin1String("openasync"))
     {
         QPen pen(color);
-        pen.setWidthF(qMax(1.0, size / 5.0));
+        pen.setWidthF(qMax(1.0, strokeWidth));
         pen.setCapStyle(Qt::RoundCap);
         painter.setPen(pen);
         painter.setBrush(Qt::NoBrush);
-        painter.drawLine(tip, back + normal * size * 0.55);
-        painter.drawLine(tip, back - normal * size * 0.55);
+        painter.drawLine(tip, back + normal * effective * 0.55);
+        painter.drawLine(tip, back - normal * effective * 0.55);
         painter.restore();
         return;
     }
 
     if (type == QLatin1String("oval"))
     {
-        painter.drawEllipse(tip - dir * size * 0.5, size * 0.45, size * 0.45);
+        painter.drawEllipse(tip - dir * effective * 0.5,
+                            effective * 0.45, effective * 0.45);
         painter.restore();
         return;
     }
 
     if (type == QLatin1String("diamond") || type == QLatin1String("diamondthin"))
     {
-        const QPointF middle = tip - dir * size * 0.5;
-        const double halfWidth = size * (type == QLatin1String("diamondthin") ? 0.28 : 0.42);
+        const QPointF middle = tip - dir * effective * 0.5;
+        const double halfWidth = effective * (type == QLatin1String("diamondthin") ? 0.28 : 0.42);
         QPolygonF polygon;
         polygon << tip << middle + normal * halfWidth
-                << tip - dir * size << middle - normal * halfWidth;
+                << tip - dir * effective << middle - normal * halfWidth;
         painter.drawPolygon(polygon);
         painter.restore();
         return;
     }
 
-    // classic, block, async and unknown types.
-    const double halfWidth = size * (type == QLatin1String("block") ? 0.5 : 0.4);
+    if (type == QLatin1String("block") || type == QLatin1String("blockthin"))
+    {
+        const double halfWidth = effective * (type == QLatin1String("blockthin") ? 1.0 / 3.0 : 0.5);
+        QPolygonF polygon;
+        polygon << tip << back + normal * halfWidth << back - normal * halfWidth;
+        painter.drawPolygon(polygon);
+        painter.restore();
+        return;
+    }
+
+    // classic: a concave triangle with a 3/4 notch on the back edge.
+    const double widthFactor = type == QLatin1String("classicthin") ? 3.0 : 2.0;
+    const double halfWidth = effective / widthFactor;
+    const QPointF notch = tip - dir * effective * 0.75;
     QPolygonF polygon;
-    polygon << tip << back + normal * halfWidth << back - normal * halfWidth;
+    polygon << tip << back + normal * halfWidth << notch << back - normal * halfWidth;
     painter.drawPolygon(polygon);
     painter.restore();
 }
@@ -365,8 +381,9 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
     // Arrow heads use the adjacent segment orientation.
     const QPointF endDirection = route.points.last() - route.points.at(route.points.size() - 2);
     const QString endArrow = edge.styleValue(QStringLiteral("endArrow"), QStringLiteral("classic"));
+    const double strokeWidth = edge.styleNumber(QStringLiteral("strokeWidth"), 1.0);
     drawArrowHead(painter, route.points.last(), endDirection, endArrow, color,
-                  arrowSize(edge, QStringLiteral("end")));
+                  arrowSize(edge, QStringLiteral("end")), strokeWidth);
 
     const QString startArrow = edge.styleValue(QStringLiteral("startArrow"), QStringLiteral("none"));
 
@@ -374,7 +391,7 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
     {
         const QPointF startDirection = route.points.first() - route.points.at(1);
         drawArrowHead(painter, route.points.first(), startDirection, startArrow, color,
-                      arrowSize(edge, QStringLiteral("start")));
+                      arrowSize(edge, QStringLiteral("start")), strokeWidth);
     }
 
     painter.restore();
