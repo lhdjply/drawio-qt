@@ -1,6 +1,8 @@
 #include "core/Document.h"
 #include "core/Page.h"
+#include "render/ShapeRegistry.h"
 
+#include <QPainterPath>
 #include <QtTest>
 
 using namespace dq;
@@ -126,6 +128,30 @@ private slots:
         QVERIFY(text.contains(QLatin1Char('\n')));
         QVERIFY(!text.contains(QLatin1Char('<')));
         QVERIFY(!text.contains(QStringLiteral("style=")));
+    }
+
+    void drawioElectricalShapesResolve()
+    {
+        const QPainterPath waypoint = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=waypoint;size=6;strokeWidth=2;")),
+            QRectF(0, 0, 14, 14));
+        QVERIFY(waypoint.boundingRect().width() < 10.0);
+
+        const QPainterPath inductor = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.electrical.inductors.inductor;")),
+            QRectF(0, 0, 60, 20));
+        QVERIFY(inductor.elementCount() > 10);
+
+        const QPainterPath resistor = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.electrical.resistors.resistor_1;")),
+            QRectF(0, 0, 60, 20));
+        QVERIFY(resistor.elementCount() > 5);
+
+        const QPainterPath battery = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral(
+                "shape=mxgraph.electrical.miscellaneous.batteryStack;")),
+            QRectF(0, 0, 60, 40));
+        QVERIFY(battery.elementCount() > 5);
     }
 
     void duplicateShapeKeepsAttachedEdgeInsideSelection()

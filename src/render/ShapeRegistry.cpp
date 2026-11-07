@@ -1809,6 +1809,67 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
+    // --- draw.io electrical library aliases ------------------------------
+    if (key == QLatin1String("waypoint"))
+    {
+        // draw.io's waypoint is a small filled junction dot whose diameter is
+        // the "size" style value, not the full cell bounds.
+        const double diameter = qBound(2.0, Style::number(style, QStringLiteral("size"), 6.0), 40.0);
+        path.addEllipse(rect.center(), diameter / 2.0, diameter / 2.0);
+        return path;
+    }
+
+    if (key == QLatin1String("mxgraph.electrical.resistors.resistor_1"))
+    {
+        // IEC resistor: a rectangle with two leads.
+        const double cy = h / 2.0;
+        path.moveTo(point(0, cy));
+        path.lineTo(point(w * 0.2, cy));
+        path.addRect(QRectF(x + w * 0.2, y + h * 0.28, w * 0.6, h * 0.44));
+        path.moveTo(point(w * 0.8, cy));
+        path.lineTo(point(w, cy));
+        return path;
+    }
+
+    if (key == QLatin1String("mxgraph.electrical.inductors.inductor"))
+    {
+        const double cy = h / 2.0;
+        const double bump = w * 0.2;
+        path.moveTo(point(0, cy));
+        path.lineTo(point(w * 0.1, cy));
+
+        for (int i = 0; i < 4; ++i)
+        {
+            path.arcTo(QRectF(x + w * 0.1 + i * bump, y + cy - bump / 2.0,
+                              bump, bump),
+                       180, -180);
+        }
+
+        path.moveTo(point(w * 0.9, cy));
+        path.lineTo(point(w, cy));
+        return path;
+    }
+
+    if (key == QLatin1String("mxgraph.electrical.miscellaneous.batterystack"))
+    {
+        const double cy = h / 2.0;
+        path.moveTo(point(0, cy));
+        path.lineTo(point(w * 0.12, cy));
+
+        for (int i = 0; i < 3; ++i)
+        {
+            const double plateX = w * (0.18 + i * 0.24);
+            path.moveTo(point(plateX, h * 0.22));
+            path.lineTo(point(plateX, h * 0.78));
+            path.moveTo(point(plateX + w * 0.08, h * 0.35));
+            path.lineTo(point(plateX + w * 0.08, h * 0.65));
+        }
+
+        path.moveTo(point(w * 0.8, cy));
+        path.lineTo(point(w, cy));
+        return path;
+    }
+
     if (key == QLatin1String("text") || key == QLatin1String("label")
         || key == QLatin1String("image"))
     {

@@ -221,6 +221,59 @@ QRectF labelRect(const Cell &cell, const QRectF &bounds)
     return rect;
 }
 
+void applyInlineFont(const QString &html, QFont &font)
+{
+    static const QRegularExpression sizePattern(
+        QStringLiteral("font-size\\s*:\\s*([0-9.]+)\\s*(pt|px)"),
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression familyPattern(
+        QStringLiteral("font-family\\s*:\\s*([^;\"']+)"),
+        QRegularExpression::CaseInsensitiveOption);
+
+    QRegularExpressionMatch lastSize;
+
+    for (auto it = sizePattern.globalMatch(html); it.hasNext();)
+    {
+        lastSize = it.next();
+    }
+
+    if (lastSize.hasMatch())
+    {
+        double size = lastSize.captured(1).toDouble();
+
+        // Word writes font sizes in points. draw.io's HTML labels use a
+        // slightly smaller pixel size than a strict 96 dpi conversion, which
+        // lets an 11pt line of nine CJK characters fit in a 120px cell.
+        if (lastSize.captured(2).compare(QLatin1String("pt"), Qt::CaseInsensitive) == 0)
+        {
+            size *= 1.15;
+        }
+        if (size > 0.5 && size < 500.0)
+        {
+            font.setPixelSize(qRound(size));
+        }
+    }
+
+    QRegularExpressionMatch lastFamily;
+
+    for (auto it = familyPattern.globalMatch(html); it.hasNext();)
+    {
+        lastFamily = it.next();
+    }
+
+    if (lastFamily.hasMatch())
+    {
+        QString family = lastFamily.captured(1).trimmed();
+        family.remove(QLatin1Char('"'));
+        family.remove(QLatin1Char('\''));
+
+        if (!family.isEmpty())
+        {
+            font.setFamily(family);
+        }
+    }
+}
+
 void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawBackground)
 {
     if (cell.value.isEmpty())
@@ -248,6 +301,7 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
     }
 
     QFont font = fontFor(cell);
+    applyInlineFont(cell.value, font);
     painter.setFont(font);
     painter.setPen(textColor(cell));
 
@@ -414,7 +468,7 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
         return;
     }
 
-    double lineHeight = cell.styleNumber(QStringLiteral("fontSize"), 11.0) * 1.05;
+    double lineHeight = qMax(1, font.pixelSize()) * 1.05;
 
     if (lineHeight <= 0.0)
     {
@@ -519,10 +573,17 @@ void paint(QPainter &painter, const Cell &cell)
     const QRectF local(QPointF(0, 0), cell.geometry.size());
     const QPointF center = cell.absolutePosition() + local.center();
 
-    if (cell.rotation != 0.0)
+    double rotation = cell.rotation;
+
+    if (qFuzzyIsNull(rotation))
+    {
+        rotation = cell.styleNumber(QStringLiteral("rotation"), 0.0);
+    }
+
+    if (!qFuzzyIsNull(rotation))
     {
         painter.translate(center);
-        painter.rotate(cell.rotation);
+        painter.rotate(rotation);
         painter.translate(-center);
     }
 
@@ -532,8 +593,14 @@ void paint(QPainter &painter, const Cell &cell)
     painter.setOpacity(opacity / 100.0);
 
     const QPainterPath path = ShapeRegistry::pathFor(cell);
-    const QColor fill = fillColor(cell);
+    QColor fill = fillColor(cell);
     const QColor stroke = strokeColor(cell);
+    const QString cellShape = cell.styleValue(QStringLiteral("shape")).toLower();
+
+    if (cellShape == QLatin1String("waypoint"))
+    {
+        fill = stroke;
+    }
     const bool textShape = ShapeRegistry::isTextShape(cell);
     const bool imageShape = ShapeRegistry::isImageShape(cell);
     const bool lineArt = ShapeRegistry::isLineArt(cell);

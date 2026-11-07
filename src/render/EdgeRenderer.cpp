@@ -95,7 +95,7 @@ void drawArrowHead(QPainter &painter, const QPointF &tip, const QPointF &directi
 
 double arrowSize(const Cell &edge, const QString &prefix)
 {
-    const double size = edge.styleNumber(prefix + QStringLiteral("Size"), 8.0);
+    const double size = edge.styleNumber(prefix + QStringLiteral("Size"), 6.0);
     return qBound(3.0, size, 40.0);
 }
 
