@@ -1,4 +1,4 @@
-drawio-qt (1.0.0) unstable; urgency=medium
+drawio-qt (0.1.0) unstable; urgency=medium
 
   * Initial release.
   * 原生 Qt6/C++ 重写的 draw.io 桌面版：打开与保存 draw.io / mxGraph
