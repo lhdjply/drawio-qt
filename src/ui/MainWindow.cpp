@@ -816,6 +816,73 @@ void MainWindow::createMenus()
 
 
     QMenu *arrangeMenu = menuBar()->addMenu(QStringLiteral("排列(&A)"));
+
+    QMenu *alignMenu = arrangeMenu->addMenu(QStringLiteral("对齐"));
+    const QVector<QPair<QString, DiagramView::Align>> alignEntries = {
+        {QStringLiteral("左对齐"), DiagramView::Align::Left},
+        {QStringLiteral("水平居中"), DiagramView::Align::CenterHorizontal},
+        {QStringLiteral("右对齐"), DiagramView::Align::Right},
+        {QStringLiteral("上对齐"), DiagramView::Align::Top},
+        {QStringLiteral("垂直居中"), DiagramView::Align::CenterVertical},
+        {QStringLiteral("下对齐"), DiagramView::Align::Bottom},
+    };
+
+    for (int i = 0; i < alignEntries.size(); ++i)
+    {
+        if (i == 3)
+        {
+            alignMenu->addSeparator();
+        }
+
+        const DiagramView::Align align = alignEntries.at(i).second;
+        QAction *action = alignMenu->addAction(alignEntries.at(i).first);
+        connect(action, &QAction::triggered, this, [this, align]()
+        {
+            m_view->alignSelection(align);
+        });
+        m_arrangeSelectionActions.append(action);
+    }
+
+    QMenu *layoutMenu = arrangeMenu->addMenu(QStringLiteral("布局"));
+
+    QAction *distributeH = layoutMenu->addAction(QStringLiteral("水平分布"));
+    connect(distributeH, &QAction::triggered, this, [this]()
+    {
+        m_view->distributeHorizontally();
+    });
+    m_arrangeSelectionActions.append(distributeH);
+
+    QAction *distributeV = layoutMenu->addAction(QStringLiteral("垂直分布"));
+    connect(distributeV, &QAction::triggered, this, [this]()
+    {
+        m_view->distributeVertically();
+    });
+    m_arrangeSelectionActions.append(distributeV);
+
+    layoutMenu->addSeparator();
+
+    QAction *sameWidth = layoutMenu->addAction(QStringLiteral("相同宽度"));
+    connect(sameWidth, &QAction::triggered, this, [this]()
+    {
+        m_view->resizeSelection(DiagramView::SizeAction::SameWidth);
+    });
+    m_arrangeSelectionActions.append(sameWidth);
+
+    QAction *sameHeight = layoutMenu->addAction(QStringLiteral("相同高度"));
+    connect(sameHeight, &QAction::triggered, this, [this]()
+    {
+        m_view->resizeSelection(DiagramView::SizeAction::SameHeight);
+    });
+    m_arrangeSelectionActions.append(sameHeight);
+
+    QAction *sameSize = layoutMenu->addAction(QStringLiteral("相同大小"));
+    connect(sameSize, &QAction::triggered, this, [this]()
+    {
+        m_view->resizeSelection(DiagramView::SizeAction::SameSize);
+    });
+    m_arrangeSelectionActions.append(sameSize);
+
+    arrangeMenu->addSeparator();
     arrangeMenu->addAction(m_frontAction);
     arrangeMenu->addAction(m_backAction);
     arrangeMenu->addAction(m_forwardAction);
@@ -961,6 +1028,11 @@ void MainWindow::updateActions()
 
     m_groupAction->setEnabled(selectedCount >= 2);
     m_ungroupAction->setEnabled(hasSelection);
+
+    for (QAction *action : m_arrangeSelectionActions)
+    {
+        action->setEnabled(selectedCount >= 2);
+    }
 
     m_connectorAction->setEnabled(selectedCount >= 2);
 }

@@ -15,7 +15,6 @@
 #include <QLabel>
 #include <QMenu>
 #include <QPainter>
-#include <QPushButton>
 #include <QScrollArea>
 #include <QSignalBlocker>
 #include <QSpinBox>
@@ -38,14 +37,6 @@ QToolButton *makeToggle(const QString &text, const QString &tooltip, QWidget *pa
     return button;
 }
 
-QPushButton *makeSmallButton(const QString &text, const QString &tooltip, QWidget *parent)
-{
-    auto *button = new QPushButton(text, parent);
-    button->setToolTip(tooltip);
-    button->setMinimumHeight(24);
-    button->setFlat(false);
-    return button;
-}
 
 } // namespace
 
@@ -490,114 +481,6 @@ void FormatPanel::buildUi()
     });
 
     // --- arrange ----------------------------------------------------------
-    auto *arrangeGroup = new QGroupBox(QStringLiteral("排列"), content);
-    arrangeGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
-    auto *arrangeLayout = new QVBoxLayout(arrangeGroup);
-    arrangeLayout->setSpacing(4);
-
-    auto *alignGrid = new QGridLayout();
-    alignGrid->setSpacing(2);
-
-    const QVector<QPair<QString, DiagramView::Align>> aligns = {
-        {QStringLiteral("左"), DiagramView::Align::Left},
-        {QStringLiteral("中"), DiagramView::Align::CenterHorizontal},
-        {QStringLiteral("右"), DiagramView::Align::Right},
-        {QStringLiteral("上"), DiagramView::Align::Top},
-        {QStringLiteral("中"), DiagramView::Align::CenterVertical},
-        {QStringLiteral("下"), DiagramView::Align::Bottom},
-    };
-
-    for (int i = 0; i < aligns.size(); ++i)
-    {
-        auto *button = makeSmallButton(aligns.at(i).first, QStringLiteral("对齐所选对象"),
-                                       arrangeGroup);
-        alignGrid->addWidget(button, i / 3, i % 3);
-        const DiagramView::Align align = aligns.at(i).second;
-        connect(button, &QPushButton::clicked, this, [this, align]()
-        {
-            m_view->alignSelection(align);
-        });
-    }
-
-    arrangeLayout->addLayout(alignGrid);
-
-    auto *distributeRow = new QHBoxLayout();
-    auto *distributeH = makeSmallButton(QStringLiteral("水平分布"), QStringLiteral("等间距分布"),
-                                        arrangeGroup);
-    auto *distributeV = makeSmallButton(QStringLiteral("垂直分布"), QStringLiteral("等间距分布"),
-                                        arrangeGroup);
-    distributeRow->addWidget(distributeH);
-    distributeRow->addWidget(distributeV);
-    arrangeLayout->addLayout(distributeRow);
-
-    connect(distributeH, &QPushButton::clicked, this, [this]()
-    {
-        m_view->distributeHorizontally();
-    });
-    connect(distributeV, &QPushButton::clicked, this, [this]()
-    {
-        m_view->distributeVertically();
-    });
-
-    auto *sizeRow = new QHBoxLayout();
-    auto *sameWidth = makeSmallButton(QStringLiteral("同宽"), QStringLiteral("统一宽度"),
-                                      arrangeGroup);
-    auto *sameHeight = makeSmallButton(QStringLiteral("同高"), QStringLiteral("统一高度"),
-                                       arrangeGroup);
-    auto *sameSize = makeSmallButton(QStringLiteral("同尺寸"), QStringLiteral("统一大小"),
-                                     arrangeGroup);
-    sizeRow->addWidget(sameWidth);
-    sizeRow->addWidget(sameHeight);
-    sizeRow->addWidget(sameSize);
-    arrangeLayout->addLayout(sizeRow);
-
-    connect(sameWidth, &QPushButton::clicked, this, [this]()
-    {
-        m_view->resizeSelection(DiagramView::SizeAction::SameWidth);
-    });
-    connect(sameHeight, &QPushButton::clicked, this, [this]()
-    {
-        m_view->resizeSelection(DiagramView::SizeAction::SameHeight);
-    });
-    connect(sameSize, &QPushButton::clicked, this, [this]()
-    {
-        m_view->resizeSelection(DiagramView::SizeAction::SameSize);
-    });
-
-    auto *zRow = new QHBoxLayout();
-    auto *front = makeSmallButton(QStringLiteral("置顶"), QStringLiteral("置于顶层"), arrangeGroup);
-    auto *back = makeSmallButton(QStringLiteral("置底"), QStringLiteral("置于底层"), arrangeGroup);
-    zRow->addWidget(front);
-    zRow->addWidget(back);
-    arrangeLayout->addLayout(zRow);
-
-    connect(front, &QPushButton::clicked, this, [this]()
-    {
-        m_view->changeZOrder(DiagramView::ZOrder::Front);
-    });
-    connect(back, &QPushButton::clicked, this, [this]()
-    {
-        m_view->changeZOrder(DiagramView::ZOrder::Back);
-    });
-
-    auto *groupRow = new QHBoxLayout();
-    m_group = makeSmallButton(QStringLiteral("组合"), QStringLiteral("组合所选对象"), arrangeGroup);
-    m_ungroup = makeSmallButton(QStringLiteral("取消组合"), QStringLiteral("解散组合"),
-                                arrangeGroup);
-    groupRow->addWidget(m_group);
-    groupRow->addWidget(m_ungroup);
-    arrangeLayout->addLayout(groupRow);
-
-    connect(m_group, &QPushButton::clicked, this, [this]()
-    {
-        m_view->groupSelection();
-    });
-    connect(m_ungroup, &QPushButton::clicked, this, [this]()
-    {
-        m_view->ungroupSelection();
-    });
-
-    layout->addWidget(arrangeGroup);
     layout->addStretch(1);
 
     // Sensible values while nothing is selected.
@@ -744,8 +627,6 @@ void FormatPanel::updateEnabled(bool hasSelection, bool hasVertex, bool hasEdge)
     m_startArrow->setEnabled(hasEdge);
     m_endArrow->setEnabled(hasEdge);
 
-    m_group->setEnabled(hasSelection);
-    m_ungroup->setEnabled(hasSelection);
 }
 
 } // namespace dq

@@ -134,6 +134,8 @@ private:
     QAction *m_toggleShapesAction = nullptr;
     QAction *m_toggleFormatAction = nullptr;
 
+    QVector<QAction *> m_arrangeSelectionActions;
+
     QAction *m_groupAction = nullptr;
     QAction *m_ungroupAction = nullptr;
     QAction *m_frontAction = nullptr;

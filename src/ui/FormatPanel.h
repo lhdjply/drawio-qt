@@ -5,7 +5,6 @@
 class QCheckBox;
 class QComboBox;
 class QDoubleSpinBox;
-class QPushButton;
 class QSpinBox;
 class QToolButton;
 
@@ -61,9 +60,6 @@ private:
     QToolButton *m_bold = nullptr;
     QToolButton *m_italic = nullptr;
     QToolButton *m_underline = nullptr;
-
-    QPushButton *m_group = nullptr;
-    QPushButton *m_ungroup = nullptr;
 
     QString m_selectedId;
 };

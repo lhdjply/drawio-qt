@@ -2,12 +2,16 @@
 #include "app/UiTheme.h"
 #include "core/Document.h"
 #include "ui/DiagramView.h"
+#include "ui/FormatPanel.h"
 #include "ui/ShapeToolbox.h"
 #include "ui/OverlayEditor.h"
 #include "ui/MainWindow.h"
 
 #include <QApplication>
 #include <QComboBox>
+#include <QGroupBox>
+#include <QMenu>
+#include <QMenuBar>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QMimeData>
@@ -199,6 +203,60 @@ private slots:
         QVERIFY(cell != nullptr);
         QCOMPARE(cell->styleValue(QStringLiteral("image")),
                  QStringLiteral("img/lib/active_directory/database_cube.svg"));
+    }
+
+    void arrangeFunctionsLiveInTheMenu()
+    {
+        MainWindow window;
+        window.show();
+        (void)QTest::qWaitForWindowExposed(&window);
+
+        QMenu *arrangeMenu = nullptr;
+
+        for (QAction *action : window.menuBar()->actions())
+        {
+            if (action->text().startsWith(QStringLiteral("排列")))
+            {
+                arrangeMenu = action->menu();
+                break;
+            }
+        }
+
+        QVERIFY(arrangeMenu != nullptr);
+
+        QMenu *alignMenu = nullptr;
+        QMenu *layoutMenu = nullptr;
+
+        for (QAction *action : arrangeMenu->actions())
+        {
+            if (action->menu() == nullptr)
+            {
+                continue;
+            }
+
+            if (action->text() == QStringLiteral("对齐"))
+            {
+                alignMenu = action->menu();
+            }
+            else if (action->text() == QStringLiteral("布局"))
+            {
+                layoutMenu = action->menu();
+            }
+        }
+
+        QVERIFY(alignMenu != nullptr);
+        QVERIFY(layoutMenu != nullptr);
+        QVERIFY(alignMenu->actions().size() >= 6);
+        QVERIFY(layoutMenu->actions().size() >= 5);
+
+        // The right hand format panel no longer contains an arrange section.
+        auto *panel = window.findChild<FormatPanel *>();
+        QVERIFY(panel != nullptr);
+
+        for (QGroupBox *group : panel->findChildren<QGroupBox *>())
+        {
+            QVERIFY(group->title() != QStringLiteral("排列"));
+        }
     }
 
     void canvasSelectionAndUndo()
