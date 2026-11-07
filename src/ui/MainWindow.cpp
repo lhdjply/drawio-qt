@@ -65,37 +65,6 @@ QIcon iconFor(const QString &name)
     return QIcon(QStringLiteral(":/icons/%1.svg").arg(name));
 }
 
-/// Rasterises a monochrome toolbar glyph and tints it, so the icons stay
-/// readable when the dark palette is active.
-QPixmap tintedGlyph(const QString &name, int size, const QColor &color)
-{
-    QPixmap pixmap(QStringLiteral(":/icons/%1.svg").arg(name));
-
-    if (pixmap.isNull())
-    {
-        return pixmap;
-    }
-
-    pixmap = pixmap.scaled(size, size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
-
-    QPainter painter(&pixmap);
-    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
-    painter.fillRect(pixmap.rect(), color);
-    painter.end();
-
-    return pixmap;
-}
-
-QIcon themedIcon(const QString &name, bool dark)
-{
-    const QColor normal = dark ? QColor(0xE8, 0xEA, 0xED) : QColor(0x3C, 0x40, 0x43);
-    const QColor disabled = dark ? QColor(0x7A, 0x7F, 0x86) : QColor(0xB0, 0xB4, 0xB9);
-
-    QIcon icon;
-    icon.addPixmap(tintedGlyph(name, 20, normal), QIcon::Normal);
-    icon.addPixmap(tintedGlyph(name, 20, disabled), QIcon::Disabled);
-    return icon;
-}
 
 } // namespace
 
@@ -957,11 +926,11 @@ void MainWindow::createDocks()
     formatDock->setObjectName(QStringLiteral("formatDock"));
     formatDock->setWidget(m_formatPanel);
     formatDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
-    formatDock->setMinimumWidth(300);
+    formatDock->setMinimumWidth(290);
     addDockWidget(Qt::RightDockWidgetArea, formatDock);
 
-    m_formatPanel->setMinimumWidth(280);
-    resizeDocks({formatDock}, {300}, Qt::Horizontal);
+    m_formatPanel->setMinimumWidth(270);
+    resizeDocks({formatDock}, {290}, Qt::Horizontal);
 
     connect(m_toolbox, &ShapeToolbox::shapeActivated, this,
             [this](const ShapeDefinition &definition)
@@ -1627,6 +1596,12 @@ void MainWindow::applyTheme(const QString &theme)
     m_darkAction->setChecked(dark);
     m_view->setDarkTheme(dark);
     UiTheme::applyColorScheme(theme);
+
+    if (m_formatPanel != nullptr)
+    {
+        m_formatPanel->applyTheme(dark);
+    }
+
     updateActionIcons();
     updateTabStyle();
 
@@ -1640,7 +1615,6 @@ void MainWindow::updateActionIcons()
         return;
     }
 
-    const bool dark = m_view->isDarkTheme();
     const QVector<QPair<QAction *, QString>> icons = {
         {m_newAction, QStringLiteral("new")},
         {m_openAction, QStringLiteral("open")},
@@ -1666,7 +1640,7 @@ void MainWindow::updateActionIcons()
     {
         if (entry.first != nullptr)
         {
-            entry.first->setIcon(themedIcon(entry.second, dark));
+            entry.first->setIcon(QIcon(QStringLiteral(":/icons/%1.svg").arg(entry.second)));
         }
     }
 }

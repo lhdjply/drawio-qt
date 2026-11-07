@@ -1,9 +1,12 @@
 #pragma once
 
+#include <QVector>
 #include <QWidget>
 
 class QCheckBox;
 class QComboBox;
+class QGroupBox;
+class QLabel;
 class QDoubleSpinBox;
 class QSpinBox;
 class QToolButton;
@@ -25,6 +28,8 @@ public:
 
     void setView(DiagramView *view);
     void updateFromSelection();
+    void applyTheme(bool dark);
+    void compactGroups();
 
 private:
     void buildUi();
@@ -32,6 +37,8 @@ private:
 
     DiagramView *m_view = nullptr;
     bool m_updating = false;
+    bool m_dark = false;
+    QVector<QGroupBox *> m_groups;
 
     QDoubleSpinBox *m_x = nullptr;
     QDoubleSpinBox *m_y = nullptr;
@@ -56,6 +63,9 @@ private:
     ColorButton *m_fill = nullptr;
     ColorButton *m_stroke = nullptr;
     ColorButton *m_fontColor = nullptr;
+
+    QLabel *m_hint = nullptr;
+    QGroupBox *m_edgeGroup = nullptr;
 
     QToolButton *m_bold = nullptr;
     QToolButton *m_italic = nullptr;

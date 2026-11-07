@@ -174,12 +174,18 @@ void FormatPanel::buildUi()
     layout->setSpacing(8);
     scroll->setWidget(content);
 
+    m_hint = new QLabel(QStringLiteral("在画布中选择图形\n以编辑其样式与文本"), content);
+    m_hint->setAlignment(Qt::AlignCenter);
+    m_hint->setWordWrap(true);
+    m_hint->setMinimumHeight(120);
+    layout->addWidget(m_hint);
+
     // --- geometry ---------------------------------------------------------
     auto *geometryGroup = new QGroupBox(QStringLiteral("位置与大小"), content);
     geometryGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     auto *geometryGrid = new QGridLayout(geometryGroup);
     geometryGrid->setHorizontalSpacing(6);
-    geometryGrid->setVerticalSpacing(4);
+    geometryGrid->setVerticalSpacing(2);
 
     auto makeSpin = [&](double min, double max, const QString &suffix)
     {
@@ -363,7 +369,7 @@ void FormatPanel::buildUi()
     m_italic = makeToggle(QStringLiteral("I"), QStringLiteral("斜体"), textGroup);
     m_underline = makeToggle(QStringLiteral("U"), QStringLiteral("下划线"), textGroup);
     m_bold->setStyleSheet(QStringLiteral("font-weight: bold;"));
-    m_italic->setStyleSheet(QStringLiteral("font-style: italic;"));
+
     m_underline->setStyleSheet(QStringLiteral("text-decoration: underline;"));
     formatRow->addWidget(m_bold);
     formatRow->addWidget(m_italic);
@@ -421,6 +427,7 @@ void FormatPanel::buildUi()
 
     // --- connectors -------------------------------------------------------
     auto *edgeGroup = new QGroupBox(QStringLiteral("连线"), content);
+    m_edgeGroup = edgeGroup;
     edgeGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     auto *edgeForm = new QFormLayout(edgeGroup);
     edgeForm->setSpacing(4);
@@ -483,6 +490,21 @@ void FormatPanel::buildUi()
     // --- arrange ----------------------------------------------------------
     layout->addStretch(1);
 
+    for (QGroupBox *group : findChildren<QGroupBox *>())
+    {
+        m_groups.append(group);
+    }
+
+    if (m_hint != nullptr)
+    {
+        m_hint->setVisible(true);
+    }
+
+    for (QGroupBox *group : m_groups)
+    {
+        group->setVisible(false);
+    }
+
     // Sensible values while nothing is selected.
     m_updating = true;
     m_x->setValue(0);
@@ -521,11 +543,39 @@ void FormatPanel::updateFromSelection()
 {
     if (m_view == nullptr)
     {
+        if (m_hint != nullptr)
+        {
+            m_hint->setVisible(true);
+        }
+
+        for (QGroupBox *group : m_groups)
+        {
+            group->setVisible(false);
+        }
+
         return;
     }
 
     const QVector<Cell *> cells = m_view->selectedCellObjects();
     const bool hasSelection = !cells.isEmpty();
+
+    if (m_hint != nullptr)
+    {
+        m_hint->setVisible(!hasSelection);
+    }
+
+    for (QGroupBox *group : m_groups)
+    {
+        group->setVisible(hasSelection);
+    }
+
+    if (!hasSelection)
+    {
+        m_selectedId.clear();
+        return;
+    }
+
+    compactGroups();
     bool hasVertex = false;
     bool hasEdge = false;
 
@@ -537,10 +587,9 @@ void FormatPanel::updateFromSelection()
 
     updateEnabled(hasSelection, hasVertex, hasEdge);
 
-    if (!hasSelection)
+    if (m_edgeGroup != nullptr)
     {
-        m_selectedId.clear();
-        return;
+        m_edgeGroup->setVisible(hasSelection && hasEdge);
     }
 
     Cell *cell = cells.first();
@@ -597,6 +646,53 @@ void FormatPanel::updateFromSelection()
     m_endArrow->setCurrentIndex(qMax(0, m_endArrow->findData(endArrow)));
 
     m_updating = false;
+}
+
+void FormatPanel::applyTheme(bool dark)
+{
+    m_dark = dark;
+
+    if (dark)
+    {
+        setStyleSheet(QStringLiteral(
+            "QGroupBox { border: 1px solid #3a3f45; border-radius: 8px;"
+            " margin-top: 8px; padding: 8px 8px 4px 8px; font-weight: 600; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px;"
+            " color: #b8bec6; }"
+            "QLabel { color: #b8bec6; font-size: 12px; }"
+            "QToolButton { border: 1px solid transparent; border-radius: 4px;"
+            " padding: 3px 7px; }"
+            "QToolButton:checked { background: #1a3a5c; color: #8ab4f8;"
+            " border-color: #8ab4f8; }"));
+    }
+    else
+    {
+        setStyleSheet(QStringLiteral(
+            "QGroupBox { border: 1px solid #e3e6e9; border-radius: 8px;"
+            " margin-top: 8px; padding: 8px 8px 4px 8px; font-weight: 600; }"
+            "QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px;"
+            " color: #5f6368; }"
+            "QLabel { color: #5f6368; font-size: 12px; }"
+            "QToolButton { border: 1px solid transparent; border-radius: 4px;"
+            " padding: 3px 7px; }"
+            "QToolButton:checked { background: #e8f0fe; color: #1a73e8;"
+            " border-color: #1a73e8; }"));
+    }
+
+    compactGroups();
+}
+
+void FormatPanel::compactGroups()
+{
+    // QGroupBox stretches when the surrounding column is taller than its
+    // content, which spread the form rows apart. A fixed vertical policy keeps
+    // every section exactly as tall as its layout needs.
+    for (QGroupBox *group : m_groups)
+    {
+        group->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Fixed);
+        group->setMaximumHeight(QWIDGETSIZE_MAX);
+        group->updateGeometry();
+    }
 }
 
 void FormatPanel::updateEnabled(bool hasSelection, bool hasVertex, bool hasEdge)
