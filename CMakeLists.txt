@@ -19,7 +19,7 @@ include(GNUInstallDirs)
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Xml)
 find_package(ZLIB REQUIRED)
 
-option(DRAWIO_QT_BUILD_TESTS "Build the unit tests" ON)
+option(DRAWIO_QT_BUILD_TESTS "Build the unit tests" OFF)
 option(DRAWIO_QT_WARNINGS "Enable extra compiler warnings" ON)
 
 set(DRAWIO_QT_SOURCES

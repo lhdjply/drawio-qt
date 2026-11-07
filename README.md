@@ -91,7 +91,14 @@ cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
 ./build/drawio-qt                      # 打开空白编辑器
 ./build/drawio-qt 图纸.drawio          # 打开文件
-ctest --test-dir build --output-on-failure
+```
+
+默认只构建应用程序，不编译测试。需要运行测试时：
+
+```bash
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DDRAWIO_QT_BUILD_TESTS=ON
+cmake --build build -j$(nproc)
+QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
 ```
 
 安装到系统（含桌面文件、图标、示例）：
