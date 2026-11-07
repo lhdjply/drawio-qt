@@ -544,7 +544,9 @@ QPointF DiagramView::toView(const QPointF &scenePoint) const
 
 QVector<QPointF> DiagramView::connectionPoints(const Cell &cell) const
 {
-    const QRectF rect = cell.absoluteRect();
+    // Rotated symbols connect on their visual (rotated) bounds, not on the
+    // unrotated geometry rectangle.
+    const QRectF rect = cell.visualRect();
 
     return {
         QPointF(rect.center().x(), rect.top()),
@@ -1033,13 +1035,7 @@ void DiagramView::paintSelectionOverlay(QPainter &painter)
         {
             if (cell->isVertex())
             {
-                const QRectF rect = cell->absoluteRect();
-                const QPointF centers[] = {
-                    QPointF(rect.center().x(), rect.top()),
-                    QPointF(rect.right(), rect.center().y()),
-                    QPointF(rect.center().x(), rect.bottom()),
-                    QPointF(rect.left(), rect.center().y()),
-                };
+                const QVector<QPointF> centers = connectionPoints(*cell);
 
                 painter.setPen(Qt::NoPen);
                 painter.setBrush(accent);
