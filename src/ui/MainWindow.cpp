@@ -9,6 +9,7 @@
 #include "ui/Dialogs.h"
 #include "ui/DiagramView.h"
 #include "ui/FormatPanel.h"
+#include "ui/ShapeLibraryDialog.h"
 #include "ui/ShapeToolbox.h"
 
 #include <QAction>
@@ -778,6 +779,22 @@ void MainWindow::createMenus()
     insertMenu->addAction(m_textAction);
     insertMenu->addSeparator();
     insertMenu->addAction(m_connectorAction);
+
+    QAction *libraryAction = insertMenu->addAction(QStringLiteral("形状库…"));
+    connect(libraryAction, &QAction::triggered, this, [this]()
+    {
+        ShapeLibraryDialog dialog(this);
+
+        if (dialog.exec() == QDialog::Accepted)
+        {
+            ShapeLibraryDialog::setConfiguredCategories(dialog.enabledCategories());
+
+            if (m_toolbox != nullptr)
+            {
+                m_toolbox->reload();
+            }
+        }
+    });
 
     QAction *imageAction = insertMenu->addAction(QStringLiteral("图片…"));
     connect(imageAction, &QAction::triggered, this, &MainWindow::insertImage);

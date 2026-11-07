@@ -186,6 +186,16 @@ void AppSettings::setZoom(double zoom)
     m_settings->setValue(QStringLiteral("view/zoom"), zoom);
 }
 
+QStringList AppSettings::enabledShapeLibraries() const
+{
+    return m_settings->value(QStringLiteral("shapes/enabledLibraries")).toStringList();
+}
+
+void AppSettings::setEnabledShapeLibraries(const QStringList &ids)
+{
+    m_settings->setValue(QStringLiteral("shapes/enabledLibraries"), ids);
+}
+
 void AppSettings::sync()
 {
     m_settings->sync();

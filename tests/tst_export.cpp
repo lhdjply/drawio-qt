@@ -3,6 +3,7 @@
 #include "core/MxFileIO.h"
 #include "io/Exporter.h"
 #include "io/HtmlExport.h"
+#include "render/ShapeCatalog.h"
 #include "render/ShapeRegistry.h"
 
 #include <QFile>
@@ -187,43 +188,123 @@ private slots:
 
     void shapeGalleryRenders()
     {
+        // One gallery per built-in category, so shapes can be inspected (and
+        // regressions spotted) without opening the editor.
+        const QVector<ShapeCategory> categories = ShapeCatalog::instance().builtinCategories();
+        QVERIFY(!categories.isEmpty());
+
+        int total = 0;
+
+        for (const ShapeCategory &category : categories)
+        {
+            Document document;
+            Page *page = document.currentPage();
+            page->settings.page = false;
+            page->settings.grid = false;
+
+            int index = 0;
+
+            for (const ShapeDefinition &shape : category.shapes)
+            {
+                const int column = index % 5;
+                const int row = index / 5;
+                const QPointF topLeft(40 + column * 230, 40 + row * 160);
+                page->addVertex(QRectF(topLeft, shape.size), Style::parse(shape.style),
+                                shape.name);
+                ++index;
+            }
+
+            ExportOptions options;
+            options.format = QStringLiteral("png");
+            options.border = 20;
+            options.scale = 1.0;
+
+            const ExportResult result = Exporter::exportDocument(document, options);
+            QVERIFY2(result.ok, qPrintable(result.error));
+
+            const QString path = QStringLiteral(DRAWIO_QT_BINARY_DIR)
+                + QStringLiteral("/gallery-%1.png").arg(category.id);
+            QFile file(path);
+            QVERIFY2(file.open(QIODevice::WriteOnly), qPrintable(path));
+            file.write(result.data);
+            file.close();
+            total += category.shapes.size();
+        }
+
+        QVERIFY(total >= 150);
+    }
+
+
+    void bundledImageLibraryRenders()
+    {
+        const ShapeDefinition definition = ShapeCatalog::instance()
+            .definition(QStringLiteral("img/lib/azure2/compute/Azure_Linux.svg"));
+        QVERIFY(!definition.key.isEmpty());
+        QVERIFY(!definition.imagePath.isEmpty());
+
         Document document;
         Page *page = document.currentPage();
-        page->settings.page = false;
-        page->settings.grid = false;
-
-        const QVector<ShapeDefinition> shapes = ShapeRegistry::toolboxShapes();
-        int index = 0;
-
-        for (const ShapeDefinition &shape : shapes)
-        {
-            const int column = index % 6;
-            const int row = index / 6;
-            const double x = 40 + column * 210;
-            const double y = 40 + row * 150;
-            const QSizeF size(qMin(shape.size.width(), 170.0),
-                              qMin(shape.size.height(), 100.0));
-
-            page->addVertex(QRectF(QPointF(x, y), size), Style::parse(shape.style),
-                            shape.name);
-            ++index;
-        }
+        page->addVertex(QRectF(40, 40, 120, 120), Style::parse(definition.style), QString());
 
         ExportOptions options;
         options.format = QStringLiteral("png");
-        options.border = 20;
-        options.scale = 1.0;
-
+        options.border = 12;
         const ExportResult result = Exporter::exportDocument(document, options);
         QVERIFY2(result.ok, qPrintable(result.error));
 
         const QString path = QStringLiteral(DRAWIO_QT_BINARY_DIR)
-            + QStringLiteral("/shape-gallery.png");
+            + QStringLiteral("/image-shape.png");
         QFile file(path);
         QVERIFY(file.open(QIODevice::WriteOnly));
         file.write(result.data);
         file.close();
-        QVERIFY(QFileInfo::exists(path));
+
+        QImage image;
+        QVERIFY(image.loadFromData(result.data, "PNG"));
+        int colored = 0;
+
+        for (int y = 0; y < image.height(); y += 3)
+        {
+            for (int x = 0; x < image.width(); x += 3)
+            {
+                const QColor color = image.pixelColor(x, y);
+
+                if (color.alpha() > 10 && color.lightness() < 245)
+                {
+                    ++colored;
+                }
+            }
+        }
+
+        QVERIFY2(colored > 50, "the bundled SVG did not render into the export");
+    }
+
+    void catalogExposesStandardAndImageLibraries()
+    {
+        const ShapeCatalog &catalog = ShapeCatalog::instance();
+        QVERIFY(!catalog.builtinCategories().isEmpty());
+        QVERIFY(!catalog.imageCategories().isEmpty());
+        QVERIFY(catalog.allDefinitions().size() > 1800);
+
+        QStringList categoryIds;
+
+        for (const ShapeCategory &category : catalog.builtinCategories())
+        {
+            categoryIds.append(category.id);
+        }
+
+        QVERIFY(categoryIds.contains(QStringLiteral("electrical")));
+        QVERIFY(categoryIds.contains(QStringLiteral("flowchart")));
+        QVERIFY(categoryIds.contains(QStringLiteral("uml")));
+        QVERIFY(categoryIds.contains(QStringLiteral("bpmn")));
+        QVERIFY(categoryIds.contains(QStringLiteral("network")));
+        QVERIFY(categoryIds.contains(QStringLiteral("kubernetes")));
+
+        // Every built-in definition must be resolvable by key.
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            QVERIFY(!catalog.definition(definition.key).key.isEmpty());
+        }
     }
 
     void transparentPngHasAlpha()

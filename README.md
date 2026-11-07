@@ -17,8 +17,12 @@ PNG/SVG/PDF/HTML/XML 导出、打印以及命令行批量导出。
 
 - **原生绘图编辑器**：选择、框选、移动、缩放、旋转、对齐、分布、组合/取消组合、
   层级调整、复制/粘贴/复制副本、方向键微调、网格吸附、缩放与平移。
-- **形状库**：矩形、圆角矩形、椭圆、圆、菱形、三角形、六边形、数据库/圆柱、云形、
-  平行四边形、梯形、文档、便签、标注、角色、箭头、流程、步骤、起止、泳道、文本、直线、图片。
+- **原生形状库（210+ 矢量形状）**：基本形状、流程图、箭头、UML、ER、BPMN、网络、
+  电气符号（电阻/电容/电感/二极管/三极管/电池/接地/逻辑门等 34 种）、平面图、
+  信息图、SysML、ArchiMate、集成模式、Bootstrap、Kubernetes、界面原型、C4、DFD 等。
+- **内置图标库（1910 个原生渲染的 SVG/PNG）**：Azure、Active Directory、Atlassian、
+  IBM、SAP、Microsoft CAE、Allied Telesis、Cumulus、Dynamics 365、剪贴画。
+- **形状浏览器**：按库分类、关键词搜索、勾选启用库；形状可拖放或双击插入。
 - **连接线**：正交 / 直线 / 折线 / 实体关系路由；起点/终点箭头（实心、空心、方块、圆、菱形）；
   自由端点、固定出入点（`exitX/exitY/entryX/entryY`）与控制点；标签自动避让背景。
 - **文本编辑**：双击原位编辑，支持字体、字号、颜色、粗体/斜体/下划线、水平/垂直对齐、
@@ -40,9 +44,13 @@ PNG/SVG/PDF/HTML/XML 导出、打印以及命令行批量导出。
 
 ![导出效果](docs/screenshot-export.png)
 
-内置形状库（均由原生 `QPainter` 绘制）：
+内置电气符号库（原生 `QPainter` 绘制）：
 
-![形状库](docs/shape-gallery.png)
+![电气符号](docs/shape-gallery-electrical.png)
+
+流程图库：
+
+![流程图](docs/shape-gallery-flowchart.png)
 
 ## 快速开始
 
@@ -147,6 +155,7 @@ drawio-qt/
 ## 文档
 
 - [移植说明：Electron 版 → 原生 Qt6](docs/移植说明.md)
+- [形状库（已覆盖范围与扩展方式）](docs/形状库.md)
 - [架构设计](docs/架构设计.md)
 - [功能对照表](docs/功能对照表.md)
 - [构建、运行与打包](docs/构建与运行.md)
@@ -162,8 +171,10 @@ drawio-qt/
 
 ## 已知限制
 
-- 不加载 Web 编辑器，因此无法使用 draw.io 全部形状（内置约 23 种基础形状）、
-  MathJax、Mermaid/VSDX 导入、在线模板、插件市场与云存储。
+- draw.io 的部分库（AWS 3D、GCP、Cisco、ArchiMate 3、完整 SysML/Infographic/
+  Lean/Salesforce 等）由数百到数千个 JS 绘图函数组成，尚未逐个移植；当前已覆盖
+  210+ 常用矢量形状与 1910 个图标库资源，其余库可按 `docs/形状库.md` 的方式继续扩展。
+- 不加载 Web 编辑器，因此没有 MathJax、Mermaid/VSDX 导入、在线模板、插件市场与云存储。
 - 复杂样式按近似方式渲染：自定义 stencil、完整 CSS/HTML 标签、渐变方向、
   阴影细节等与网页版存在差异。
 - 图层可以读写，但暂未提供图层管理面板。

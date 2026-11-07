@@ -5,6 +5,7 @@
 #include "render/EdgeRenderer.h"
 #include "render/EdgeRouter.h"
 #include "render/ShapeRenderer.h"
+#include "render/ShapeCatalog.h"
 #include "render/ShapeRegistry.h"
 #include "ui/OverlayEditor.h"
 
@@ -1703,7 +1704,7 @@ void DiagramView::dropEvent(QDropEvent *event)
     {
         const QString key = QString::fromUtf8(
             event->mimeData()->data(QLatin1String(kShapeMimeType)));
-        addShape(ShapeRegistry::definition(key), toScene(event->position()));
+        addShape(ShapeCatalog::instance().definition(key), toScene(event->position()));
         event->acceptProposedAction();
         return;
     }

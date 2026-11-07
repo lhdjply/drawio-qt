@@ -51,6 +51,11 @@ public:
     double zoom() const;
     void setZoom(double zoom);
 
+    /// Shape library categories enabled in the palette. An empty list means
+    /// "all categories" so a fresh installation sees every bundled library.
+    QStringList enabledShapeLibraries() const;
+    void setEnabledShapeLibraries(const QStringList &ids);
+
     void sync();
 
     // --- locations -------------------------------------------------------

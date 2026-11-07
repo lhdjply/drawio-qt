@@ -16,6 +16,8 @@ struct ShapeDefinition
     QString name;
     QString style;
     QSizeF size = QSizeF(120, 60);
+    QString category = QStringLiteral("basic");
+    QString imagePath; // set for shapes rendered from a bundled SVG/PNG
 };
 
 /// Geometry and defaults for the shape library. The names follow draw.io's

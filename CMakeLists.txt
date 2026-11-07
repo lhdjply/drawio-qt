@@ -39,6 +39,8 @@ set(DRAWIO_QT_SOURCES
     src/core/FileMeta.h
     src/render/ShapeRegistry.cpp
     src/render/ShapeRegistry.h
+    src/render/ShapeCatalog.cpp
+    src/render/ShapeCatalog.h
     src/render/ShapeRenderer.cpp
     src/render/ShapeRenderer.h
     src/render/EdgeRouter.cpp
@@ -65,6 +67,8 @@ set(DRAWIO_QT_SOURCES
     src/ui/DiagramView.h
     src/ui/ShapeToolbox.cpp
     src/ui/ShapeToolbox.h
+    src/ui/ShapeLibraryDialog.cpp
+    src/ui/ShapeLibraryDialog.h
     src/ui/FormatPanel.cpp
     src/ui/FormatPanel.h
     src/ui/OverlayEditor.cpp
@@ -97,6 +101,14 @@ if (DRAWIO_QT_WARNINGS)
         target_compile_options(drawioqt_lib PRIVATE -Wall -Wextra -Wpedantic)
     endif()
 endif()
+
+file(GLOB_RECURSE DRAWIO_IMAGE_FILES
+    "${CMAKE_CURRENT_SOURCE_DIR}/resources/drawio/img/lib/*")
+
+qt_add_resources(drawioqt_lib "drawio_image_resources"
+    PREFIX "/"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/resources"
+    FILES ${DRAWIO_IMAGE_FILES})
 
 qt_add_resources(drawioqt_lib "drawioqt_resources"
     PREFIX "/"

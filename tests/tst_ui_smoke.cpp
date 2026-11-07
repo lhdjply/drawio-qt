@@ -2,10 +2,12 @@
 #include "app/UiTheme.h"
 #include "core/Document.h"
 #include "ui/DiagramView.h"
+#include "ui/ShapeToolbox.h"
 #include "ui/OverlayEditor.h"
 #include "ui/MainWindow.h"
 
 #include <QApplication>
+#include <QComboBox>
 #include <QFileInfo>
 #include <QImage>
 #include <QTimer>
@@ -50,6 +52,20 @@ private slots:
             {
                 window.view()->setSelection({cell->id});
                 break;
+            }
+        }
+
+        // Show the electrical library in the generated screenshot.
+        if (auto *toolbox = window.findChild<ShapeToolbox *>())
+        {
+            if (auto *combo = toolbox->findChild<QComboBox *>())
+            {
+                const int index = combo->findData(QStringLiteral("electrical"));
+
+                if (index >= 0)
+                {
+                    combo->setCurrentIndex(index);
+                }
             }
         }
 

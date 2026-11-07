@@ -5,6 +5,11 @@
 #include <QFontMetricsF>
 #include <QImage>
 #include <QLinearGradient>
+#include <QFile>
+#include <QFileInfo>
+#include <QImageReader>
+#include <QSharedPointer>
+#include <QSvgRenderer>
 #include <QTextDocument>
 #include <QTextLayout>
 #include <QTextOption>
@@ -398,28 +403,87 @@ void paint(QPainter &painter, const Cell &cell)
     if (imageShape)
     {
         const QString source = cell.styleValue(QStringLiteral("image"));
-        const int comma = source.indexOf(QLatin1Char(','));
+        const bool keepAspect = cell.styleFlag(QStringLiteral("imageAspect"))
+            || cell.styleFlag(QStringLiteral("aspect"));
+        QRectF target = local;
 
-        if (source.startsWith(QLatin1String("data:")) && comma > 0)
+        const auto fitTarget = [&local, keepAspect](const QSizeF &sourceSize)
         {
-            const QByteArray data = QByteArray::fromBase64(source.mid(comma + 1).toLatin1());
-            QImage image;
-            image.loadFromData(data);
-
-            if (!image.isNull())
+            if (!keepAspect || sourceSize.isEmpty())
             {
-                painter.drawImage(local, image);
+                return local;
             }
-            else
+
+            QSizeF scaled = sourceSize;
+            scaled.scale(local.size(), Qt::KeepAspectRatio);
+            return QRectF(local.center() - QPointF(scaled.width() / 2.0,
+                                                   scaled.height() / 2.0),
+                          scaled);
+        };
+
+        QString path;
+
+        if (source.startsWith(QLatin1String("data:")))
+        {
+            const int comma = source.indexOf(QLatin1Char(','));
+
+            if (comma > 0)
             {
-                painter.setPen(QPen(QColor(160, 160, 160), 1, Qt::DashLine));
-                painter.setBrush(QColor(245, 245, 245));
-                painter.drawRect(local);
+                const QByteArray data = QByteArray::fromBase64(source.mid(comma + 1).toLatin1());
+                QImage image;
+                image.loadFromData(data);
+
+                if (!image.isNull())
+                {
+                    target = fitTarget(image.size());
+                    painter.drawImage(target, image);
+                }
             }
         }
         else
         {
+            if (source.startsWith(QLatin1String("img/")))
+            {
+                path = QStringLiteral(":/drawio/") + source;
+            }
+            else if (source.startsWith(QLatin1String(":/")) || QFileInfo::exists(source))
+            {
+                path = source;
+            }
+
+            if (!path.isEmpty() && path.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive))
+            {
+                static QHash<QString, QSharedPointer<QSvgRenderer>> renderers;
+                QSharedPointer<QSvgRenderer> renderer = renderers.value(path);
+
+                if (renderer.isNull())
+                {
+                    renderer = QSharedPointer<QSvgRenderer>::create(path);
+                    renderers.insert(path, renderer);
+                }
+
+                if (renderer->isValid())
+                {
+                    target = fitTarget(renderer->defaultSize());
+                    renderer->render(&painter, target);
+                }
+            }
+            else if (!path.isEmpty())
+            {
+                QImage image(path);
+
+                if (!image.isNull())
+                {
+                    target = fitTarget(image.size());
+                    painter.drawImage(target, image);
+                }
+            }
+        }
+
+        if (target.isEmpty() || (path.isEmpty() && !source.startsWith(QLatin1String("data:"))))
+        {
             painter.setPen(QPen(QColor(160, 160, 160), 1, Qt::DashLine));
+            painter.setBrush(QColor(245, 245, 245, 60));
             painter.drawRect(local);
         }
 
@@ -509,6 +573,205 @@ void paint(QPainter &painter, const Cell &cell)
             dashed.setStyle(Qt::DashLine);
             painter.setPen(dashed);
             painter.drawPath(path);
+        }
+        else if (key == QLatin1String("mxgraph.flowchart.internal_storage"))
+        {
+            const double inset = local.width() * 0.14;
+            painter.drawLine(QPointF(inset, local.height() * 0.2),
+                             QPointF(local.width() - inset, local.height() * 0.2));
+            painter.drawLine(QPointF(inset, local.height() * 0.24),
+                             QPointF(local.width() - inset, local.height() * 0.24));
+            painter.drawLine(QPointF(inset, local.height() * 0.2),
+                             QPointF(inset, local.height() * 0.9));
+        }
+        else if (key == QLatin1String("mxgraph.flowchart.multi-document"))
+        {
+            painter.drawRect(QRectF(local.width() * 0.08, 0,
+                                    local.width() * 0.84, local.height() * 0.7));
+            painter.drawRect(QRectF(local.width() * 0.04, local.height() * 0.06,
+                                    local.width() * 0.84, local.height() * 0.7));
+        }
+        else if (key == QLatin1String("mxgraph.flowchart.summing")
+                 || cell.styleValue(QStringLiteral("fcType")) == QLatin1String("summing"))
+        {
+            painter.drawLine(QPointF(local.width() * 0.28, local.height() * 0.28),
+                             QPointF(local.width() * 0.72, local.height() * 0.72));
+            painter.drawLine(QPointF(local.width() * 0.72, local.height() * 0.28),
+                             QPointF(local.width() * 0.28, local.height() * 0.72));
+        }
+        else if (cell.styleValue(QStringLiteral("fcType")) == QLatin1String("sort"))
+        {
+            painter.drawLine(QPointF(local.width() * 0.25, local.height() / 2.0),
+                             QPointF(local.width() * 0.75, local.height() / 2.0));
+        }
+        else if (cell.styleValue(QStringLiteral("bpmnType")) == QLatin1String("exclusive"))
+        {
+            const double inset = qMin(local.width(), local.height()) * 0.25;
+            painter.drawLine(QPointF(inset, inset),
+                             QPointF(local.width() - inset, local.height() - inset));
+            painter.drawLine(QPointF(local.width() - inset, inset),
+                             QPointF(inset, local.height() - inset));
+        }
+        else if (cell.styleValue(QStringLiteral("bpmnType")) == QLatin1String("parallel"))
+        {
+            const double inset = qMin(local.width(), local.height()) * 0.24;
+            painter.drawLine(QPointF(inset, local.height() / 2.0),
+                             QPointF(local.width() - inset, local.height() / 2.0));
+            painter.drawLine(QPointF(local.width() / 2.0, inset),
+                             QPointF(local.width() / 2.0, local.height() - inset));
+        }
+        else if (cell.styleValue(QStringLiteral("bpmnType")) == QLatin1String("inclusive"))
+        {
+            const double radius = qMin(local.width(), local.height()) * 0.26;
+            painter.setBrush(Qt::NoBrush);
+            painter.drawEllipse(local.center(), radius, radius);
+        }
+        else if (cell.styleValue(QStringLiteral("bpmnType")) == QLatin1String("subprocess"))
+        {
+            const double box = qMin(local.width(), local.height()) * 0.22;
+            const QRectF marker(local.center().x() - box / 2.0,
+                                local.bottom() - box - 6, box, box);
+            painter.setBrush(Qt::NoBrush);
+            painter.drawRect(marker);
+            painter.drawLine(QPointF(marker.center().x() - box * 0.3, marker.center().y()),
+                             QPointF(marker.center().x() + box * 0.3, marker.center().y()));
+            painter.drawLine(QPointF(marker.center().x(), marker.center().y() - box * 0.3),
+                             QPointF(marker.center().x(), marker.center().y() + box * 0.3));
+        }
+        else if (key == QLatin1String("mxgraph.bpmn.message"))
+        {
+            painter.drawLine(QPointF(0, 0), QPointF(local.width() / 2.0, local.height() * 0.55));
+            painter.drawLine(QPointF(local.width(), 0),
+                             QPointF(local.width() / 2.0, local.height() * 0.55));
+        }
+        else if (key == QLatin1String("mxgraph.bpmn.data_store"))
+        {
+            painter.setBrush(Qt::NoBrush);
+            painter.drawEllipse(QRectF(0, -local.height() * 0.12,
+                                       local.width(), local.height() * 0.28));
+        }
+        else if (cell.styleValue(QStringLiteral("netType")) == QLatin1String("server"))
+        {
+            for (int i = 0; i < 3; ++i)
+            {
+                painter.drawLine(QPointF(local.width() * 0.18, local.height() * (0.28 + i * 0.14)),
+                                 QPointF(local.width() * 0.82, local.height() * (0.28 + i * 0.14)));
+            }
+            painter.setBrush(QColor(0x82, 0xb3, 0x66));
+            painter.drawEllipse(QPointF(local.width() * 0.5, local.height() * 0.82),
+                                local.width() * 0.06, local.width() * 0.06);
+        }
+        else if (cell.styleValue(QStringLiteral("netType")) == QLatin1String("switch"))
+        {
+            for (int i = 0; i < 5; ++i)
+            {
+                painter.drawRect(QRectF(local.width() * (0.14 + i * 0.15),
+                                        local.height() * 0.72,
+                                        local.width() * 0.08, local.height() * 0.1));
+            }
+        }
+        else if (cell.styleValue(QStringLiteral("netType")) == QLatin1String("workstation"))
+        {
+            painter.drawLine(QPointF(local.width() * 0.5, local.height() * 0.72),
+                             QPointF(local.width() * 0.5, local.height() * 0.9));
+            painter.drawLine(QPointF(local.width() * 0.3, local.height() * 0.9),
+                             QPointF(local.width() * 0.7, local.height() * 0.9));
+        }
+        else if (cell.styleValue(QStringLiteral("netType")) == QLatin1String("wireless"))
+        {
+            painter.setBrush(Qt::NoBrush);
+            for (int i = 1; i <= 3; ++i)
+            {
+                const double radius = local.width() * 0.18 * i;
+                painter.drawArc(QRectF(local.center().x() - radius, local.bottom() - radius * 1.4,
+                                       radius * 2, radius * 1.4),
+                                30 * 16, 120 * 16);
+            }
+        }
+        else if (cell.styleValue(QStringLiteral("netType")) == QLatin1String("loadbalancer"))
+        {
+            painter.drawLine(QPointF(local.width() * 0.25, local.height() / 2.0),
+                             QPointF(local.width() * 0.75, local.height() / 2.0));
+            painter.drawLine(QPointF(local.width() * 0.25, local.height() / 2.0),
+                             QPointF(local.width() * 0.4, local.height() * 0.32));
+            painter.drawLine(QPointF(local.width() * 0.25, local.height() / 2.0),
+                             QPointF(local.width() * 0.4, local.height() * 0.68));
+        }
+        else if (key == QLatin1String("mxgraph.networks.firewall"))
+        {
+            for (int row = 1; row < 4; ++row)
+            {
+                painter.drawLine(QPointF(0, local.height() * row / 4.0),
+                                 QPointF(local.width(), local.height() * row / 4.0));
+            }
+            painter.drawLine(QPointF(local.width() / 2.0, 0),
+                             QPointF(local.width() / 2.0, local.height() / 4.0));
+            painter.drawLine(QPointF(local.width() / 4.0, local.height() / 4.0),
+                             QPointF(local.width() / 4.0, local.height() / 2.0));
+            painter.drawLine(QPointF(local.width() * 0.75, local.height() / 4.0),
+                             QPointF(local.width() * 0.75, local.height() / 2.0));
+            painter.drawLine(QPointF(local.width() / 2.0, local.height() / 2.0),
+                             QPointF(local.width() / 2.0, local.height() * 0.75));
+        }
+        else if (key == QLatin1String("mxgraph.networks.storage"))
+        {
+            painter.setBrush(Qt::NoBrush);
+            painter.drawEllipse(QRectF(0, 0, local.width(), qMin(local.height() * 0.24, 18.0)));
+            painter.drawEllipse(QRectF(0, local.height() * 0.32, local.width(),
+                                       qMin(local.height() * 0.24, 18.0)));
+        }
+        else if (key == QLatin1String("mxgraph.dfd.data_store"))
+        {
+            painter.drawLine(QPointF(0, 0), QPointF(0, local.height() * 0.2));
+            painter.drawLine(QPointF(local.width(), 0),
+                             QPointF(local.width(), local.height() * 0.2));
+            painter.drawLine(QPointF(0, local.height()), QPointF(0, local.height() * 0.8));
+            painter.drawLine(QPointF(local.width(), local.height()),
+                             QPointF(local.width(), local.height() * 0.8));
+        }
+        else if (key == QLatin1String("elec.motor"))
+        {
+            QFont glyph = painter.font();
+            glyph.setPixelSize(qMax(10, static_cast<int>(local.height() * 0.34)));
+            glyph.setBold(true);
+            painter.setFont(glyph);
+            painter.setPen(stroke);
+            painter.drawText(local, Qt::AlignCenter, QStringLiteral("M"));
+        }
+        else if (key == QLatin1String("elec.ammeter")
+                 || key == QLatin1String("elec.voltmeter"))
+        {
+            QFont glyph = painter.font();
+            glyph.setPixelSize(qMax(10, static_cast<int>(local.height() * 0.4)));
+            glyph.setBold(true);
+            painter.setFont(glyph);
+            painter.setPen(stroke);
+            painter.drawText(local, Qt::AlignCenter,
+                             key == QLatin1String("elec.ammeter")
+                                 ? QStringLiteral("A") : QStringLiteral("V"));
+        }
+        else if (key == QLatin1String("elec.opamp"))
+        {
+            const double mark = qMin(local.width(), local.height()) * 0.12;
+            painter.drawLine(QPointF(local.width() * 0.08, local.height() * 0.28),
+                             QPointF(local.width() * 0.08 + mark, local.height() * 0.28));
+            painter.drawLine(QPointF(local.width() * 0.08 + mark / 2.0,
+                                     local.height() * 0.28 - mark / 2.0),
+                             QPointF(local.width() * 0.08 + mark / 2.0,
+                                     local.height() * 0.28 + mark / 2.0));
+            painter.drawLine(QPointF(local.width() * 0.08, local.height() * 0.72),
+                             QPointF(local.width() * 0.08 + mark, local.height() * 0.72));
+        }
+        else if (!cell.styleValue(QStringLiteral("androidType")).isEmpty())
+        {
+            painter.setBrush(QColor(0x1B, 0x1D, 0x1E));
+            painter.setPen(Qt::NoPen);
+            painter.drawRoundedRect(QRectF(local.width() * 0.1, local.height() * 0.1,
+                                           local.width() * 0.8, local.height() * 0.8),
+                                    3, 3);
+            painter.setBrush(QColor(0xA4, 0xC6, 0x39));
+            painter.drawEllipse(QPointF(local.width() / 2.0, local.height() * 0.94),
+                                local.width() * 0.05, local.width() * 0.05);
         }
     }
 
