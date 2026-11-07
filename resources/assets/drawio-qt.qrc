@@ -1,0 +1,71 @@
+<!--
+  drawio-qt 资源清单。
+
+  resources/assets/ 下是真实的图标与示例文件（不是 C++ 内联字符串），由本文件
+  经 Qt 资源系统编译进可执行文件 —— 既保持「单个二进制、无外部文件依赖」
+  的约定，也让资源能脱离源码单独编辑与预览。
+
+  新增图标：把文件放进 assets/icons/（形状图标在 assets/icons/shapes/），
+  再把路径加进下面的 <file> 列表。新增内置示例：放进 assets/examples/ 并
+  同步加进来。
+
+  资源路径 = 前缀 + 文件相对路径，与源码里的引用对应：
+    :/icons/xxx.svg          界面图标（MainWindow.cpp）
+    :/icons/shapes/xxx.svg   形状工具箱图标
+    :/examples/xxx.drawio    内置示例
+  图片形状库（assets/drawio/img/lib，1900+ 个 SVG/PNG）体量太大，
+  仍由 CMakeLists.txt 的 qt_add_resources 用 GLOB 打包，不在此逐个列出。
+-->
+<RCC>
+    <qresource prefix="/">
+        <file>icons/app.png</file>
+        <file>icons/new.svg</file>
+        <file>icons/open.svg</file>
+        <file>icons/save.svg</file>
+        <file>icons/undo.svg</file>
+        <file>icons/redo.svg</file>
+        <file>icons/delete.svg</file>
+        <file>icons/zoom-in.svg</file>
+        <file>icons/zoom-out.svg</file>
+        <file>icons/fit.svg</file>
+        <file>icons/print.svg</file>
+        <file>icons/export.svg</file>
+        <file>icons/grid.svg</file>
+        <file>icons/select.svg</file>
+        <file>icons/tab-close.svg</file>
+        <file>icons/tab-close-dark.svg</file>
+        <file>icons/connector.svg</file>
+        <file>icons/pan.svg</file>
+        <file>icons/text.svg</file>
+        <file>icons/image.svg</file>
+        <file>icons/group.svg</file>
+        <file>icons/ungroup.svg</file>
+        <file>icons/shapes/rectangle.svg</file>
+        <file>icons/shapes/rounded.svg</file>
+        <file>icons/shapes/ellipse.svg</file>
+        <file>icons/shapes/triangle.svg</file>
+        <file>icons/shapes/diamond.svg</file>
+        <file>icons/shapes/hexagon.svg</file>
+        <file>icons/shapes/cylinder.svg</file>
+        <file>icons/shapes/cloud.svg</file>
+        <file>icons/shapes/parallelogram.svg</file>
+        <file>icons/shapes/trapezoid.svg</file>
+        <file>icons/shapes/document.svg</file>
+        <file>icons/shapes/note.svg</file>
+        <file>icons/shapes/callout.svg</file>
+        <file>icons/shapes/actor.svg</file>
+        <file>icons/shapes/arrow.svg</file>
+        <file>icons/shapes/text.svg</file>
+        <file>icons/shapes/line.svg</file>
+        <file>icons/shapes/image.svg</file>
+        <file>icons/shapes/swimlane.svg</file>
+        <file>icons/shapes/process.svg</file>
+        <file>icons/shapes/circle.svg</file>
+        <file>icons/shapes/database.svg</file>
+        <file>icons/shapes/terminator.svg</file>
+        <file>icons/shapes/step.svg</file>
+        <file>examples/basic-flow.drawio</file>
+        <file>examples/uml-class.drawio</file>
+        <file>examples/network.drawio</file>
+    </qresource>
+</RCC>

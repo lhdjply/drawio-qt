@@ -157,6 +157,13 @@ if (DRAWIO_QT_WARNINGS)
     endif()
 endif()
 
+# 图标与示例资源：resources/assets/ 下的真实文件由同目录的 drawio-qt.qrc
+# 经 Qt 资源系统编译进可执行文件（AUTORCC 把 .qrc 编成 qrc_*.cpp）。
+# <file> 路径相对 .qrc 所在目录解析，运行时路径 = 前缀 + <file>，即
+# :/icons/... 与 :/examples/...。
+# 图片形状库体量太大，仍用 GLOB 打包，见下一块。
+set(DRAWIO_QT_RESOURCES ${CMAKE_CURRENT_SOURCE_DIR}/resources/assets/drawio-qt.qrc)
+
 file(GLOB_RECURSE DRAWIO_IMAGE_FILES
     "${CMAKE_CURRENT_SOURCE_DIR}/resources/assets/drawio/img/lib/*")
 
@@ -165,60 +172,7 @@ qt_add_resources(drawioqt_lib "drawio_image_resources"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/resources/assets"
     FILES ${DRAWIO_IMAGE_FILES})
 
-qt_add_resources(drawioqt_lib "drawioqt_resources"
-    PREFIX "/"
-    BASE "resources/assets"
-    FILES
-        resources/assets/icons/app.png
-        resources/assets/icons/new.svg
-        resources/assets/icons/open.svg
-        resources/assets/icons/save.svg
-        resources/assets/icons/undo.svg
-        resources/assets/icons/redo.svg
-        resources/assets/icons/delete.svg
-        resources/assets/icons/zoom-in.svg
-        resources/assets/icons/zoom-out.svg
-        resources/assets/icons/fit.svg
-        resources/assets/icons/print.svg
-        resources/assets/icons/export.svg
-        resources/assets/icons/grid.svg
-        resources/assets/icons/select.svg
-        resources/assets/icons/tab-close.svg
-        resources/assets/icons/tab-close-dark.svg
-        resources/assets/icons/connector.svg
-        resources/assets/icons/pan.svg
-        resources/assets/icons/text.svg
-        resources/assets/icons/image.svg
-        resources/assets/icons/group.svg
-        resources/assets/icons/ungroup.svg
-        resources/assets/icons/shapes/rectangle.svg
-        resources/assets/icons/shapes/rounded.svg
-        resources/assets/icons/shapes/ellipse.svg
-        resources/assets/icons/shapes/triangle.svg
-        resources/assets/icons/shapes/diamond.svg
-        resources/assets/icons/shapes/hexagon.svg
-        resources/assets/icons/shapes/cylinder.svg
-        resources/assets/icons/shapes/cloud.svg
-        resources/assets/icons/shapes/parallelogram.svg
-        resources/assets/icons/shapes/trapezoid.svg
-        resources/assets/icons/shapes/document.svg
-        resources/assets/icons/shapes/note.svg
-        resources/assets/icons/shapes/callout.svg
-        resources/assets/icons/shapes/actor.svg
-        resources/assets/icons/shapes/arrow.svg
-        resources/assets/icons/shapes/text.svg
-        resources/assets/icons/shapes/line.svg
-        resources/assets/icons/shapes/image.svg
-        resources/assets/icons/shapes/swimlane.svg
-        resources/assets/icons/shapes/process.svg
-        resources/assets/icons/shapes/circle.svg
-        resources/assets/icons/shapes/database.svg
-        resources/assets/icons/shapes/terminator.svg
-        resources/assets/icons/shapes/step.svg
-        resources/assets/examples/basic-flow.drawio
-        resources/assets/examples/uml-class.drawio
-        resources/assets/examples/network.drawio
-)
+target_sources(drawioqt_lib PRIVATE ${DRAWIO_QT_RESOURCES})
 
 add_executable(drawio-qt src/main.cpp)
 target_link_libraries(drawio-qt PRIVATE drawioqt_lib)
