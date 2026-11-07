@@ -602,6 +602,62 @@ void paint(QPainter &painter, const Cell &cell)
     const double opacity = qBound(0.0, cell.styleNumber(QStringLiteral("opacity"), 100.0), 100.0);
     painter.setOpacity(opacity / 100.0);
 
+    // mxShapeElectricalBatteryStack from shapes/mxElectrical.js: a series of
+    // filled short plates and long thin plates, with dashed links between cells.
+    if (cell.styleValue(QStringLiteral("shape")).compare(
+            QLatin1String("mxgraph.electrical.miscellaneous.batteryStack"),
+            Qt::CaseInsensitive) == 0)
+    {
+        const double batteryWidth = local.height() * 0.3;
+        const int cellCount = qBound(0, static_cast<int>(std::floor(
+                                         (local.width() - 20.0) / batteryWidth)), 1000);
+        const double startX = (local.width() - cellCount * batteryWidth) * 0.5;
+
+        QPen batteryPen(strokeColor(cell),
+                        qMax(0.5, cell.styleNumber(QStringLiteral("strokeWidth"), 1.0)),
+                        Qt::SolidLine, Qt::FlatCap, Qt::MiterJoin);
+        painter.setPen(batteryPen);
+
+        if (cellCount > 0)
+        {
+            painter.drawLine(QPointF(0, local.height() * 0.5),
+                             QPointF(startX + batteryWidth * 0.2,
+                                     local.height() * 0.5));
+            painter.drawLine(QPointF(local.width() - startX - batteryWidth * 0.2,
+                                     local.height() * 0.5),
+                             QPointF(local.width(), local.height() * 0.5));
+
+            for (int i = 0; i < cellCount; ++i)
+            {
+                const double currentX = startX + i * batteryWidth;
+                const QRectF plate(currentX + batteryWidth * 0.2,
+                                   local.height() * 0.25,
+                                   batteryWidth * 0.2, local.height() * 0.5);
+
+                painter.fillRect(plate, strokeColor(cell));
+                painter.drawRect(plate);
+                painter.drawLine(QPointF(currentX + batteryWidth * 0.8, 0),
+                                 QPointF(currentX + batteryWidth * 0.8, local.height()));
+
+                if (i > 0)
+                {
+                    QPen dashed = batteryPen;
+                    dashed.setDashPattern({3.0, 3.0});
+                    painter.setPen(dashed);
+                    painter.drawLine(QPointF(currentX - batteryWidth * 0.2,
+                                             local.height() * 0.5),
+                                     QPointF(currentX + batteryWidth * 0.2,
+                                             local.height() * 0.5));
+                    painter.setPen(batteryPen);
+                }
+            }
+        }
+
+        LabelPainter::paint(painter, cell, local);
+        painter.restore();
+        return;
+    }
+
     const QPainterPath path = ShapeRegistry::pathFor(cell);
     QColor fill = fillColor(cell);
     const QColor stroke = strokeColor(cell);
