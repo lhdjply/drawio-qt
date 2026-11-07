@@ -210,8 +210,9 @@ void paintFlexArrow(QPainter &painter, const Cell &edge, const RoutedEdge &route
         return;
     }
 
-    const QColor fill = edge.styleColor(QStringLiteral("fillColor"),
-                                        QColor(0xD8, 0x00, 0x73));
+    // draw.io's default shape fill is white: flexArrow edges without an explicit
+    // fillColor are outlined white arrows, not coloured ones.
+    const QColor fill = edge.styleColor(QStringLiteral("fillColor"), QColor(Qt::white));
     const QColor stroke = edgeColor(edge);
 
     // draw.io's flexArrow has a solid shaft and a wide triangular head; its

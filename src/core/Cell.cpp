@@ -116,15 +116,25 @@ QString Cell::plainLabel() const
         return value;
     }
 
-    // A very small subset of the HTML used by draw.io labels: <br>, <b>, <i>,
-    // <u>, <font color>, numeric entities and named entities.
+    // A very small subset of the HTML used by draw.io labels. Tags often carry
+    // Word-generated style attributes, so block tags are matched including
+    // their attributes; otherwise the text runs together on one line.
     QString text = value;
-    text.replace(QRegularExpression(QStringLiteral("<br\\s*/?>"), QRegularExpression::CaseInsensitiveOption),
+    text.replace(QRegularExpression(QStringLiteral("<br[^>]*>"),
+                                    QRegularExpression::CaseInsensitiveOption),
                  QStringLiteral("\n"));
-    text.replace(QRegularExpression(QStringLiteral("<div[^>]*>"), QRegularExpression::CaseInsensitiveOption),
+    text.replace(QRegularExpression(QStringLiteral("<div[^>]*>"),
+                                    QRegularExpression::CaseInsensitiveOption),
                  QStringLiteral("\n"));
-    text.replace(QRegularExpression(QStringLiteral("</div>"), QRegularExpression::CaseInsensitiveOption),
-                 QString());
+    text.replace(QRegularExpression(QStringLiteral("</div\\s*>"),
+                                    QRegularExpression::CaseInsensitiveOption),
+                 QStringLiteral("\n"));
+    text.replace(QRegularExpression(QStringLiteral("<p[^>]*>"),
+                                    QRegularExpression::CaseInsensitiveOption),
+                 QStringLiteral("\n"));
+    text.replace(QRegularExpression(QStringLiteral("</p\\s*>"),
+                                    QRegularExpression::CaseInsensitiveOption),
+                 QStringLiteral("\n"));
     text.replace(QRegularExpression(QStringLiteral("<[^>]+>")), QString());
     text.replace(QStringLiteral("&nbsp;"), QStringLiteral(" "));
     text.replace(QStringLiteral("&lt;"), QStringLiteral("<"));

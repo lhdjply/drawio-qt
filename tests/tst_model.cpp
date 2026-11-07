@@ -111,6 +111,23 @@ private slots:
                  QStringLiteral("fillColor=#dae8fc;html=1;rounded=1;whiteSpace=wrap;"));
     }
 
+    void htmlLabelHandlesTagsWithAttributes()
+    {
+        Cell cell(Cell::Kind::Vertex, QStringLiteral("label"));
+        cell.style = Style::parse(QStringLiteral("html=1;"));
+        cell.value = QStringLiteral(
+            "研究内容一<br style=\"font-size: 16px;\"><br>"
+            "<p style=\"margin: 0pt; text-align: justify;\">"
+            "<span style=\"font-size: 16px;\">正文内容</span></p>");
+
+        const QString text = cell.plainLabel();
+        QVERIFY(text.contains(QStringLiteral("研究内容一")));
+        QVERIFY(text.contains(QStringLiteral("正文内容")));
+        QVERIFY(text.contains(QLatin1Char('\n')));
+        QVERIFY(!text.contains(QLatin1Char('<')));
+        QVERIFY(!text.contains(QStringLiteral("style=")));
+    }
+
     void duplicateShapeKeepsAttachedEdgeInsideSelection()
     {
         Page page;
