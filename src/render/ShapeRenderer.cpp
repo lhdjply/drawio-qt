@@ -3,6 +3,7 @@
 #include "render/ShapeRegistry.h"
 
 #include <QFontMetricsF>
+#include <QRegularExpression>
 #include <QImage>
 #include <QLinearGradient>
 #include <QFile>
@@ -22,6 +23,45 @@ bool isClosingPunctuation(QChar character)
 {
     static const QString closing = QStringLiteral("，。、；：！？）》】」』〕｝”’…");
     return closing.contains(character);
+}
+
+QString decodeHtmlEntities(QString text)
+{
+    text.replace(QStringLiteral("&nbsp;"), QStringLiteral(" "));
+    text.replace(QStringLiteral("&lt;"), QStringLiteral("<"));
+    text.replace(QStringLiteral("&gt;"), QStringLiteral(">"));
+    text.replace(QStringLiteral("&quot;"), QStringLiteral("\""));
+    text.replace(QStringLiteral("&#39;"), QStringLiteral("'"));
+    text.replace(QStringLiteral("&apos;"), QStringLiteral("'"));
+    text.replace(QStringLiteral("&amp;"), QStringLiteral("&"));
+    return text;
+}
+
+Qt::Alignment alignmentFromTag(const QString &tag, Qt::Alignment fallback)
+{
+    static const QRegularExpression pattern(
+        QStringLiteral("text-align\\s*:\\s*(left|right|center|justify)"),
+        QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch match = pattern.match(tag);
+
+    if (!match.hasMatch())
+    {
+        return fallback & Qt::AlignHorizontal_Mask;
+    }
+
+    const QString value = match.captured(1).toLower();
+
+    if (value == QLatin1String("left") || value == QLatin1String("justify"))
+    {
+        return Qt::AlignLeft;
+    }
+
+    if (value == QLatin1String("right"))
+    {
+        return Qt::AlignRight;
+    }
+
+    return Qt::AlignHCenter;
 }
 
 
@@ -214,28 +254,123 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
     const QFontMetricsF metrics(font);
     const bool wrap = cell.styleValue(QStringLiteral("whiteSpace")) == QLatin1String("wrap")
         || cell.isHtmlLabel();
-    const QString text = cell.plainLabel();
     const double maxWidth = wrap ? rect.width() : 100000.0;
+    const Qt::Alignment baseAlignment = alignmentFor(cell) & Qt::AlignHorizontal_Mask;
 
-    // Lay out the text ourselves with drawText: QTextDocument applies its own
-    // DPI metrics and produced oversized glyphs on high-DPI screens and in
-    // exports. draw.io also uses the font size as the line advance for these
-    // labels, which keeps stacked CJK labels inside their shapes.
-    QStringList lines;
-
-    const QStringList paragraphs = text.split(QLatin1Char('\n'));
-
-    for (const QString &paragraph : paragraphs)
+    struct Paragraph
     {
-        if (paragraph.isEmpty())
+        QString text;
+        Qt::Alignment align;
+    };
+
+    QVector<Paragraph> paragraphs;
+
+    if (cell.isHtmlLabel())
+    {
+        QString buffer;
+        Qt::Alignment current = baseAlignment;
+
+        const auto flush = [&](bool force)
         {
-            lines.append(QString());
+            const QString text = decodeHtmlEntities(buffer);
+            buffer.clear();
+
+            if (!text.isEmpty() || force)
+            {
+                paragraphs.append(Paragraph{text, current});
+            }
+        };
+
+        const QString html = cell.value;
+
+        for (int i = 0; i < html.size();)
+        {
+            if (html.at(i) == QLatin1Char('<'))
+            {
+                const int end = html.indexOf(QLatin1Char('>'), i);
+
+                if (end < 0)
+                {
+                    buffer += html.mid(i);
+                    break;
+                }
+
+                const QString tag = html.mid(i + 1, end - i - 1).trimmed();
+                const QString lower = tag.toLower();
+
+                if (lower.startsWith(QLatin1String("br")))
+                {
+                    flush(true);
+                }
+                else if (lower.startsWith(QLatin1String("p"))
+                         && !lower.startsWith(QLatin1String("/p"))
+                         && !lower.startsWith(QLatin1String("pre")))
+                {
+                    flush(false);
+                    current = alignmentFromTag(tag, baseAlignment);
+                }
+                else if (lower.startsWith(QLatin1String("/p")))
+                {
+                    flush(false);
+                    current = baseAlignment;
+                }
+                else if (lower.startsWith(QLatin1String("div"))
+                         && !lower.startsWith(QLatin1String("/div")))
+                {
+                    flush(false);
+                    current = alignmentFromTag(tag, baseAlignment);
+                }
+                else if (lower.startsWith(QLatin1String("/div")))
+                {
+                    flush(false);
+                    current = baseAlignment;
+                }
+
+                i = end + 1;
+            }
+            else
+            {
+                buffer += html.at(i);
+                ++i;
+            }
+        }
+
+        flush(false);
+
+        if (paragraphs.isEmpty())
+        {
+            paragraphs.append(Paragraph{cell.plainLabel(), baseAlignment});
+        }
+    }
+    else
+    {
+        const QStringList parts = cell.value.split(QLatin1Char('\n'));
+
+        for (const QString &part : parts)
+        {
+            paragraphs.append(Paragraph{part, baseAlignment});
+        }
+    }
+
+    struct RenderLine
+    {
+        QString text;
+        Qt::Alignment align;
+    };
+
+    QVector<RenderLine> lines;
+
+    for (const Paragraph &paragraph : paragraphs)
+    {
+        if (paragraph.text.isEmpty())
+        {
+            lines.append(RenderLine{QString(), paragraph.align});
             continue;
         }
 
         QString current;
 
-        for (const QChar character : paragraph)
+        for (const QChar character : paragraph.text)
         {
             const QString candidate = current + character;
 
@@ -247,17 +382,17 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
                 {
                     const QChar moved = current.at(current.size() - 1);
                     current.chop(1);
-                    lines.append(current);
+                    lines.append(RenderLine{current, paragraph.align});
                     current = QString(moved) + character;
                 }
                 else if (lastSpace > 0 && !character.isSpace())
                 {
-                    lines.append(current.left(lastSpace));
+                    lines.append(RenderLine{current.left(lastSpace), paragraph.align});
                     current = current.mid(lastSpace + 1) + character;
                 }
                 else
                 {
-                    lines.append(current);
+                    lines.append(RenderLine{current, paragraph.align});
                     current = QString(character);
                 }
             }
@@ -267,9 +402,9 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
             }
         }
 
-        if (!current.isEmpty() || paragraph.isEmpty())
+        if (!current.isEmpty())
         {
-            lines.append(current);
+            lines.append(RenderLine{current, paragraph.align});
         }
     }
 
@@ -298,21 +433,17 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
         top = rect.bottom() - totalHeight;
     }
 
-    // Text-only shapes are allowed to overflow their bounds, exactly like the
-    // draw.io text tool; a small text cell inside a banner must not clip the
-    // stacked characters.
     if (!ShapeRegistry::isTextShape(cell))
     {
         painter.setClipRect(rect.adjusted(-1, -1, 1, 1));
     }
 
-    Qt::Alignment horizontal = alignmentFor(cell) & Qt::AlignHorizontal_Mask;
     double y = top;
 
-    for (const QString &line : lines)
+    for (const RenderLine &line : lines)
     {
         painter.drawText(QRectF(rect.left(), y, rect.width(), lineHeight),
-                         horizontal | Qt::AlignVCenter, line);
+                         line.align | Qt::AlignVCenter, line.text);
         y += lineHeight;
     }
 
