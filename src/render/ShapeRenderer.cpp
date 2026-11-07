@@ -18,6 +18,14 @@
 namespace dq {
 namespace {
 
+bool isClosingPunctuation(QChar character)
+{
+    static const QString closing = QStringLiteral("，。、；：！？）》】」』〕｝”’…");
+    return closing.contains(character);
+}
+
+
+
 QString normalizedFontFamily(const QString &family)
 {
     if (family.isEmpty())
@@ -235,7 +243,14 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
             {
                 const int lastSpace = current.lastIndexOf(QLatin1Char(' '));
 
-                if (lastSpace > 0 && !character.isSpace())
+                if (isClosingPunctuation(character) && current.size() > 1)
+                {
+                    const QChar moved = current.at(current.size() - 1);
+                    current.chop(1);
+                    lines.append(current);
+                    current = QString(moved) + character;
+                }
+                else if (lastSpace > 0 && !character.isSpace())
                 {
                     lines.append(current.left(lastSpace));
                     current = current.mid(lastSpace + 1) + character;
