@@ -4,6 +4,8 @@
 #include "ui/DiagramView.h"
 #include "ui/FormatPanel.h"
 #include "ui/ShapeToolbox.h"
+#include "ui/ShapeLibraryDialog.h"
+#include "render/ShapeCatalog.h"
 #include "ui/OverlayEditor.h"
 #include "ui/MainWindow.h"
 
@@ -19,6 +21,7 @@
 #include <QImage>
 #include <QTimer>
 #include <QUndoStack>
+#include <QListWidget>
 #include <QtTest>
 
 using namespace dq;
@@ -359,6 +362,32 @@ private slots:
         QVERIFY(value.contains(QStringLiteral("新文字")));
         QVERIFY(value.contains(QStringLiteral("font-size: 11pt")));
         QVERIFY(value.contains(QStringLiteral("fontSize")) == false);
+    }
+
+    void defaultShapeLibrariesAreFocused()
+    {
+        const QStringList defaults = ShapeLibraryDialog::defaultCategories();
+        QCOMPARE(defaults, (QStringList{QStringLiteral("basic"), QStringLiteral("arrows"),
+                                        QStringLiteral("flowchart")}));
+    }
+
+    void shapeLibraryDialogReportsNone()
+    {
+        ShapeLibraryDialog dialog;
+        auto *list = dialog.findChild<QListWidget *>();
+        QVERIFY(list != nullptr);
+
+        for (int i = 0; i < list->count(); ++i)
+        {
+            QListWidgetItem *item = list->item(i);
+
+            if (item->flags() & Qt::ItemIsUserCheckable)
+            {
+                item->setCheckState(Qt::Unchecked);
+            }
+        }
+
+        QCOMPARE(dialog.enabledCategories(), QStringList{QStringLiteral("__none__")});
     }
 
     void saveAndReopenDocument()

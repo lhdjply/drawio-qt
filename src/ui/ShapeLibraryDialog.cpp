@@ -21,7 +21,8 @@ ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
 
     auto *layout = new QVBoxLayout(this);
 
-    auto *hint = new QLabel(QStringLiteral("勾选要在形状面板中显示的库："), this);
+    auto *hint = new QLabel(QStringLiteral("勾选要在左侧面板中显示的库："), this);
+    hint->setWordWrap(true);
     layout->addWidget(hint);
 
     m_list = new QListWidget(this);
@@ -30,9 +31,26 @@ ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
 
     const QStringList configured = configuredCategories();
     const QVector<ShapeCategory> categories = ShapeCatalog::instance().categories();
+    bool imageHeaderAdded = false;
+
+    auto *builtinHeader = new QListWidgetItem(QStringLiteral("内置形状"), m_list);
+    builtinHeader->setFlags(Qt::NoItemFlags);
+    QFont builtinFont = builtinHeader->font();
+    builtinFont.setBold(true);
+    builtinHeader->setFont(builtinFont);
 
     for (const ShapeCategory &category : categories)
     {
+        if (category.imageLibrary && !imageHeaderAdded)
+        {
+            imageHeaderAdded = true;
+            auto *header = new QListWidgetItem(QStringLiteral("图片库"), m_list);
+            header->setFlags(Qt::NoItemFlags);
+            QFont headerFont = header->font();
+            headerFont.setBold(true);
+            header->setFont(headerFont);
+        }
+
         m_allIds.append(category.id);
 
         auto *item = new QListWidgetItem(m_list);
@@ -80,7 +98,12 @@ void ShapeLibraryDialog::selectAll(bool selected)
 {
     for (int i = 0; i < m_list->count(); ++i)
     {
-        m_list->item(i)->setCheckState(selected ? Qt::Checked : Qt::Unchecked);
+        QListWidgetItem *item = m_list->item(i);
+
+        if (item->flags() & Qt::ItemIsUserCheckable)
+        {
+            item->setCheckState(selected ? Qt::Checked : Qt::Unchecked);
+        }
     }
 }
 
@@ -92,19 +115,38 @@ QStringList ShapeLibraryDialog::enabledCategories() const
     {
         const QListWidgetItem *item = m_list->item(i);
 
+        if (!item->data(Qt::UserRole).isValid())
+        {
+            continue;
+        }
+
         if (item->checkState() == Qt::Checked)
         {
             result.append(item->data(Qt::UserRole).toString());
         }
     }
 
-    // Everything checked is the default state and needs no persistence.
-    return result.size() == m_allIds.size() ? QStringList() : result;
+    // Persist the explicit selection; draw.io's default panel only shows the
+    // built-in libraries, not every bundled image library.
+    if (result.isEmpty())
+    {
+        return {QStringLiteral("__none__")};
+    }
+
+    return result;
+}
+
+QStringList ShapeLibraryDialog::defaultCategories()
+{
+    // Keep the initial palette focused: basic shapes, arrows and flowchart.
+    return {QStringLiteral("basic"), QStringLiteral("arrows"),
+            QStringLiteral("flowchart")};
 }
 
 QStringList ShapeLibraryDialog::configuredCategories()
 {
-    return AppSettings::instance().enabledShapeLibraries();
+    const QStringList configured = AppSettings::instance().enabledShapeLibraries();
+    return configured.isEmpty() ? defaultCategories() : configured;
 }
 
 void ShapeLibraryDialog::setConfiguredCategories(const QStringList &ids)

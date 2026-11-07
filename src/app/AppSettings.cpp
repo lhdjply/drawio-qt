@@ -22,6 +22,15 @@ AppSettings::AppSettings()
     ensureDirectories();
     m_settings = new QSettings(QSettings::IniFormat, QSettings::UserScope,
                                QStringLiteral("drawio-qt"), QStringLiteral("drawio-qt"));
+
+    // One-time migration: earlier builds defaulted to every library. Reset to
+    // the focused basic/arrows/flowchart set; afterwards the user's choices win.
+    if (m_settings->value(QStringLiteral("shapes/defaultsVersion"), 0).toInt() < 2)
+    {
+        m_settings->remove(QStringLiteral("shapes/enabledLibraries"));
+        m_settings->setValue(QStringLiteral("shapes/defaultsVersion"), 2);
+        m_settings->sync();
+    }
 }
 
 AppSettings::~AppSettings()

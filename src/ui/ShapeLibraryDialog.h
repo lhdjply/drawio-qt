@@ -17,8 +17,10 @@ public:
 
     QStringList enabledCategories() const;
 
-    /// Categories enabled in the settings; empty means "all".
+    /// Categories enabled in the settings; first run enables the built-in
+    /// libraries only, matching draw.io's default left panel.
     static QStringList configuredCategories();
+    static QStringList defaultCategories();
     static void setConfiguredCategories(const QStringList &ids);
 
 private:

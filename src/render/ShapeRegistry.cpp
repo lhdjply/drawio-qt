@@ -403,6 +403,25 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;")
             + blue, QSizeF(60, 110), QStringLiteral("cloud"));
 
+    add(QStringLiteral("basic.patternDiag"), QStringLiteral("图案填充（斜线）"),
+        QStringLiteral("shape=patternFillRect;fillStyle=diag;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QSizeF(150, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.patternDiagRev"), QStringLiteral("图案填充（反斜线）"),
+        QStringLiteral("shape=patternFillRect;fillStyle=diagRev;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QSizeF(150, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.patternVertical"), QStringLiteral("图案填充（竖线）"),
+        QStringLiteral("shape=patternFillRect;fillStyle=vert;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QSizeF(150, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.patternHorizontal"), QStringLiteral("图案填充（横线）"),
+        QStringLiteral("shape=patternFillRect;fillStyle=hor;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QSizeF(150, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.patternGrid"), QStringLiteral("图案填充（网格）"),
+        QStringLiteral("shape=patternFillRect;fillStyle=grid;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QSizeF(150, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.patternDiagGrid"), QStringLiteral("图案填充（斜网格）"),
+        QStringLiteral("shape=patternFillRect;fillStyle=diagGrid;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QSizeF(150, 80), QStringLiteral("basic"));
+
     // --- misc ------------------------------------------------------------
     add(QStringLiteral("misc.container"), QStringLiteral("容器"),
         QStringLiteral("swimlane;startSize=0;html=1;fillColor=none;strokeColor=#666666;"),
@@ -604,6 +623,25 @@ QVector<ShapeDefinition> toolboxShapes()
         QSizeF(170, 70), QStringLiteral("arrows"));
     add(QStringLiteral("arrow.stylised"), QStringLiteral("风格化箭头"),
         QStringLiteral("shape=arrStylised;") + plain + blue,
+        QSizeF(160, 70), QStringLiteral("arrows"));
+
+    add(QStringLiteral("arrow.callout"), QStringLiteral("标注箭头"),
+        QStringLiteral("shape=arrCalloutArrow;") + plain + blue,
+        QSizeF(150, 120), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.calloutDouble"), QStringLiteral("标注双箭头"),
+        QStringLiteral("shape=arrCalloutDouble;") + plain + blue,
+        QSizeF(150, 120), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.calloutDouble90"), QStringLiteral("标注双向 90° 箭头"),
+        QStringLiteral("shape=arrCalloutDouble90;") + plain + blue,
+        QSizeF(150, 120), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.calloutQuad"), QStringLiteral("标注四向箭头"),
+        QStringLiteral("shape=arrCalloutQuad;") + plain + blue,
+        QSizeF(150, 130), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.wedgeDashed"), QStringLiteral("楔形箭头（虚线）"),
+        QStringLiteral("shape=arrWedge;dashed=1;") + plain + orange,
+        QSizeF(120, 70), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.tailedNotch"), QStringLiteral("燕尾凹口箭头"),
+        QStringLiteral("shape=arrTailed;") + plain + green,
         QSizeF(160, 70), QStringLiteral("arrows"));
 
     // --- UML -------------------------------------------------------------
@@ -1445,6 +1483,61 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
+    if (key == QLatin1String("patternFillRect"))
+    {
+        path.addRect(rect);
+        const QString fillStyle = Style::value(style, QStringLiteral("fillStyle"),
+                                               QStringLiteral("diag"));
+        const double step = qMax(5.0, Style::number(style, QStringLiteral("step"), 8.0));
+        const double left = x, top = y, right = x + w, bottom = y + h;
+
+        const auto clipLine = [&](QPointF a, QPointF b)
+        {
+            double t0 = 0.0, t1 = 1.0;
+            const double dx = b.x() - a.x();
+            const double dy = b.y() - a.y();
+            const auto clip = [&](double p, double q)
+            {
+                if (qFuzzyIsNull(p)) return q >= 0.0;
+                const double r = q / p;
+                if (p < 0.0) { if (r > t1) return false; if (r > t0) t0 = r; }
+                else { if (r < t0) return false; if (r < t1) t1 = r; }
+                return true;
+            };
+
+            if (!clip(-dx, a.x() - left) || !clip(dx, right - a.x())
+                || !clip(-dy, a.y() - top) || !clip(dy, bottom - a.y()))
+            {
+                return;
+            }
+
+            const QPointF p1(a.x() + t0 * dx, a.y() + t0 * dy);
+            const QPointF p2(a.x() + t1 * dx, a.y() + t1 * dy);
+            path.moveTo(p1);
+            path.lineTo(p2);
+        };
+
+        const bool vertical = fillStyle == QLatin1String("vert")
+            || fillStyle == QLatin1String("grid");
+        const bool horizontal = fillStyle == QLatin1String("hor")
+            || fillStyle == QLatin1String("grid");
+        const bool diagonal = fillStyle == QLatin1String("diag")
+            || fillStyle == QLatin1String("diagGrid");
+        const bool reverse = fillStyle == QLatin1String("diagRev")
+            || fillStyle == QLatin1String("diagGrid");
+
+        if (vertical)
+            for (double px = left; px <= right; px += step) clipLine(QPointF(px, top), QPointF(px, bottom));
+        if (horizontal)
+            for (double py = top; py <= bottom; py += step) clipLine(QPointF(left, py), QPointF(right, py));
+        if (diagonal)
+            for (double px = left - h; px <= right; px += step) clipLine(QPointF(px, top), QPointF(px + h, bottom));
+        if (reverse)
+            for (double px = left; px <= right + h; px += step) clipLine(QPointF(px, top), QPointF(px - h, bottom));
+
+        return path;
+    }
+
     if (key == QLatin1String("miscTable"))
     {
         path.addRect(QRectF(x, y, w, h));
@@ -1480,11 +1573,79 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
+    if (key == QLatin1String("arrCalloutArrow") || key == QLatin1String("arrCalloutDouble")
+        || key == QLatin1String("arrCalloutDouble90") || key == QLatin1String("arrCalloutQuad"))
+    {
+        const double bodyH = h * 0.68;
+        path.addRoundedRect(QRectF(x, y, w, bodyH), 8, 8);
+
+        QPolygonF tail;
+        tail << QPointF(x + w * 0.28, y + bodyH * 0.94)
+             << QPointF(x + w * 0.16, y + h)
+             << QPointF(x + w * 0.46, y + bodyH * 0.9);
+        path.addPolygon(tail);
+        path.closeSubpath();
+
+        if (key != QLatin1String("arrCalloutArrow"))
+        {
+            QPolygonF second;
+            second << QPointF(x + w * 0.62, y + bodyH * 0.94)
+                   << QPointF(x + w * 0.74, y + h)
+                   << QPointF(x + w * 0.44, y + bodyH * 0.9);
+            path.addPolygon(second);
+            path.closeSubpath();
+        }
+
+        if (key == QLatin1String("arrCalloutDouble90"))
+        {
+            QPolygonF side;
+            side << QPointF(x + w * 0.92, y + bodyH * 0.5)
+                 << QPointF(x + w, y + bodyH * 0.72)
+                 << QPointF(x + w * 0.84, y + bodyH * 0.72);
+            path.addPolygon(side);
+            path.closeSubpath();
+        }
+
+        if (key == QLatin1String("arrCalloutQuad"))
+        {
+            QPolygonF top;
+            top << QPointF(x + w * 0.5, y - h * 0.02)
+                << QPointF(x + w * 0.62, y + h * 0.16)
+                << QPointF(x + w * 0.38, y + h * 0.16);
+            path.addPolygon(top);
+            path.closeSubpath();
+        }
+
+        return path;
+    }
+
+    if (key == QLatin1String("arrTriad"))
+    {
+        const QPointF center(w / 2.0, h / 2.0);
+
+        for (int i = 0; i < 3; ++i)
+        {
+            const double angle = -M_PI / 2.0 + i * 2.0 * M_PI / 3.0;
+            const QPointF tip(center.x() + std::cos(angle) * w * 0.46,
+                              center.y() + std::sin(angle) * h * 0.46);
+            const QPointF back(center.x() + std::cos(angle) * w * 0.18,
+                               center.y() + std::sin(angle) * h * 0.18);
+            const QPointF normal(-std::sin(angle), std::cos(angle));
+            QPolygonF head;
+            head << tip << back + normal * w * 0.12 << back - normal * w * 0.12;
+            path.addPolygon(head);
+            path.closeSubpath();
+        }
+
+        path.addEllipse(center, w * 0.1, h * 0.1);
+        return path;
+    }
+
     if (key == QLatin1String("arrTailed") || key == QLatin1String("arrSharp")
         || key == QLatin1String("arrSlender") || key == QLatin1String("arrSlenderTwo")
         || key == QLatin1String("arrNotched") || key == QLatin1String("arrSignalIn")
         || key == QLatin1String("arrNotchedSignalIn") || key == QLatin1String("arrJumpIn")
-        || key == QLatin1String("arrQuad") || key == QLatin1String("arrTriad")
+        || key == QLatin1String("arrQuad")
         || key == QLatin1String("arrUturn") || key == QLatin1String("arrBend")
         || key == QLatin1String("arrBendDouble") || key == QLatin1String("arrStriped")
         || key == QLatin1String("arrStylised"))

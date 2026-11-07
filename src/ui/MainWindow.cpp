@@ -761,7 +761,7 @@ void MainWindow::createMenus()
     insertMenu->addSeparator();
     insertMenu->addAction(m_connectorAction);
 
-    QAction *libraryAction = insertMenu->addAction(QStringLiteral("形状库…"));
+    QAction *libraryAction = insertMenu->addAction(QStringLiteral("选择形状库…"));
     connect(libraryAction, &QAction::triggered, this, [this]()
     {
         ShapeLibraryDialog dialog(this);
