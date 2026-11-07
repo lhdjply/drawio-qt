@@ -352,15 +352,56 @@ void paintFlexArrow(QPainter &painter, const Cell &edge, const RoutedEdge &route
         const QPointF start = route.points.first();
         const double shaftHalf = shaft / 2.0;
         const double headHalf = qMax(headWidth / 2.0, shaftHalf);
+        const double length = QLineF(start, tip).length();
+        const double head = qMin(headLength, length / 2.0);
+        const QPointF startBase = start + direction * head;
+        const QPointF endBase = tip - direction * head;
+
+        const QString startArrow = edge.styleValue(QStringLiteral("startArrow"),
+                                                   QStringLiteral("none"));
+        const QString endArrow = edge.styleValue(QStringLiteral("endArrow"),
+                                                 QStringLiteral("classic"));
+        const bool startHead = startArrow.compare(QLatin1String("none"), Qt::CaseInsensitive) != 0
+            && !startArrow.isEmpty();
+        const bool endHead = endArrow.compare(QLatin1String("none"), Qt::CaseInsensitive) != 0
+            && !endArrow.isEmpty();
 
         QPolygonF polygon;
-        polygon << start + normal * shaftHalf
-                << base + normal * shaftHalf
-                << base + normal * headHalf
-                << tip
-                << base - normal * headHalf
-                << base - normal * shaftHalf
-                << start - normal * shaftHalf;
+
+        if (startHead)
+        {
+            polygon << start
+                    << startBase + normal * headHalf
+                    << startBase + normal * shaftHalf;
+        }
+        else
+        {
+            polygon << start + normal * shaftHalf;
+        }
+
+        if (endHead)
+        {
+            polygon << endBase + normal * shaftHalf
+                    << endBase + normal * headHalf
+                    << tip
+                    << endBase - normal * headHalf
+                    << endBase - normal * shaftHalf;
+        }
+        else
+        {
+            polygon << tip + normal * shaftHalf
+                    << tip - normal * shaftHalf;
+        }
+
+        if (startHead)
+        {
+            polygon << startBase - normal * shaftHalf
+                    << startBase - normal * headHalf;
+        }
+        else
+        {
+            polygon << start - normal * shaftHalf;
+        }
 
         QPainterPath outline;
         outline.addPolygon(polygon);

@@ -612,14 +612,20 @@ void FormatPanel::buildUi()
         }
 
         const QString value = combo->currentData().toString();
-
         QComboBox *other = combo == m_startArrow ? m_endArrow : m_startArrow;
+        const bool flexMode = m_startArrow->currentData().toString() == QLatin1String("flexArrow")
+            || m_endArrow->currentData().toString() == QLatin1String("flexArrow");
         m_updating = true;
 
         if (value == QLatin1String("flexArrow"))
         {
             m_view->applyStyle(QStringLiteral("shape"), QStringLiteral("flexArrow"));
-            other->setCurrentIndex(combo->currentIndex());
+            m_view->applyStyle(styleKey, QStringLiteral("classic"));
+        }
+        else if (value == QLatin1String("none") && flexMode)
+        {
+            // Keep the flexArrow shaft and remove only this end's head.
+            m_view->applyStyle(styleKey, QStringLiteral("none"));
         }
         else
         {
@@ -824,8 +830,14 @@ void FormatPanel::updateFromSelection()
     const QString endArrow = cell->styleValue(QStringLiteral("endArrow"), QStringLiteral("classic"));
     if (flexArrow)
     {
-        m_startArrow->setCurrentIndex(qMax(0, m_startArrow->findData(QStringLiteral("flexArrow"))));
-        m_endArrow->setCurrentIndex(qMax(0, m_endArrow->findData(QStringLiteral("flexArrow"))));
+        const bool startHead = startArrow.compare(QLatin1String("none"), Qt::CaseInsensitive) != 0
+            && !startArrow.isEmpty();
+        const bool endHead = endArrow.compare(QLatin1String("none"), Qt::CaseInsensitive) != 0
+            && !endArrow.isEmpty();
+        m_startArrow->setCurrentIndex(qMax(0, m_startArrow->findData(
+            startHead ? QStringLiteral("flexArrow") : QStringLiteral("none"))));
+        m_endArrow->setCurrentIndex(qMax(0, m_endArrow->findData(
+            endHead ? QStringLiteral("flexArrow") : QStringLiteral("none"))));
     }
     else
     {
