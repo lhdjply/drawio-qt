@@ -8,6 +8,9 @@
 
 #include <QApplication>
 #include <QComboBox>
+#include <QDragEnterEvent>
+#include <QDropEvent>
+#include <QMimeData>
 #include <QFileInfo>
 #include <QImage>
 #include <QTimer>
@@ -130,6 +133,72 @@ private slots:
         // Restore the light theme for the remaining tests.
         AppSettings::instance().setTheme(QStringLiteral("light"));
         UiTheme::applyColorScheme(QStringLiteral("light"));
+    }
+
+    void droppingShapeAddsCell()
+    {
+        MainWindow window;
+        window.resize(1000, 700);
+        window.show();
+        (void)QTest::qWaitForWindowExposed(&window);
+
+        DiagramView *view = window.view();
+        QVERIFY(view != nullptr);
+        const int before = view->page()->cells().size();
+
+        QMimeData mime;
+        mime.setData(QStringLiteral("application/x-drawio-shape"),
+                     QByteArrayLiteral("rectangle"));
+
+        const QPoint position(320, 260);
+        QDragEnterEvent enter(position, Qt::CopyAction, &mime, Qt::LeftButton,
+                              Qt::NoModifier);
+        QApplication::sendEvent(view, &enter);
+        QVERIFY(enter.isAccepted());
+
+        QDragMoveEvent move(position, Qt::CopyAction, &mime, Qt::LeftButton,
+                            Qt::NoModifier);
+        QApplication::sendEvent(view, &move);
+
+        QDropEvent drop(QPointF(position), Qt::CopyAction, &mime, Qt::LeftButton,
+                        Qt::NoModifier);
+        QApplication::sendEvent(view, &drop);
+        QCoreApplication::processEvents();
+
+        QCOMPARE(view->page()->cells().size(), before + 1);
+        QCOMPARE(view->selection().size(), 1);
+    }
+
+    void droppingImageLibraryShapeAddsCell()
+    {
+        MainWindow window;
+        window.resize(1000, 700);
+        window.show();
+        (void)QTest::qWaitForWindowExposed(&window);
+
+        DiagramView *view = window.view();
+        const int before = view->page()->cells().size();
+
+        QMimeData mime;
+        mime.setData(QStringLiteral("application/x-drawio-shape"),
+                     QByteArrayLiteral("img/lib/active_directory/database_cube.svg"));
+
+        const QPoint position(360, 300);
+        QDragEnterEvent enter(position, Qt::CopyAction, &mime, Qt::LeftButton,
+                              Qt::NoModifier);
+        QApplication::sendEvent(view, &enter);
+        QVERIFY(enter.isAccepted());
+
+        QDropEvent drop(QPointF(position), Qt::CopyAction, &mime, Qt::LeftButton,
+                        Qt::NoModifier);
+        QApplication::sendEvent(view, &drop);
+        QCoreApplication::processEvents();
+
+        QCOMPARE(view->page()->cells().size(), before + 1);
+        Cell *cell = view->page()->cell(*view->selection().begin());
+        QVERIFY(cell != nullptr);
+        QCOMPARE(cell->styleValue(QStringLiteral("image")),
+                 QStringLiteral("img/lib/active_directory/database_cube.svg"));
     }
 
     void canvasSelectionAndUndo()

@@ -3,7 +3,10 @@
 #include "render/ShapeCatalog.h"
 #include "ui/ShapeLibraryDialog.h"
 
+#include <QApplication>
 #include <QComboBox>
+#include <QDrag>
+#include <QMouseEvent>
 #include <QFrame>
 #include <QHBoxLayout>
 #include <QIcon>
@@ -28,8 +31,11 @@ public:
     explicit ShapeList(QWidget *parent = nullptr)
         : QListWidget(parent)
     {
-        setDragEnabled(true);
-        setDragDropMode(QAbstractItemView::DragOnly);
+        // Drag is started manually from mouseMoveEvent: the default item-view
+        // drag path is unreliable for icon grids inside docks, and this also
+        // gives us a proper drag pixmap of the shape.
+        setDragEnabled(false);
+        setDragDropMode(QAbstractItemView::NoDragDrop);
         setSelectionMode(QAbstractItemView::SingleSelection);
         setViewMode(QListView::IconMode);
         setResizeMode(QListView::Adjust);
@@ -42,18 +48,66 @@ public:
     }
 
 protected:
-    QMimeData *mimeData(const QList<QListWidgetItem *> &items) const override
+    void mousePressEvent(QMouseEvent *event) override
     {
-        auto *data = new QMimeData();
-
-        if (!items.isEmpty())
+        if (event->button() == Qt::LeftButton)
         {
-            data->setData(QLatin1String(kShapeMimeType),
-                          items.first()->data(Qt::UserRole).toString().toUtf8());
+            m_pressPosition = event->position().toPoint();
+            m_pressItem = itemAt(m_pressPosition);
         }
 
-        return data;
+        QListWidget::mousePressEvent(event);
     }
+
+    void mouseMoveEvent(QMouseEvent *event) override
+    {
+        if (m_pressItem != nullptr && (event->buttons() & Qt::LeftButton)
+            && (event->position().toPoint() - m_pressPosition).manhattanLength()
+                   >= QApplication::startDragDistance())
+        {
+            QListWidgetItem *item = m_pressItem;
+            m_pressItem = nullptr;
+            startShapeDrag(item);
+            return;
+        }
+
+        QListWidget::mouseMoveEvent(event);
+    }
+
+    void mouseReleaseEvent(QMouseEvent *event) override
+    {
+        m_pressItem = nullptr;
+        QListWidget::mouseReleaseEvent(event);
+    }
+
+private:
+    void startShapeDrag(QListWidgetItem *item)
+    {
+        if (item == nullptr)
+        {
+            return;
+        }
+
+        const QString key = item->data(Qt::UserRole).toString();
+
+        auto *mime = new QMimeData();
+        mime->setData(QLatin1String(kShapeMimeType), key.toUtf8());
+
+        auto *drag = new QDrag(this);
+        drag->setMimeData(mime);
+
+        const QIcon icon = item->icon();
+
+        if (!icon.isNull())
+        {
+            drag->setPixmap(icon.pixmap(48, 48));
+        }
+
+        drag->exec(Qt::CopyAction, Qt::CopyAction);
+    }
+
+    QPoint m_pressPosition;
+    QListWidgetItem *m_pressItem = nullptr;
 };
 
 } // namespace
