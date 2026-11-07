@@ -567,13 +567,6 @@ void paint(QPainter &painter, const Cell &cell)
             const double startSize = cell.styleNumber(QStringLiteral("startSize"), 23.0);
             painter.drawLine(QPointF(0, startSize), QPointF(local.width(), startSize));
         }
-        else if (key == QLatin1String("group"))
-        {
-            QPen dashed = pen;
-            dashed.setStyle(Qt::DashLine);
-            painter.setPen(dashed);
-            painter.drawPath(path);
-        }
         else if (key == QLatin1String("mxgraph.flowchart.internal_storage"))
         {
             const double inset = local.width() * 0.14;

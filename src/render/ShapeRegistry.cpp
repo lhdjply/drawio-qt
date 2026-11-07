@@ -41,6 +41,11 @@ QString shapeKey(const Cell &cell)
         return QStringLiteral("line");
     }
 
+    if (cell.styleFlag(QStringLiteral("group")))
+    {
+        return QStringLiteral("group");
+    }
+
     if (cell.styleFlag(QStringLiteral("swimlane")))
     {
         return QStringLiteral("swimlane");

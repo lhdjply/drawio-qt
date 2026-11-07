@@ -201,6 +201,64 @@ QPainterPath EdgeRenderer::pathFor(const RoutedEdge &route, const Cell &edge)
     return path;
 }
 
+namespace {
+
+void paintFlexArrow(QPainter &painter, const Cell &edge, const RoutedEdge &route)
+{
+    if (route.points.size() < 2)
+    {
+        return;
+    }
+
+    const QColor fill = edge.styleColor(QStringLiteral("fillColor"),
+                                        QColor(0xD8, 0x00, 0x73));
+    const QColor stroke = edgeColor(edge);
+
+    // draw.io's flexArrow has a solid shaft and a wide triangular head; its
+    // size is independent of the generic arrow markers.
+    const double shaft = qBound(4.0, edge.styleNumber(QStringLiteral("arrowWidth"), 10.0), 40.0);
+    const double headLength = qBound(8.0, edge.styleNumber(QStringLiteral("arrowSize"), 18.0), 60.0);
+    const double headWidth = qMax(headLength, 24.0);
+
+    const QPointF tip = route.points.last();
+    const QPointF previous = route.points.at(route.points.size() - 2);
+    const QPointF direction = normalized(tip - previous);
+    const QPointF normal(-direction.y(), direction.x());
+    const QPointF base = tip - direction * headLength;
+
+    QPainterPath line;
+    line.moveTo(route.points.first());
+
+    for (int i = 1; i < route.points.size() - 1; ++i)
+    {
+        line.lineTo(route.points.at(i));
+    }
+
+    line.lineTo(base);
+
+    QPainterPathStroker stroker;
+    stroker.setWidth(shaft);
+    stroker.setCapStyle(Qt::FlatCap);
+    stroker.setJoinStyle(Qt::RoundJoin);
+    QPainterPath shaftPath = stroker.createStroke(line);
+
+    QPainterPath headPath;
+    headPath.moveTo(tip);
+    headPath.lineTo(base + normal * (headWidth / 2.0));
+    headPath.lineTo(base - normal * (headWidth / 2.0));
+    headPath.closeSubpath();
+
+    QPainterPath shape = shaftPath.united(headPath);
+
+    painter.save();
+    painter.setPen(QPen(stroke, 1.0));
+    painter.setBrush(fill);
+    painter.drawPath(shape);
+    painter.restore();
+}
+
+} // namespace
+
 QRectF EdgeRenderer::boundsFor(const RoutedEdge &route, const Cell &edge)
 {
     QRectF bounds;
@@ -217,8 +275,14 @@ QRectF EdgeRenderer::boundsFor(const RoutedEdge &route, const Cell &edge)
         bounds |= QRectF(point, QSizeF(0, 0));
     }
 
-    const double margin = qMax(1.0, edge.styleNumber(QStringLiteral("strokeWidth"), 1.0))
+    double margin = qMax(1.0, edge.styleNumber(QStringLiteral("strokeWidth"), 1.0))
         + arrowSize(edge, QStringLiteral("end"));
+
+    if (edge.styleValue(QStringLiteral("shape")).compare(QLatin1String("flexArrow"),
+                                                         Qt::CaseInsensitive) == 0)
+    {
+        margin = qMax(margin, 18.0);
+    }
 
     return bounds.adjusted(-margin, -margin, margin, margin);
 }
@@ -229,6 +293,14 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
 
     if (route.points.size() < 2)
     {
+        return;
+    }
+
+    if (edge.styleValue(QStringLiteral("shape")).compare(QLatin1String("flexArrow"),
+                                                         Qt::CaseInsensitive) == 0)
+    {
+        paintFlexArrow(painter, edge, route);
+        paintLabel(painter, page, edge, route);
         return;
     }
 

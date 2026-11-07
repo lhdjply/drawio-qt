@@ -143,9 +143,10 @@ bool Cell::isContainer() const
 
 bool Cell::isGroup() const
 {
-    return isVertex() && !children.isEmpty()
-        && (styleValue(QStringLiteral("group")) == QLatin1String("1")
-            || styleValue(QStringLiteral("shape")) == QLatin1String("group"));
+    return isVertex()
+        && (styleFlag(QStringLiteral("group"))
+            || styleValue(QStringLiteral("shape")).compare(QLatin1String("group"),
+                                                           Qt::CaseInsensitive) == 0);
 }
 
 Cell *Cell::topLevelAncestor() const

@@ -307,6 +307,43 @@ private slots:
         }
     }
 
+    void flexArrowEdgeIsFilled()
+    {
+        Document document;
+        Page *page = document.currentPage();
+        page->settings.page = false;
+        page->settings.grid = false;
+
+        Cell *a = page->addVertex(QRectF(100, 100, 100, 60));
+        Cell *b = page->addVertex(QRectF(320, 100, 100, 60));
+        Cell *edge = page->addEdge(a->id, b->id);
+
+        edge->style = Style::parse(QStringLiteral(
+            "edgeStyle=none;shape=flexArrow;exitX=1;exitY=0.5;entryX=0;entryY=0.5;"
+            "fillColor=#d80073;strokeColor=#a50040;"));
+
+        ExportOptions options;
+        options.format = QStringLiteral("png");
+        options.border = 10;
+
+        const QRectF bounds = Exporter::exportBounds(*page, options);
+        const ExportResult result = Exporter::exportDocument(document, options);
+        QVERIFY2(result.ok, qPrintable(result.error));
+
+        QImage image;
+        QVERIFY(image.loadFromData(result.data, "PNG"));
+
+        // The middle of the connector must be filled with the arrow colour,
+        // proving the shaft was drawn and not just a thin line.
+        const QPointF middle((a->absoluteRect().right() + b->absoluteRect().left()) / 2.0,
+                             a->absoluteRect().center().y());
+        const QPoint pixel(static_cast<int>(middle.x() - bounds.left()),
+                           static_cast<int>(middle.y() - bounds.top()));
+        const QColor color = image.pixelColor(pixel);
+        QVERIFY(color.red() > 150);
+        QVERIFY(color.blue() < 160);
+    }
+
     void transparentPngHasAlpha()
     {
         QScopedPointer<Document> document(makeDocument());
