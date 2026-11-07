@@ -1,6 +1,7 @@
 #include "core/Document.h"
 #include "core/Page.h"
 #include "render/ShapeRegistry.h"
+#include "render/ShapeCatalog.h"
 
 #include <QPainterPath>
 #include <QtTest>
@@ -128,6 +129,21 @@ private slots:
         QVERIFY(text.contains(QLatin1Char('\n')));
         QVERIFY(!text.contains(QLatin1Char('<')));
         QVERIFY(!text.contains(QStringLiteral("style=")));
+    }
+
+    void imageLibraryNamesAreTranslated()
+    {
+        for (const ShapeCategory &category : ShapeCatalog::instance().categories())
+        {
+            if (category.id == QLatin1String("img/active_directory"))
+            {
+                QCOMPARE(category.name, QStringLiteral("活动目录"));
+            }
+            else if (category.id == QLatin1String("img/azure2"))
+            {
+                QCOMPARE(category.name, QStringLiteral("微软 Azure"));
+            }
+        }
     }
 
     void basicShapesHaveGeometry()

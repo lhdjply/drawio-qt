@@ -51,16 +51,16 @@ QString prettifyName(const QString &raw)
 QString topLevelName(const QString &dir)
 {
     static const QHash<QString, QString> names = {
-        {QStringLiteral("active_directory"), QStringLiteral("Active Directory")},
-        {QStringLiteral("allied_telesis"), QStringLiteral("Allied Telesis")},
-        {QStringLiteral("atlassian"), QStringLiteral("Atlassian")},
-        {QStringLiteral("azure2"), QStringLiteral("Azure")},
+        {QStringLiteral("active_directory"), QStringLiteral("活动目录")},
+        {QStringLiteral("allied_telesis"), QStringLiteral("联合电信")},
+        {QStringLiteral("atlassian"), QStringLiteral("艾特莱森")},
+        {QStringLiteral("azure2"), QStringLiteral("微软 Azure")},
         {QStringLiteral("clip_art"), QStringLiteral("剪贴画")},
-        {QStringLiteral("cumulus"), QStringLiteral("Cumulus")},
-        {QStringLiteral("dynamics365"), QStringLiteral("Dynamics 365")},
-        {QStringLiteral("ibm"), QStringLiteral("IBM")},
-        {QStringLiteral("mscae"), QStringLiteral("Microsoft CAE")},
-        {QStringLiteral("sap"), QStringLiteral("SAP")},
+        {QStringLiteral("cumulus"), QStringLiteral("积云网络")},
+        {QStringLiteral("dynamics365"), QStringLiteral("微软 Dynamics 365")},
+        {QStringLiteral("ibm"), QStringLiteral("IBM（国际商业机器）")},
+        {QStringLiteral("mscae"), QStringLiteral("微软 CAE")},
+        {QStringLiteral("sap"), QStringLiteral("SAP（思爱普）")},
     };
 
     return names.value(dir, prettifyName(dir));
