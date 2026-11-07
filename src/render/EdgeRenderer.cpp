@@ -236,6 +236,36 @@ void paintFlexArrow(QPainter &painter, const Cell &edge, const RoutedEdge &route
     const QPointF normal(-direction.y(), direction.x());
     const QPointF base = tip - direction * headLength;
 
+    // A straight flexArrow is a single closed polygon. Building it from a
+    // stroked line plus a head leaves the shaft's cap edge visible inside the
+    // head, which draw.io does not show.
+    if (route.points.size() == 2)
+    {
+        const QPointF start = route.points.first();
+        const double shaftHalf = shaft / 2.0;
+        const double headHalf = qMax(headWidth / 2.0, shaftHalf);
+
+        QPolygonF polygon;
+        polygon << start + normal * shaftHalf
+                << base + normal * shaftHalf
+                << base + normal * headHalf
+                << tip
+                << base - normal * headHalf
+                << base - normal * shaftHalf
+                << start - normal * shaftHalf;
+
+        QPainterPath outline;
+        outline.addPolygon(polygon);
+        outline.closeSubpath();
+
+        painter.save();
+        painter.setPen(QPen(stroke, 1.0));
+        painter.setBrush(fill);
+        painter.drawPath(outline);
+        painter.restore();
+        return;
+    }
+
     QPainterPath line;
     line.moveTo(route.points.first());
 
