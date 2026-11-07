@@ -138,7 +138,10 @@ Qt::Alignment alignmentFor(const Cell &cell)
 
 QRectF labelRect(const Cell &cell, const QRectF &bounds)
 {
-    const double spacing = cell.styleNumber(QStringLiteral("spacing"), 2.0);
+    // draw.io's default label box keeps only a hair of horizontal padding;
+    // using 2 px on both sides made CJK text wrap one character earlier than
+    // in the reference editor.
+    const double spacing = cell.styleNumber(QStringLiteral("spacing"), 1.0);
     const double spacingLeft = cell.styleNumber(QStringLiteral("spacingLeft"), spacing);
     const double spacingRight = cell.styleNumber(QStringLiteral("spacingRight"), spacing);
     const double spacingTop = cell.styleNumber(QStringLiteral("spacingTop"), spacing);
