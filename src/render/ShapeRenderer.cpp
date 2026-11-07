@@ -274,6 +274,13 @@ void applyInlineFont(const QString &html, QFont &font)
     }
 }
 
+QFont fontForLabel(const Cell &cell)
+{
+    QFont font = fontFor(cell);
+    applyInlineFont(cell.value, font);
+    return font;
+}
+
 void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawBackground)
 {
     if (cell.value.isEmpty())
@@ -300,8 +307,7 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
         }
     }
 
-    QFont font = fontFor(cell);
-    applyInlineFont(cell.value, font);
+    QFont font = fontForLabel(cell);
     painter.setFont(font);
     painter.setPen(textColor(cell));
 

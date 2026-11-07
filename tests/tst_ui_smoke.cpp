@@ -347,6 +347,7 @@ private slots:
         view->startEditing(id, true);
         auto *editor = view->findChild<OverlayEditor *>();
         QVERIFY(editor != nullptr);
+        QVERIFY(editor->font().pixelSize() < 20);
         editor->setPlainText(QStringLiteral("新文字"));
         view->commitEditing();
 

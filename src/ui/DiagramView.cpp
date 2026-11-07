@@ -3011,7 +3011,7 @@ void DiagramView::startEditing(const QString &cellId, bool selectAll)
         }
     }
 
-    QFont font = LabelPainter::fontFor(*cell);
+    QFont font = LabelPainter::fontForLabel(*cell);
     font.setPixelSize(qMax(9, static_cast<int>(font.pixelSize() * m_zoom)));
     m_editor->setFont(font);
     m_editor->begin(viewRect, cell->plainLabel(), selectAll);

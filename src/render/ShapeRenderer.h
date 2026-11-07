@@ -14,6 +14,7 @@ namespace dq {
 namespace LabelPainter {
 
 QFont fontFor(const Cell &cell);
+QFont fontForLabel(const Cell &cell);
 QColor textColor(const Cell &cell);
 QRectF labelRect(const Cell &cell, const QRectF &bounds);
 Qt::Alignment alignmentFor(const Cell &cell);
