@@ -630,53 +630,6 @@ void MainWindow::createMenus()
     m_recentMenu = fileMenu->addMenu(QStringLiteral("打开最近的文件"));
     refreshRecentMenu();
 
-    QMenu *examplesMenu = fileMenu->addMenu(QStringLiteral("打开内置示例"));
-
-    const QVector<QPair<QString, QString>> examples = {
-        {QStringLiteral("流程图"), QStringLiteral(":/examples/basic-flow.drawio")},
-        {QStringLiteral("UML 类图"), QStringLiteral(":/examples/uml-class.drawio")},
-        {QStringLiteral("网络拓扑"), QStringLiteral(":/examples/network.drawio")},
-    };
-
-    for (const auto &entry : examples)
-    {
-        QAction *action = examplesMenu->addAction(entry.first);
-        const QString resource = entry.second;
-        connect(action, &QAction::triggered, this, [this, resource]()
-        {
-            if (!maybeSave())
-            {
-                return;
-            }
-
-            QFile file(resource);
-
-            if (!file.open(QIODevice::ReadOnly))
-            {
-                QMessageBox::warning(this, QStringLiteral("示例"),
-                                     QStringLiteral("无法读取内置示例：%1").arg(resource));
-                return;
-            }
-
-            QString error;
-
-            if (!m_document->loadFromXmlString(QString::fromUtf8(file.readAll()), &error))
-            {
-                QMessageBox::warning(this, QStringLiteral("示例"), error);
-                return;
-            }
-
-            m_document->setFilePath(QString());
-            m_document->setModified(false);
-            m_view->undoStack()->clear();
-            m_view->refreshFromDocument();
-            m_view->fitToWindow();
-            updateTitle();
-            updatePageTabs();
-            updateActions();
-        });
-    }
-
     fileMenu->addSeparator();
     fileMenu->addAction(m_saveAction);
     fileMenu->addAction(m_saveAsAction);
