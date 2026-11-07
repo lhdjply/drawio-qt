@@ -210,6 +210,146 @@ QVector<ShapeDefinition> toolboxShapes()
     const QString white = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
     const QString plain = QStringLiteral("whiteSpace=wrap;html=1;");
 
+    // --- additional draw.io Basic shapes (Sidebar-Basic.js) --------------
+    add(QStringLiteral("basic.partialTopBottom"), QStringLiteral("缺边矩形（上下）"),
+        QStringLiteral("shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QSizeF(140, 70), QStringLiteral("basic"));
+    add(QStringLiteral("basic.partialTop"), QStringLiteral("缺边矩形（上）"),
+        QStringLiteral("shape=partialRectangle;top=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QSizeF(140, 70), QStringLiteral("basic"));
+    add(QStringLiteral("basic.partialBottom"), QStringLiteral("缺边矩形（下）"),
+        QStringLiteral("shape=partialRectangle;bottom=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QSizeF(140, 70), QStringLiteral("basic"));
+    add(QStringLiteral("basic.partialLeft"), QStringLiteral("缺边矩形（左）"),
+        QStringLiteral("shape=partialRectangle;left=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QSizeF(140, 70), QStringLiteral("basic"));
+    add(QStringLiteral("basic.polygon"), QStringLiteral("多边形"),
+        QStringLiteral("shape=polygon;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(120, 120), QStringLiteral("basic"));
+    add(QStringLiteral("basic.star4"), QStringLiteral("四角星"),
+        QStringLiteral("shape=star4;whiteSpace=wrap;html=1;") + yellow,
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.star6"), QStringLiteral("六角星"),
+        QStringLiteral("shape=star6;whiteSpace=wrap;html=1;") + yellow,
+        QSizeF(110, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.star8"), QStringLiteral("八角星"),
+        QStringLiteral("shape=star8;whiteSpace=wrap;html=1;") + yellow,
+        QSizeF(110, 110), QStringLiteral("basic"));
+    add(QStringLiteral("basic.banner"), QStringLiteral("横幅"),
+        QStringLiteral("shape=banner;whiteSpace=wrap;html=1;") + orange,
+        QSizeF(180, 70), QStringLiteral("basic"));
+    add(QStringLiteral("basic.cloudCallout"), QStringLiteral("云标注"),
+        QStringLiteral("shape=cloudCallout;whiteSpace=wrap;html=1;") + purple,
+        QSizeF(160, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.cloudRect"), QStringLiteral("云矩形"),
+        QStringLiteral("shape=cloudRect;whiteSpace=wrap;html=1;") + purple,
+        QSizeF(160, 90), QStringLiteral("basic"));
+    add(QStringLiteral("basic.cone"), QStringLiteral("圆锥"),
+        QStringLiteral("shape=cone;whiteSpace=wrap;html=1;") + yellow,
+        QSizeF(100, 120), QStringLiteral("basic"));
+    add(QStringLiteral("basic.cone2"), QStringLiteral("圆锥（可调）"),
+        QStringLiteral("shape=cone2;whiteSpace=wrap;html=1;") + yellow,
+        QSizeF(100, 120), QStringLiteral("basic"));
+    add(QStringLiteral("basic.donut"), QStringLiteral("圆环"),
+        QStringLiteral("shape=donut;whiteSpace=wrap;html=1;") + green,
+        QSizeF(110, 110), QStringLiteral("basic"));
+    add(QStringLiteral("basic.drop"), QStringLiteral("水滴"),
+        QStringLiteral("shape=drop;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(80, 110), QStringLiteral("basic"));
+    add(QStringLiteral("basic.flash"), QStringLiteral("闪电"),
+        QStringLiteral("shape=flash;whiteSpace=wrap;html=1;") + yellow,
+        QSizeF(80, 120), QStringLiteral("basic"));
+    add(QStringLiteral("basic.halfCircle"), QStringLiteral("半圆"),
+        QStringLiteral("shape=halfCircle;whiteSpace=wrap;html=1;") + green,
+        QSizeF(120, 70), QStringLiteral("basic"));
+    add(QStringLiteral("basic.heart"), QStringLiteral("心形"),
+        QStringLiteral("shape=heart;whiteSpace=wrap;html=1;") + red,
+        QSizeF(110, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.isocube"), QStringLiteral("等轴立方体"),
+        QStringLiteral("shape=isocube;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(110, 110), QStringLiteral("basic"));
+    add(QStringLiteral("basic.loudCallout"), QStringLiteral("大声标注"),
+        QStringLiteral("shape=loudCallout;whiteSpace=wrap;html=1;") + orange,
+        QSizeF(150, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.moon"), QStringLiteral("月亮"),
+        QStringLiteral("shape=moon;whiteSpace=wrap;html=1;") + yellow,
+        QSizeF(90, 110), QStringLiteral("basic"));
+    add(QStringLiteral("basic.noSymbol"), QStringLiteral("禁止符号"),
+        QStringLiteral("shape=noSymbol;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#b85450;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.orthogonalTriangle"), QStringLiteral("直角三角形"),
+        QStringLiteral("shape=orthogonalTriangle;whiteSpace=wrap;html=1;") + green,
+        QSizeF(110, 90), QStringLiteral("basic"));
+    add(QStringLiteral("basic.acuteTriangle"), QStringLiteral("锐角三角形"),
+        QStringLiteral("shape=acuteTriangle;whiteSpace=wrap;html=1;") + green,
+        QSizeF(110, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.obtuseTriangle"), QStringLiteral("钝角三角形"),
+        QStringLiteral("shape=obtuseTriangle;whiteSpace=wrap;html=1;") + green,
+        QSizeF(110, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.ovalCallout"), QStringLiteral("椭圆标注"),
+        QStringLiteral("shape=ovalCallout;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(150, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.pointedOval"), QStringLiteral("尖椭圆"),
+        QStringLiteral("shape=pointedOval;whiteSpace=wrap;html=1;") + purple,
+        QSizeF(80, 110), QStringLiteral("basic"));
+    add(QStringLiteral("basic.pyramid"), QStringLiteral("金字塔"),
+        QStringLiteral("shape=pyramid;whiteSpace=wrap;html=1;") + yellow,
+        QSizeF(120, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.diagSnipRect"), QStringLiteral("斜切矩形"),
+        QStringLiteral("shape=diagSnipRect;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(140, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.diagRoundRect"), QStringLiteral("斜角圆角矩形"),
+        QStringLiteral("shape=diagRoundRect;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(140, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.cornerRoundRect"), QStringLiteral("单角圆角矩形"),
+        QStringLiteral("shape=cornerRoundRect;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(140, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.threeCornerRoundRect"), QStringLiteral("三角圆角矩形"),
+        QStringLiteral("shape=threeCornerRoundRect;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(140, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.plaque"), QStringLiteral("铭牌"),
+        QStringLiteral("shape=plaque;whiteSpace=wrap;html=1;") + orange,
+        QSizeF(140, 70), QStringLiteral("basic"));
+    add(QStringLiteral("basic.frame"), QStringLiteral("框架"),
+        QStringLiteral("shape=frame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QSizeF(140, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.roundedFrame"), QStringLiteral("圆角框架"),
+        QStringLiteral("shape=roundedFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QSizeF(140, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.plaqueFrame"), QStringLiteral("铭牌框架"),
+        QStringLiteral("shape=plaqueFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QSizeF(140, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.frameCorner"), QStringLiteral("框架角"),
+        QStringLiteral("shape=frameCorner;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QSizeF(130, 90), QStringLiteral("basic"));
+    add(QStringLiteral("basic.diagStripe"), QStringLiteral("斜条纹"),
+        QStringLiteral("shape=diagStripe;whiteSpace=wrap;html=1;") + yellow,
+        QSizeF(140, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.rectCallout"), QStringLiteral("矩形标注"),
+        QStringLiteral("shape=rectCallout;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(150, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.roundRectCallout"), QStringLiteral("圆角矩形标注"),
+        QStringLiteral("shape=roundRectCallout;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(150, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.layeredRect"), QStringLiteral("分层矩形"),
+        QStringLiteral("shape=layeredRect;whiteSpace=wrap;html=1;") + green,
+        QSizeF(150, 90), QStringLiteral("basic"));
+    add(QStringLiteral("basic.smiley"), QStringLiteral("笑脸"),
+        QStringLiteral("shape=smiley;whiteSpace=wrap;html=1;") + yellow,
+        QSizeF(110, 110), QStringLiteral("basic"));
+    add(QStringLiteral("basic.sun"), QStringLiteral("太阳"),
+        QStringLiteral("shape=sun;whiteSpace=wrap;html=1;") + yellow,
+        QSizeF(110, 110), QStringLiteral("basic"));
+    add(QStringLiteral("basic.tick"), QStringLiteral("对勾"),
+        QStringLiteral("shape=tick;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.wave"), QStringLiteral("波浪"),
+        QStringLiteral("shape=wave;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(160, 70), QStringLiteral("basic"));
+    add(QStringLiteral("basic.button"), QStringLiteral("按钮"),
+        QStringLiteral("shape=button;whiteSpace=wrap;html=1;") + green,
+        QSizeF(120, 50), QStringLiteral("basic"));
+
     // --- flowchart -------------------------------------------------------
     add(QStringLiteral("decision"), QStringLiteral("判定"),
         QStringLiteral("rhombus;") + plain + orange, QSizeF(130, 90), QStringLiteral("flowchart"));
@@ -1084,6 +1224,404 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         path.lineTo(point(0, h - cut));
         path.lineTo(point(0, cut));
         path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("partialRectangle"))
+    {
+        const bool top = Style::number(style, QStringLiteral("top"), 1.0) != 0.0;
+        const bool bottom = Style::number(style, QStringLiteral("bottom"), 1.0) != 0.0;
+        const bool left = Style::number(style, QStringLiteral("left"), 1.0) != 0.0;
+        const bool right = Style::number(style, QStringLiteral("right"), 1.0) != 0.0;
+
+        if (top) { path.moveTo(point(0, 0)); path.lineTo(point(w, 0)); }
+        if (right) { path.moveTo(point(w, 0)); path.lineTo(point(w, h)); }
+        if (bottom) { path.moveTo(point(w, h)); path.lineTo(point(0, h)); }
+        if (left) { path.moveTo(point(0, h)); path.lineTo(point(0, 0)); }
+        return path;
+    }
+
+    if (key == QLatin1String("polygon"))
+    {
+        const QPointF center(w / 2.0, h / 2.0);
+
+        for (int i = 0; i < 8; ++i)
+        {
+            const double angle = -M_PI / 2.0 + i * M_PI / 4.0;
+            const QPointF p(center.x() + std::cos(angle) * w / 2.0,
+                            center.y() + std::sin(angle) * h / 2.0);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+        }
+
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("star4") || key == QLatin1String("star6")
+        || key == QLatin1String("star8"))
+    {
+        const int points = key.endsWith(QLatin1Char('4')) ? 4
+            : (key.endsWith(QLatin1Char('6')) ? 6 : 8);
+        const QPointF center(w / 2.0, h / 2.0);
+        const double outer = qMin(w, h) / 2.0;
+        const double inner = outer * 0.4;
+
+        for (int i = 0; i < points * 2; ++i)
+        {
+            const double radius = i % 2 == 0 ? outer : inner;
+            const double angle = -M_PI / 2.0 + i * M_PI / points;
+            const QPointF p(center.x() + std::cos(angle) * radius * (w / qMin(w, h)),
+                            center.y() + std::sin(angle) * radius);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+        }
+
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("banner"))
+    {
+        path.moveTo(point(0, 0));
+        path.lineTo(point(w * 0.88, 0));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w * 0.88, h));
+        path.lineTo(point(0, h));
+        path.lineTo(point(w * 0.12, h * 0.5));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("cloudCallout") || key == QLatin1String("cloudRect"))
+    {
+        const double ch = h * 0.72;
+        const double cw = w;
+        path.moveTo(point(cw * 0.22, ch * 0.3));
+        path.cubicTo(point(cw * 0.02, ch * 0.3), point(0, ch * 0.62), point(cw * 0.2, ch * 0.72));
+        path.cubicTo(point(cw * 0.18, ch * 0.95), point(cw * 0.48, ch), point(cw * 0.56, ch * 0.82));
+        path.cubicTo(point(cw * 0.68, ch), point(cw * 0.95, ch * 0.9), point(cw * 0.9, ch * 0.68));
+        path.cubicTo(point(cw * 1.02, ch * 0.5), point(cw * 0.9, ch * 0.26), point(cw * 0.7, ch * 0.3));
+        path.cubicTo(point(cw * 0.62, ch * 0.06), point(cw * 0.3, ch * 0.02), point(cw * 0.22, ch * 0.3));
+        path.closeSubpath();
+
+        if (key == QLatin1String("cloudCallout"))
+        {
+            path.moveTo(point(w * 0.2, ch * 0.65));
+            path.lineTo(point(w * 0.12, h));
+            path.lineTo(point(w * 0.34, ch * 0.78));
+            path.closeSubpath();
+        }
+
+        return path;
+    }
+
+    if (key == QLatin1String("cone") || key == QLatin1String("cone2"))
+    {
+        const double apexX = key == QLatin1String("cone2") ? w * 0.4 : w * 0.5;
+        const double baseY = h * 0.82;
+        path.moveTo(point(apexX, 0));
+        path.lineTo(point(0, baseY));
+        path.cubicTo(point(0, h), point(w, h), point(w, baseY));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("donut"))
+    {
+        const double thickness = qMin(w, h) * 0.22;
+        path.addEllipse(QRectF(x, y, w, h));
+        path.addEllipse(QRectF(x + thickness, y + thickness,
+                               w - thickness * 2, h - thickness * 2));
+        return path;
+    }
+
+    if (key == QLatin1String("drop"))
+    {
+        path.moveTo(point(w * 0.5, 0));
+        path.cubicTo(point(w * 0.92, h * 0.35), point(w, h * 0.62), point(w * 0.5, h));
+        path.cubicTo(point(0, h * 0.62), point(w * 0.08, h * 0.35), point(w * 0.5, 0));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("flash"))
+    {
+        path.moveTo(point(w * 0.55, 0));
+        path.lineTo(point(w * 0.12, h * 0.56));
+        path.lineTo(point(w * 0.42, h * 0.56));
+        path.lineTo(point(w * 0.32, h));
+        path.lineTo(point(w * 0.88, h * 0.4));
+        path.lineTo(point(w * 0.55, h * 0.4));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("halfCircle"))
+    {
+        path.moveTo(point(0, h));
+        path.cubicTo(point(0, 0), point(w, 0), point(w, h));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("heart"))
+    {
+        path.moveTo(point(w * 0.5, h));
+        path.cubicTo(point(0, h * 0.62), point(0, h * 0.12), point(w * 0.25, h * 0.12));
+        path.cubicTo(point(w * 0.42, h * 0.12), point(w * 0.5, h * 0.3), point(w * 0.5, h * 0.3));
+        path.cubicTo(point(w * 0.5, h * 0.3), point(w * 0.58, h * 0.12), point(w * 0.75, h * 0.12));
+        path.cubicTo(point(w, h * 0.12), point(w, h * 0.62), point(w * 0.5, h));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("isocube"))
+    {
+        const double d = qMin(w, h) * 0.18;
+        path.moveTo(point(0, d));
+        path.lineTo(point(w * 0.5, 0));
+        path.lineTo(point(w, d));
+        path.lineTo(point(w, h - d));
+        path.lineTo(point(w * 0.5, h));
+        path.lineTo(point(0, h - d));
+        path.closeSubpath();
+        path.moveTo(point(0, d));
+        path.lineTo(point(w * 0.5, d * 2));
+        path.lineTo(point(w, d));
+        path.moveTo(point(w * 0.5, d * 2));
+        path.lineTo(point(w * 0.5, h));
+        return path;
+    }
+
+    if (key == QLatin1String("loudCallout"))
+    {
+        const QPointF center(w / 2.0, h / 2.0);
+        const int spikes = 12;
+
+        for (int i = 0; i < spikes * 2; ++i)
+        {
+            const double radius = i % 2 == 0 ? 1.0 : 0.72;
+            const double angle = -M_PI / 2.0 + i * M_PI / spikes;
+            const QPointF p(center.x() + std::cos(angle) * w / 2.0 * radius,
+                            center.y() + std::sin(angle) * h / 2.0 * radius);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+        }
+
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("moon"))
+    {
+        path.moveTo(point(0, 0));
+        path.cubicTo(point(w * 0.78, 0), point(w * 0.78, h), point(0, h));
+        path.cubicTo(point(w * 0.38, h * 0.7), point(w * 0.38, h * 0.3), point(0, 0));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("noSymbol"))
+    {
+        path.addEllipse(QRectF(x, y, w, h));
+        path.moveTo(point(w * 0.18, h * 0.18));
+        path.lineTo(point(w * 0.82, h * 0.82));
+        return path;
+    }
+
+    if (key == QLatin1String("orthogonalTriangle"))
+    {
+        path.moveTo(point(0, h));
+        path.lineTo(point(0, 0));
+        path.lineTo(point(w, h));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("acuteTriangle") || key == QLatin1String("obtuseTriangle"))
+    {
+        const double apex = key == QLatin1String("acuteTriangle") ? w * 0.5 : w * 0.25;
+        path.moveTo(point(apex, 0));
+        path.lineTo(point(w, h));
+        path.lineTo(point(0, h));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("ovalCallout") || key == QLatin1String("roundRectCallout"))
+    {
+        const double bodyH = h * 0.78;
+        path.addEllipse(QRectF(x, y, w, bodyH));
+        path.moveTo(point(w * 0.3, bodyH * 0.9));
+        path.lineTo(point(w * 0.2, h));
+        path.lineTo(point(w * 0.46, bodyH * 0.82));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("pointedOval"))
+    {
+        path.moveTo(point(0, h * 0.5));
+        path.quadTo(point(w * 0.35, 0), point(w * 0.5, 0));
+        path.quadTo(point(w * 0.65, 0), point(w, h * 0.5));
+        path.quadTo(point(w * 0.65, h), point(w * 0.5, h));
+        path.quadTo(point(w * 0.35, h), point(0, h * 0.5));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("pyramid"))
+    {
+        const double base = h * 0.8;
+        path.moveTo(point(w * 0.5, 0));
+        path.lineTo(point(w, base));
+        path.lineTo(point(w * 0.5, h));
+        path.lineTo(point(0, base));
+        path.closeSubpath();
+        path.moveTo(point(0, base));
+        path.lineTo(point(w, base));
+        path.moveTo(point(w * 0.5, 0));
+        path.lineTo(point(w * 0.5, h));
+        return path;
+    }
+
+    if (key == QLatin1String("diagSnipRect"))
+    {
+        const double cut = qMin(qMin(w, h) * 0.2, 24.0);
+        path.moveTo(point(0, 0));
+        path.lineTo(point(w - cut, 0));
+        path.lineTo(point(w, cut));
+        path.lineTo(point(w, h));
+        path.lineTo(point(0, h));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("diagRoundRect") || key == QLatin1String("cornerRoundRect")
+        || key == QLatin1String("threeCornerRoundRect") || key == QLatin1String("plaque"))
+    {
+        const double cut = qMin(qMin(w, h) * 0.2, 24.0);
+
+        if (key == QLatin1String("plaque"))
+        {
+            path.moveTo(point(cut, 0));
+            path.lineTo(point(w - cut, 0));
+            path.lineTo(point(w, cut));
+            path.lineTo(point(w, h - cut));
+            path.lineTo(point(w - cut, h));
+            path.lineTo(point(cut, h));
+            path.lineTo(point(0, h - cut));
+            path.lineTo(point(0, cut));
+            path.closeSubpath();
+        }
+        else
+        {
+            path.addRoundedRect(QRectF(x, y, w, h), cut, cut);
+        }
+
+        return path;
+    }
+
+    if (key == QLatin1String("frame") || key == QLatin1String("roundedFrame")
+        || key == QLatin1String("plaqueFrame"))
+    {
+        const double inset = qMin(qMin(w, h) * 0.12, 12.0);
+        path.addRect(QRectF(x, y, w, h));
+        path.addRect(QRectF(x + inset, y + inset, w - inset * 2, h - inset * 2));
+        return path;
+    }
+
+    if (key == QLatin1String("frameCorner"))
+    {
+        path.moveTo(point(0, h * 0.25));
+        path.lineTo(point(0, 0));
+        path.lineTo(point(w * 0.25, 0));
+        path.moveTo(point(w * 0.75, h));
+        path.lineTo(point(w, h));
+        path.lineTo(point(w, h * 0.75));
+        return path;
+    }
+
+    if (key == QLatin1String("diagStripe"))
+    {
+        path.moveTo(point(0, h));
+        path.lineTo(point(w * 0.55, 0));
+        path.lineTo(point(w, 0));
+        path.lineTo(point(w * 0.45, h));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("rectCallout"))
+    {
+        const double bodyH = h * 0.78;
+        path.addRect(QRectF(x, y, w, bodyH));
+        path.moveTo(point(w * 0.28, bodyH));
+        path.lineTo(point(w * 0.2, h));
+        path.lineTo(point(w * 0.45, bodyH));
+        return path;
+    }
+
+    if (key == QLatin1String("layeredRect"))
+    {
+        const double d = qMin(qMin(w, h) * 0.12, 10.0);
+        path.addRect(QRectF(x, y + d, w - d, h - d));
+        path.addRect(QRectF(x + d, y, w - d, h - d));
+        return path;
+    }
+
+    if (key == QLatin1String("smiley"))
+    {
+        const double r = qMin(w, h) / 2.0;
+        path.addEllipse(QPointF(x + w / 2.0, y + h / 2.0), r, r);
+        path.addEllipse(QPointF(x + w * 0.35, y + h * 0.4), r * 0.08, r * 0.08);
+        path.addEllipse(QPointF(x + w * 0.65, y + h * 0.4), r * 0.08, r * 0.08);
+        path.moveTo(point(w * 0.3, h * 0.62));
+        path.cubicTo(point(w * 0.4, h * 0.82), point(w * 0.6, h * 0.82), point(w * 0.7, h * 0.62));
+        return path;
+    }
+
+    if (key == QLatin1String("sun"))
+    {
+        const double r = qMin(w, h) * 0.28;
+        path.addEllipse(QPointF(x + w / 2.0, y + h / 2.0), r, r);
+
+        for (int i = 0; i < 8; ++i)
+        {
+            const double angle = i * M_PI / 4.0;
+            path.moveTo(QPointF(x + w / 2.0 + std::cos(angle) * r * 1.25,
+                                y + h / 2.0 + std::sin(angle) * r * 1.25));
+            path.lineTo(QPointF(x + w / 2.0 + std::cos(angle) * r * 1.8,
+                                y + h / 2.0 + std::sin(angle) * r * 1.8));
+        }
+
+        return path;
+    }
+
+    if (key == QLatin1String("tick"))
+    {
+        path.moveTo(point(w * 0.08, h * 0.5));
+        path.lineTo(point(w * 0.38, h * 0.82));
+        path.lineTo(point(w * 0.92, h * 0.12));
+        path.lineTo(point(w * 0.78, 0));
+        path.lineTo(point(w * 0.36, h * 0.52));
+        path.lineTo(point(w * 0.2, h * 0.34));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("wave"))
+    {
+        path.moveTo(point(0, h * 0.7));
+        path.cubicTo(point(w * 0.25, 0), point(w * 0.5, h), point(w * 0.75, h * 0.3));
+        path.cubicTo(point(w * 0.85, h * 0.1), point(w * 0.95, h * 0.15), point(w, h * 0.2));
+        path.lineTo(point(w, h * 0.8));
+        path.cubicTo(point(w * 0.75, h), point(w * 0.5, 0), point(w * 0.25, h * 0.7));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("button"))
+    {
+        path.addRoundedRect(QRectF(x, y, w, h), qMin(h * 0.25, 10.0), qMin(h * 0.25, 10.0));
         return path;
     }
 

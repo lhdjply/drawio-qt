@@ -130,6 +130,29 @@ private slots:
         QVERIFY(!text.contains(QStringLiteral("style=")));
     }
 
+    void basicShapesHaveGeometry()
+    {
+        for (const auto &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category != QLatin1String("basic"))
+            {
+                continue;
+            }
+
+            Cell probe(Cell::Kind::Vertex, QString());
+            probe.style = Style::parse(definition.style);
+
+            if (ShapeRegistry::isTextShape(probe) || ShapeRegistry::isImageShape(probe))
+            {
+                continue;
+            }
+
+            const QPainterPath path = ShapeRegistry::pathForStyle(
+                probe.style, QRectF(0, 0, 120, 80));
+            QVERIFY2(!path.isEmpty(), qPrintable(definition.key + QStringLiteral(" has no geometry")));
+        }
+    }
+
     void drawioElectricalShapesResolve()
     {
         const QPainterPath waypoint = ShapeRegistry::pathForStyle(
