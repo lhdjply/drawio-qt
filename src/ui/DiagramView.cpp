@@ -1154,10 +1154,10 @@ void DiagramView::pushSnapshotCommand(const QString &before, const QString &afte
     }
 
     const int pageIndex = m_document != nullptr ? m_document->currentIndex() : 0;
-    const bool signalsBlocked = m_undoStack->blockSignals(true);
+    // Signals must stay connected: createUndoAction/createRedoAction rely on
+    // canUndoChanged/canRedoChanged to enable the toolbar and menu entries.
     m_undoStack->push(new PageSnapshotCommand(this, pageIndex, before, after,
                                               beforeSelection, afterSelection, text));
-    m_undoStack->blockSignals(signalsBlocked);
 }
 
 void DiagramView::restoreSnapshot(int pageIndex, const QString &xml,

@@ -325,9 +325,13 @@ private slots:
 
         QCOMPARE(view->page()->cell(id)->value, QStringLiteral("测试标签"));
         QVERIFY(!view->isEditing());
+        QVERIFY(window.undoAction() != nullptr);
+        QVERIFY(window.undoAction()->isEnabled());
 
         view->undoStack()->undo();
         QCOMPARE(view->page()->cell(id)->value, QString());
+        QVERIFY(window.redoAction() != nullptr);
+        QVERIFY(window.redoAction()->isEnabled());
     }
 
     void htmlInlineFontSurvivesEditing()

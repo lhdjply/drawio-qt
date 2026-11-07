@@ -36,6 +36,8 @@ public:
 
     Document *document() const { return m_document; }
     DiagramView *view() const { return m_view; }
+    QAction *undoAction() const { return m_undoAction; }
+    QAction *redoAction() const { return m_redoAction; }
 
     void openExportDialog(const QString &presetFormat = QString());
 
