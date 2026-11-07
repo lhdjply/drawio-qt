@@ -146,6 +146,22 @@ private slots:
         }
     }
 
+    void imageIconNamesAreTranslated()
+    {
+        bool foundVirtualMachine = false;
+
+        for (const ShapeDefinition &definition : ShapeCatalog::instance().allDefinitions())
+        {
+            if (definition.key.endsWith(QStringLiteral("/Virtual_Machine.svg")))
+            {
+                QCOMPARE(definition.name, QStringLiteral("虚拟机"));
+                foundVirtualMachine = true;
+            }
+        }
+
+        QVERIFY(foundVirtualMachine);
+    }
+
     void basicShapesHaveGeometry()
     {
         for (const auto &definition : ShapeRegistry::toolboxShapes())

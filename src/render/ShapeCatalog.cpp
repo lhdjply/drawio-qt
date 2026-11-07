@@ -48,6 +48,167 @@ QString prettifyName(const QString &raw)
     return result.join(QLatin1Char(' '));
 }
 
+QString translatedName(const QString &raw)
+{
+    const QString english = prettifyName(raw);
+    const QString key = english.toLower();
+
+    static const QHash<QString, QString> phrases = {
+        {QStringLiteral("virtual machine"), QStringLiteral("虚拟机")},
+        {QStringLiteral("virtual machines"), QStringLiteral("虚拟机")},
+        {QStringLiteral("storage account"), QStringLiteral("存储账户")},
+        {QStringLiteral("storage accounts"), QStringLiteral("存储账户")},
+        {QStringLiteral("sql database"), QStringLiteral("SQL 数据库")},
+        {QStringLiteral("sql server"), QStringLiteral("SQL Server")},
+        {QStringLiteral("load balancer"), QStringLiteral("负载均衡器")},
+        {QStringLiteral("load balancers"), QStringLiteral("负载均衡器")},
+        {QStringLiteral("application gateway"), QStringLiteral("应用程序网关")},
+        {QStringLiteral("network security group"), QStringLiteral("网络安全组")},
+        {QStringLiteral("key vault"), QStringLiteral("密钥保管库")},
+        {QStringLiteral("container registry"), QStringLiteral("容器注册表")},
+        {QStringLiteral("function app"), QStringLiteral("函数应用")},
+        {QStringLiteral("logic app"), QStringLiteral("逻辑应用")},
+        {QStringLiteral("service bus"), QStringLiteral("服务总线")},
+        {QStringLiteral("event hub"), QStringLiteral("事件中心")},
+        {QStringLiteral("api management"), QStringLiteral("API 管理")},
+        {QStringLiteral("active directory"), QStringLiteral("活动目录")},
+        {QStringLiteral("data factory"), QStringLiteral("数据工厂")},
+        {QStringLiteral("machine learning"), QStringLiteral("机器学习")},
+        {QStringLiteral("cognitive services"), QStringLiteral("认知服务")},
+        {QStringLiteral("managed identity"), QStringLiteral("托管标识")},
+        {QStringLiteral("private link"), QStringLiteral("专用链接")},
+        {QStringLiteral("virtual network"), QStringLiteral("虚拟网络")},
+        {QStringLiteral("virtual networks"), QStringLiteral("虚拟网络")},
+        {QStringLiteral("app service"), QStringLiteral("应用服务")},
+        {QStringLiteral("container instances"), QStringLiteral("容器实例")},
+        {QStringLiteral("kubernetes service"), QStringLiteral("Kubernetes 服务")},
+        {QStringLiteral("log analytics"), QStringLiteral("日志分析")},
+        {QStringLiteral("monitor"), QStringLiteral("监视")},
+    };
+
+    const auto phrase = phrases.constFind(key);
+
+    if (phrase != phrases.constEnd())
+    {
+        return phrase.value();
+    }
+
+    static const QHash<QString, QString> words = {
+        {QStringLiteral("service"), QStringLiteral("服务")},
+        {QStringLiteral("services"), QStringLiteral("服务")},
+        {QStringLiteral("data"), QStringLiteral("数据")},
+        {QStringLiteral("cloud"), QStringLiteral("云")},
+        {QStringLiteral("management"), QStringLiteral("管理")},
+        {QStringLiteral("server"), QStringLiteral("服务器")},
+        {QStringLiteral("database"), QStringLiteral("数据库")},
+        {QStringLiteral("app"), QStringLiteral("应用")},
+        {QStringLiteral("apps"), QStringLiteral("应用")},
+        {QStringLiteral("application"), QStringLiteral("应用")},
+        {QStringLiteral("applications"), QStringLiteral("应用")},
+        {QStringLiteral("storage"), QStringLiteral("存储")},
+        {QStringLiteral("integration"), QStringLiteral("集成")},
+        {QStringLiteral("security"), QStringLiteral("安全")},
+        {QStringLiteral("virtual"), QStringLiteral("虚拟")},
+        {QStringLiteral("network"), QStringLiteral("网络")},
+        {QStringLiteral("networks"), QStringLiteral("网络")},
+        {QStringLiteral("hub"), QStringLiteral("中心")},
+        {QStringLiteral("switch"), QStringLiteral("交换机")},
+        {QStringLiteral("identity"), QStringLiteral("身份")},
+        {QStringLiteral("managed"), QStringLiteral("托管")},
+        {QStringLiteral("manager"), QStringLiteral("管理器")},
+        {QStringLiteral("device"), QStringLiteral("设备")},
+        {QStringLiteral("devices"), QStringLiteral("设备")},
+        {QStringLiteral("center"), QStringLiteral("中心")},
+        {QStringLiteral("event"), QStringLiteral("事件")},
+        {QStringLiteral("events"), QStringLiteral("事件")},
+        {QStringLiteral("access"), QStringLiteral("访问")},
+        {QStringLiteral("private"), QStringLiteral("专用")},
+        {QStringLiteral("rack"), QStringLiteral("机架")},
+        {QStringLiteral("edge"), QStringLiteral("边缘")},
+        {QStringLiteral("classic"), QStringLiteral("经典")},
+        {QStringLiteral("suite"), QStringLiteral("套件")},
+        {QStringLiteral("group"), QStringLiteral("组")},
+        {QStringLiteral("groups"), QStringLiteral("组")},
+        {QStringLiteral("account"), QStringLiteral("账户")},
+        {QStringLiteral("accounts"), QStringLiteral("账户")},
+        {QStringLiteral("machine"), QStringLiteral("机")},
+        {QStringLiteral("machines"), QStringLiteral("机")},
+        {QStringLiteral("media"), QStringLiteral("媒体")},
+        {QStringLiteral("analytics"), QStringLiteral("分析")},
+        {QStringLiteral("router"), QStringLiteral("路由器")},
+        {QStringLiteral("routers"), QStringLiteral("路由器")},
+        {QStringLiteral("studio"), QStringLiteral("工作室")},
+        {QStringLiteral("worker"), QStringLiteral("工作进程")},
+        {QStringLiteral("firewall"), QStringLiteral("防火墙")},
+        {QStringLiteral("monitor"), QStringLiteral("监视")},
+        {QStringLiteral("user"), QStringLiteral("用户")},
+        {QStringLiteral("users"), QStringLiteral("用户")},
+        {QStringLiteral("resource"), QStringLiteral("资源")},
+        {QStringLiteral("resources"), QStringLiteral("资源")},
+        {QStringLiteral("port"), QStringLiteral("端口")},
+        {QStringLiteral("gateway"), QStringLiteral("网关")},
+        {QStringLiteral("automation"), QStringLiteral("自动化")},
+        {QStringLiteral("container"), QStringLiteral("容器")},
+        {QStringLiteral("containers"), QStringLiteral("容器")},
+        {QStringLiteral("build"), QStringLiteral("构建")},
+        {QStringLiteral("computer"), QStringLiteral("计算机")},
+        {QStringLiteral("computers"), QStringLiteral("计算机")},
+        {QStringLiteral("directory"), QStringLiteral("目录")},
+        {QStringLiteral("business"), QStringLiteral("业务")},
+        {QStringLiteral("enterprise"), QStringLiteral("企业")},
+        {QStringLiteral("mobile"), QStringLiteral("移动")},
+        {QStringLiteral("instance"), QStringLiteral("实例")},
+        {QStringLiteral("instances"), QStringLiteral("实例")},
+        {QStringLiteral("load"), QStringLiteral("负载")},
+        {QStringLiteral("building"), QStringLiteral("建筑")},
+        {QStringLiteral("health"), QStringLiteral("健康")},
+        {QStringLiteral("log"), QStringLiteral("日志")},
+        {QStringLiteral("insights"), QStringLiteral("见解")},
+        {QStringLiteral("environment"), QStringLiteral("环境")},
+        {QStringLiteral("environments"), QStringLiteral("环境")},
+        {QStringLiteral("protection"), QStringLiteral("保护")},
+        {QStringLiteral("cache"), QStringLiteral("缓存")},
+        {QStringLiteral("learning"), QStringLiteral("学习")},
+        {QStringLiteral("client"), QStringLiteral("客户端")},
+        {QStringLiteral("datacenter"), QStringLiteral("数据中心")},
+        {QStringLiteral("folder"), QStringLiteral("文件夹")},
+        {QStringLiteral("secure"), QStringLiteral("安全")},
+        {QStringLiteral("image"), QStringLiteral("映像")},
+        {QStringLiteral("images"), QStringLiteral("映像")},
+        {QStringLiteral("green"), QStringLiteral("绿色")},
+        {QStringLiteral("active"), QStringLiteral("活动")},
+        {QStringLiteral("connect"), QStringLiteral("连接")},
+        {QStringLiteral("notification"), QStringLiteral("通知")},
+        {QStringLiteral("notifications"), QStringLiteral("通知")},
+        {QStringLiteral("woman"), QStringLiteral("女性")},
+        {QStringLiteral("man"), QStringLiteral("男性")},
+        {QStringLiteral("logo"), QStringLiteral("标志")},
+    };
+
+    const QStringList tokens = english.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+    QStringList translated;
+
+    for (const QString &token : tokens)
+    {
+        const auto it = words.constFind(token.toLower());
+
+        if (it != words.constEnd())
+        {
+            translated.append(it.value());
+        }
+        else
+        {
+            translated.append(token);
+        }
+    }
+
+    QString result = translated.join(QLatin1Char(' '));
+    static const QRegularExpression cjkGap(
+        QStringLiteral("(?<=[\\x{4e00}-\\x{9fff}])\\s+(?=[\\x{4e00}-\\x{9fff}])"));
+    result.remove(cjkGap);
+    return result.isEmpty() ? english : result;
+}
+
 QString topLevelName(const QString &dir)
 {
     static const QHash<QString, QString> names = {
@@ -305,7 +466,7 @@ void ShapeCatalog::loadImages()
         ShapeDefinition definition;
         definition.key = QStringLiteral("img/lib/") + relative;
         definition.imagePath = definition.key;
-        definition.name = prettifyName(fileName.section(QLatin1Char('.'), 0, -2));
+        definition.name = translatedName(fileName.section(QLatin1Char('.'), 0, -2));
         definition.size = readImageSize(resourcePath);
         definition.style = QStringLiteral(
             "shape=image;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
