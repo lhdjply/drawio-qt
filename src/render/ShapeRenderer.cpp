@@ -504,10 +504,13 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
 
     double y = top;
 
+    const Qt::TextFlag clipFlag = ShapeRegistry::isTextShape(cell)
+        ? Qt::TextDontClip : Qt::TextFlag(0);
+
     for (const RenderLine &line : lines)
     {
         painter.drawText(QRectF(rect.left(), y, rect.width(), lineHeight),
-                         line.align | Qt::AlignVCenter, line.text);
+                         line.align | Qt::AlignVCenter | clipFlag, line.text);
         y += lineHeight;
     }
 
