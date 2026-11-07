@@ -1,0 +1,520 @@
+#include "render/ShapeRenderer.h"
+
+#include "render/ShapeRegistry.h"
+
+#include <QFontMetricsF>
+#include <QImage>
+#include <QLinearGradient>
+#include <QTextDocument>
+#include <QTextLayout>
+#include <QTextOption>
+#include <QtMath>
+
+namespace dq {
+namespace {
+
+QString normalizedFontFamily(const QString &family)
+{
+    if (family.isEmpty())
+    {
+        return QStringLiteral("Helvetica");
+    }
+
+    return family;
+}
+
+QPen penFor(const Cell &cell)
+{
+    QPen pen;
+
+    const QColor stroke = ShapeRenderer::strokeColor(cell);
+    pen.setColor(stroke);
+    pen.setWidthF(qMax(0.5, cell.styleNumber(QStringLiteral("strokeWidth"), 1.0)));
+
+    if (cell.styleFlag(QStringLiteral("dashed")))
+    {
+        const QString dashPattern = cell.styleValue(QStringLiteral("dashPattern"));
+
+        if (!dashPattern.isEmpty())
+        {
+            QVector<qreal> dashes;
+            const QStringList parts = dashPattern.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+
+            for (const QString &part : parts)
+            {
+                bool ok = false;
+                const double value = part.toDouble(&ok);
+
+                if (ok && value > 0)
+                {
+                    dashes.append(value);
+                }
+            }
+
+            if (!dashes.isEmpty())
+            {
+                pen.setDashPattern(dashes);
+            }
+            else
+            {
+                pen.setStyle(Qt::DashLine);
+            }
+        }
+        else
+        {
+            pen.setStyle(Qt::DashLine);
+        }
+    }
+
+    pen.setCapStyle(Qt::FlatCap);
+    pen.setJoinStyle(Qt::MiterJoin);
+    return pen;
+}
+
+QString htmlForCell(const Cell &cell)
+{
+    const QColor color = LabelPainter::textColor(cell);
+    const int fontSize = qMax(1, static_cast<int>(cell.styleNumber(QStringLiteral("fontSize"), 11.0)));
+    const QString family = normalizedFontFamily(cell.styleValue(QStringLiteral("fontFamily")));
+    const QString align = [&cell]()
+    {
+        const QString value = cell.styleValue(QStringLiteral("align"), QStringLiteral("center"));
+        return value == QLatin1String("left") ? QStringLiteral("left")
+            : value == QLatin1String("right") ? QStringLiteral("right")
+                                              : QStringLiteral("center");
+    }();
+
+    QString html = cell.value;
+
+    // draw.io HTML labels are HTML fragments. Wrap them so a fragment such as
+    // `<b>Hi</b><br>there` keeps its markup but inherits the style colours.
+    return QStringLiteral("<div style=\"font-family:%1;font-size:%2px;color:%3;"
+                          "text-align:%4;line-height:120%;\">%5</div>")
+        .arg(family)
+        .arg(fontSize)
+        .arg(color.name())
+        .arg(align)
+        .arg(html);
+}
+
+} // namespace
+
+namespace LabelPainter {
+
+QFont fontFor(const Cell &cell)
+{
+    QFont font(normalizedFontFamily(cell.styleValue(QStringLiteral("fontFamily"))));
+    font.setPixelSize(qMax(1, static_cast<int>(cell.styleNumber(QStringLiteral("fontSize"), 11.0))));
+
+    const int style = static_cast<int>(cell.styleNumber(QStringLiteral("fontStyle"), 0));
+    font.setBold((style & 1) != 0);
+    font.setItalic((style & 2) != 0);
+    font.setUnderline((style & 4) != 0);
+    return font;
+}
+
+QColor textColor(const Cell &cell)
+{
+    return cell.styleColor(QStringLiteral("fontColor"), QColor(Qt::black));
+}
+
+Qt::Alignment alignmentFor(const Cell &cell)
+{
+    const QString align = cell.styleValue(QStringLiteral("align"), QStringLiteral("center"));
+    const QString valign = cell.styleValue(QStringLiteral("verticalAlign"), QStringLiteral("middle"));
+
+    Qt::Alignment result;
+
+    if (align == QLatin1String("left"))
+    {
+        result |= Qt::AlignLeft;
+    }
+    else if (align == QLatin1String("right"))
+    {
+        result |= Qt::AlignRight;
+    }
+    else
+    {
+        result |= Qt::AlignHCenter;
+    }
+
+    if (valign == QLatin1String("top"))
+    {
+        result |= Qt::AlignTop;
+    }
+    else if (valign == QLatin1String("bottom"))
+    {
+        result |= Qt::AlignBottom;
+    }
+    else
+    {
+        result |= Qt::AlignVCenter;
+    }
+
+    return result;
+}
+
+QRectF labelRect(const Cell &cell, const QRectF &bounds)
+{
+    const double spacing = cell.styleNumber(QStringLiteral("spacing"), 2.0);
+    const double spacingLeft = cell.styleNumber(QStringLiteral("spacingLeft"), spacing);
+    const double spacingRight = cell.styleNumber(QStringLiteral("spacingRight"), spacing);
+    const double spacingTop = cell.styleNumber(QStringLiteral("spacingTop"), spacing);
+    const double spacingBottom = cell.styleNumber(QStringLiteral("spacingBottom"), spacing);
+
+    QRectF rect = bounds.adjusted(spacingLeft, spacingTop, -spacingRight, -spacingBottom);
+
+    if (ShapeRegistry::isContainerShape(cell) && cell.styleFlag(QStringLiteral("swimlane")))
+    {
+        const double startSize = cell.styleNumber(QStringLiteral("startSize"), 23.0);
+        rect.setHeight(qMax(0.0, startSize - spacingTop));
+    }
+
+    // Labels below / above the shape (used by umlActor and image shapes).
+    const QString verticalLabelPosition = cell.styleValue(QStringLiteral("verticalLabelPosition"));
+
+    if (verticalLabelPosition == QLatin1String("bottom"))
+    {
+        rect = QRectF(bounds.left(), bounds.bottom() + spacing,
+                      bounds.width(), qMax(16.0, cell.styleNumber(QStringLiteral("fontSize"), 11.0) * 1.6));
+    }
+    else if (verticalLabelPosition == QLatin1String("top"))
+    {
+        rect = QRectF(bounds.left(), bounds.top() - spacing
+                                        - qMax(16.0, cell.styleNumber(QStringLiteral("fontSize"), 11.0) * 1.6),
+                      bounds.width(), qMax(16.0, cell.styleNumber(QStringLiteral("fontSize"), 11.0) * 1.6));
+    }
+
+    return rect;
+}
+
+void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawBackground)
+{
+    if (cell.value.isEmpty())
+    {
+        return;
+    }
+
+    const QRectF rect = labelRect(cell, bounds);
+
+    if (rect.width() <= 0 || rect.height() <= 0)
+    {
+        return;
+    }
+
+    painter.save();
+
+    if (drawBackground)
+    {
+        const QString background = cell.styleValue(QStringLiteral("labelBackgroundColor"));
+
+        if (!background.isEmpty() && !Style::isNoneColor(background))
+        {
+            painter.fillRect(rect, QColor(background));
+        }
+    }
+
+    const Qt::Alignment alignment = alignmentFor(cell);
+    const bool html = cell.isHtmlLabel();
+    const bool wrap = cell.styleValue(QStringLiteral("whiteSpace")) == QLatin1String("wrap")
+        || html;
+
+    if (html)
+    {
+        QTextDocument document;
+        document.setDocumentMargin(0);
+        document.setDefaultFont(fontFor(cell));
+        document.setHtml(htmlForCell(cell));
+
+        const QTextOption option = document.defaultTextOption();
+        Q_UNUSED(option);
+
+        if (wrap)
+        {
+            document.setTextWidth(rect.width());
+        }
+        else
+        {
+            document.setTextWidth(-1);
+        }
+
+        const double textHeight = document.size().height();
+        double top = rect.top();
+
+        if (alignment & Qt::AlignVCenter)
+        {
+            top = rect.center().y() - textHeight / 2.0;
+        }
+        else if (alignment & Qt::AlignBottom)
+        {
+            top = rect.bottom() - textHeight;
+        }
+
+        painter.setClipRect(rect.adjusted(-1, -1, 1, 1));
+        painter.translate(rect.left(), top);
+        document.drawContents(&painter, QRectF(0, 0, rect.width(), textHeight));
+        painter.restore();
+        return;
+    }
+
+    QFont font = fontFor(cell);
+    painter.setFont(font);
+    painter.setPen(textColor(cell));
+
+    QTextOption option;
+    option.setAlignment(alignment & Qt::AlignHorizontal_Mask);
+    option.setWrapMode(wrap ? QTextOption::WrapAtWordBoundaryOrAnywhere : QTextOption::NoWrap);
+
+    QTextLayout layout(cell.value, font);
+    layout.setTextOption(option);
+
+    // Lay out with the available width so wrapping matches the shape.
+    layout.beginLayout();
+    double y = 0;
+
+    while (true)
+    {
+        QTextLine line = layout.createLine();
+
+        if (!line.isValid())
+        {
+            break;
+        }
+
+        line.setLineWidth(rect.width());
+        line.setPosition(QPointF(0, y));
+        y += line.height();
+    }
+
+    layout.endLayout();
+
+    const double textHeight = y;
+    double top = rect.top();
+
+    if (alignment & Qt::AlignVCenter)
+    {
+        top = rect.center().y() - textHeight / 2.0;
+    }
+    else if (alignment & Qt::AlignBottom)
+    {
+        top = rect.bottom() - textHeight;
+    }
+
+    painter.setClipRect(rect);
+    layout.draw(&painter, QPointF(rect.left(), top));
+    painter.restore();
+}
+
+} // namespace LabelPainter
+
+namespace ShapeRenderer {
+
+QColor fillColor(const Cell &cell)
+{
+    const QString value = cell.styleValue(QStringLiteral("fillColor"));
+
+    if (value.isEmpty())
+    {
+        return QColor(Qt::white);
+    }
+
+    if (Style::isNoneColor(value))
+    {
+        return Qt::transparent;
+    }
+
+    const QColor color(value);
+    return color.isValid() ? color : QColor(Qt::white);
+}
+
+QColor strokeColor(const Cell &cell)
+{
+    const QString value = cell.styleValue(QStringLiteral("strokeColor"));
+
+    if (value.isEmpty())
+    {
+        return QColor(Qt::black);
+    }
+
+    if (Style::isNoneColor(value))
+    {
+        return Qt::transparent;
+    }
+
+    const QColor color(value);
+    return color.isValid() ? color : QColor(Qt::black);
+}
+
+void paintShadow(QPainter &painter, const Cell &cell)
+{
+    if (!cell.styleFlag(QStringLiteral("shadow")))
+    {
+        return;
+    }
+
+    painter.save();
+    painter.translate(3, 3);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(QColor(0, 0, 0, 50));
+    painter.drawPath(ShapeRegistry::pathFor(cell));
+    painter.restore();
+}
+
+void paint(QPainter &painter, const Cell &cell)
+{
+    painter.save();
+
+    const QRectF local(QPointF(0, 0), cell.geometry.size());
+    const QPointF center = cell.absolutePosition() + local.center();
+
+    if (cell.rotation != 0.0)
+    {
+        painter.translate(center);
+        painter.rotate(cell.rotation);
+        painter.translate(-center);
+    }
+
+    painter.translate(cell.absolutePosition());
+
+    const double opacity = qBound(0.0, cell.styleNumber(QStringLiteral("opacity"), 100.0), 100.0);
+    painter.setOpacity(opacity / 100.0);
+
+    const QPainterPath path = ShapeRegistry::pathFor(cell);
+    const QColor fill = fillColor(cell);
+    const QColor stroke = strokeColor(cell);
+    const bool textShape = ShapeRegistry::isTextShape(cell);
+    const bool imageShape = ShapeRegistry::isImageShape(cell);
+    const bool lineArt = ShapeRegistry::isLineArt(cell);
+
+    QPen pen = penFor(cell);
+
+    if (stroke.alpha() == 0)
+    {
+        pen = Qt::NoPen;
+    }
+
+    painter.setPen(pen);
+
+    if (imageShape)
+    {
+        const QString source = cell.styleValue(QStringLiteral("image"));
+        const int comma = source.indexOf(QLatin1Char(','));
+
+        if (source.startsWith(QLatin1String("data:")) && comma > 0)
+        {
+            const QByteArray data = QByteArray::fromBase64(source.mid(comma + 1).toLatin1());
+            QImage image;
+            image.loadFromData(data);
+
+            if (!image.isNull())
+            {
+                painter.drawImage(local, image);
+            }
+            else
+            {
+                painter.setPen(QPen(QColor(160, 160, 160), 1, Qt::DashLine));
+                painter.setBrush(QColor(245, 245, 245));
+                painter.drawRect(local);
+            }
+        }
+        else
+        {
+            painter.setPen(QPen(QColor(160, 160, 160), 1, Qt::DashLine));
+            painter.drawRect(local);
+        }
+
+        LabelPainter::paint(painter, cell, local);
+        painter.restore();
+        return;
+    }
+
+    if (!textShape)
+    {
+        if (cell.styleFlag(QStringLiteral("shadow")))
+        {
+            painter.save();
+            painter.translate(3, 3);
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(QColor(0, 0, 0, 50));
+            painter.drawPath(path);
+            painter.restore();
+        }
+
+        if (!lineArt && fill.alpha() > 0)
+        {
+            const QString gradientColor = cell.styleValue(QStringLiteral("gradientColor"));
+
+            if (!gradientColor.isEmpty() && !Style::isNoneColor(gradientColor))
+            {
+                QLinearGradient gradient(local.topLeft(), local.bottomLeft());
+                gradient.setColorAt(0.0, fill);
+                gradient.setColorAt(1.0, QColor(gradientColor));
+                painter.setBrush(gradient);
+            }
+            else
+            {
+                painter.setBrush(fill);
+            }
+        }
+        else
+        {
+            painter.setBrush(Qt::NoBrush);
+        }
+
+        painter.drawPath(path);
+
+        // Decorations that draw.io renders on top of the base outline.
+        const QString shape = cell.styleValue(QStringLiteral("shape")).toLower();
+        const QString key = shape.isEmpty() ? QStringLiteral("rect") : shape;
+
+        if (key == QLatin1String("process"))
+        {
+            const double inset = qMin(local.width() * 0.08, 12.0);
+            painter.drawLine(QPointF(inset, 0), QPointF(inset, local.height()));
+            painter.drawLine(QPointF(local.width() - inset, 0),
+                             QPointF(local.width() - inset, local.height()));
+        }
+        else if (key == QLatin1String("cylinder3") || key == QLatin1String("cylinder"))
+        {
+            const double cap = qMin(local.height() * 0.18, 26.0);
+            QPainterPath top;
+            top.moveTo(0, cap / 2);
+            top.cubicTo(QPointF(0, 0), QPointF(local.width(), 0),
+                        QPointF(local.width(), cap / 2));
+            painter.drawPath(top);
+        }
+        else if (key == QLatin1String("note"))
+        {
+            const double fold = qMin(qMin(local.width(), local.height()) * 0.22, 24.0);
+            painter.drawLine(QPointF(local.width() - fold, 0), QPointF(local.width() - fold, fold));
+            painter.drawLine(QPointF(local.width() - fold, fold), QPointF(local.width(), fold));
+        }
+        else if (key == QLatin1String("cube"))
+        {
+            const double depth = qMin(qMin(local.width(), local.height()) * 0.18, 20.0);
+            painter.drawLine(QPointF(0, depth), QPointF(local.width() - depth, depth));
+            painter.drawLine(QPointF(local.width() - depth, depth),
+                             QPointF(local.width(), 0));
+            painter.drawLine(QPointF(local.width() - depth, depth),
+                             QPointF(local.width() - depth, local.height()));
+        }
+        else if (key == QLatin1String("swimlane") || cell.styleFlag(QStringLiteral("swimlane")))
+        {
+            const double startSize = cell.styleNumber(QStringLiteral("startSize"), 23.0);
+            painter.drawLine(QPointF(0, startSize), QPointF(local.width(), startSize));
+        }
+        else if (key == QLatin1String("group"))
+        {
+            QPen dashed = pen;
+            dashed.setStyle(Qt::DashLine);
+            painter.setPen(dashed);
+            painter.drawPath(path);
+        }
+    }
+
+    LabelPainter::paint(painter, cell, local);
+    painter.restore();
+}
+
+} // namespace ShapeRenderer
+} // namespace dq

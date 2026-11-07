@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<mime-info xmlns="http://www.freedesktop.org/standards/shared-mime-info">
+  <mime-type type="application/x-drawio">
+    <comment>draw.io diagram</comment>
+    <comment xml:lang="zh_CN">draw.io 图表</comment>
+    <glob pattern="*.drawio"/>
+    <glob pattern="*.dio"/>
+    <icon name="x-office-drawing"/>
+  </mime-type>
+</mime-info>
