@@ -1833,6 +1833,32 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("mxgraph.electrical.inductors.inductor"))
     {
+        const double rotation = Style::number(style, QStringLiteral("rotation"), 0.0);
+
+        if (qAbs(qAbs(rotation) - 90.0) < 1.0)
+        {
+            // The cell is a tall thin box rotated by ±90; draw the coil across
+            // its height so the rotation turns it into a vertical coil.
+            const double length = h;
+            const double left = (w - length) / 2.0;
+            const double cy = h / 2.0;
+            const double bump = length * 0.24;
+
+            path.moveTo(QPointF(x + left, y + cy));
+            path.lineTo(QPointF(x + left + length * 0.04, y + cy));
+
+            for (int i = 0; i < 4; ++i)
+            {
+                path.arcTo(QRectF(x + left + length * 0.04 + i * bump,
+                                  y + cy - bump / 2.0, bump, bump),
+                           180, -180);
+            }
+
+            path.moveTo(QPointF(x + left + length * 0.96, y + cy));
+            path.lineTo(QPointF(x + left + length, y + cy));
+            return path;
+        }
+
         const double cy = h / 2.0;
         const double bump = w * 0.2;
         path.moveTo(point(0, cy));
@@ -1856,9 +1882,9 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         path.moveTo(point(0, cy));
         path.lineTo(point(w * 0.12, cy));
 
-        for (int i = 0; i < 3; ++i)
+        for (int i = 0; i < 4; ++i)
         {
-            const double plateX = w * (0.18 + i * 0.24);
+            const double plateX = w * (0.14 + i * 0.18);
             path.moveTo(point(plateX, h * 0.22));
             path.lineTo(point(plateX, h * 0.78));
             path.moveTo(point(plateX + w * 0.08, h * 0.35));

@@ -246,7 +246,7 @@ void applyInlineFont(const QString &html, QFont &font)
         // lets an 11pt line of nine CJK characters fit in a 120px cell.
         if (lastSize.captured(2).compare(QLatin1String("pt"), Qt::CaseInsensitive) == 0)
         {
-            size *= 1.15;
+            size *= 1.3;
         }
         if (size > 0.5 && size < 500.0)
         {
@@ -422,6 +422,7 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
             continue;
         }
 
+        QVector<RenderLine> paragraphLines;
         QString current;
 
         for (const QChar character : paragraph.text)
@@ -436,17 +437,17 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
                 {
                     const QChar moved = current.at(current.size() - 1);
                     current.chop(1);
-                    lines.append(RenderLine{current, paragraph.align});
+                    paragraphLines.append(RenderLine{current, paragraph.align});
                     current = QString(moved) + character;
                 }
                 else if (lastSpace > 0 && !character.isSpace())
                 {
-                    lines.append(RenderLine{current.left(lastSpace), paragraph.align});
+                    paragraphLines.append(RenderLine{current.left(lastSpace), paragraph.align});
                     current = current.mid(lastSpace + 1) + character;
                 }
                 else
                 {
-                    lines.append(RenderLine{current, paragraph.align});
+                    paragraphLines.append(RenderLine{current, paragraph.align});
                     current = QString(character);
                 }
             }
@@ -458,8 +459,17 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
 
         if (!current.isEmpty())
         {
-            lines.append(RenderLine{current, paragraph.align});
+            paragraphLines.append(RenderLine{current, paragraph.align});
         }
+
+        // A single line behaves like a normal centred label; inline
+        // text-align only matters when the paragraph actually wraps.
+        if (paragraphLines.size() == 1)
+        {
+            paragraphLines.first().align = baseAlignment;
+        }
+
+        lines.append(paragraphLines);
     }
 
     if (lines.isEmpty())
