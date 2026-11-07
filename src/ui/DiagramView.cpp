@@ -30,6 +30,7 @@
 
 #include <algorithm>
 #include <functional>
+#include <limits>
 #include <memory>
 
 namespace dq {
@@ -540,6 +541,39 @@ QPointF DiagramView::toView(const QPointF &scenePoint) const
     return (scenePoint - m_pan) * m_zoom;
 }
 
+QVector<QPointF> DiagramView::connectionPoints(const Cell &cell) const
+{
+    const QRectF rect = cell.absoluteRect();
+
+    return {
+        QPointF(rect.center().x(), rect.top()),
+        QPointF(rect.right(), rect.center().y()),
+        QPointF(rect.center().x(), rect.bottom()),
+        QPointF(rect.left(), rect.center().y()),
+    };
+}
+
+int DiagramView::nearestConnectionSide(const Cell &cell, const QPointF &scenePoint) const
+{
+    const QVector<QPointF> points = connectionPoints(cell);
+
+    int best = -1;
+    double bestDistance = std::numeric_limits<double>::max();
+
+    for (int i = 0; i < points.size(); ++i)
+    {
+        const double distance = QLineF(points.at(i), scenePoint).length();
+
+        if (distance < bestDistance)
+        {
+            bestDistance = distance;
+            best = i;
+        }
+    }
+
+    return best;
+}
+
 QRectF DiagramView::sceneRect(const QRectF &viewRect) const
 {
     return QRectF(toScene(viewRect.topLeft()), toScene(viewRect.bottomRight()));
@@ -987,8 +1021,12 @@ void DiagramView::paintSelectionOverlay(QPainter &painter)
     }
 
     // Hover affordance: small connection handles around the hovered shape.
-    if (!m_hoverCellId.isEmpty() && !m_selection.contains(m_hoverCellId)
-        && m_dragMode == DragMode::None && m_tool == Tool::Select)
+    const bool showHoverPoints = !m_hoverCellId.isEmpty()
+        && m_dragMode == DragMode::None
+        && (m_tool == Tool::Connector
+            || (m_tool == Tool::Select && !m_selection.contains(m_hoverCellId)));
+
+    if (showHoverPoints)
     {
         if (Cell *cell = m_page->cell(m_hoverCellId))
         {
@@ -1036,12 +1074,27 @@ void DiagramView::paintConnectionPreview(QPainter &painter)
     painter.setPen(QPen(QColor(0x1A, 0x73, 0xE8), 1.6, Qt::DashLine));
     painter.drawLine(toView(m_connectStart), toView(m_connectCurrent));
 
-    if (Cell *target = cellAt(m_connectCurrent))
+    if (!m_connectTargetId.isEmpty() && m_page != nullptr)
     {
-        const QRectF rect = target->absoluteRect();
-        painter.setPen(QPen(QColor(0x1A, 0x73, 0xE8), 2.0));
-        painter.setBrush(Qt::NoBrush);
-        painter.drawRect(QRectF(toView(rect.topLeft()), toView(rect.bottomRight())));
+        if (Cell *target = m_page->cell(m_connectTargetId))
+        {
+            const QRectF rect = target->absoluteRect();
+            painter.setPen(QPen(QColor(0x1A, 0x73, 0xE8), 1.6));
+            painter.setBrush(Qt::NoBrush);
+            painter.drawRect(QRectF(toView(rect.topLeft()), toView(rect.bottomRight())));
+
+            const QVector<QPointF> anchors = connectionPoints(*target);
+
+            for (int i = 0; i < anchors.size(); ++i)
+            {
+                const QPointF center = toView(anchors.at(i));
+                const bool active = i == m_connectTargetSide;
+                const double radius = active ? 6.0 : 4.5;
+                painter.setPen(QPen(QColor(0x1A, 0x73, 0xE8), 1.5));
+                painter.setBrush(active ? QColor(0x1A, 0x73, 0xE8) : QColor(Qt::white));
+                painter.drawEllipse(center, radius, radius);
+            }
+        }
     }
 
     painter.restore();
@@ -1356,7 +1409,10 @@ void DiagramView::beginConnect(Cell *source, const QPointF &scenePoint)
 
     Cell *selectable = topLevelSelectable(source);
     m_connectSourceId = selectable->id;
-    m_connectStart = scenePoint;
+    m_connectSourceSide = nearestConnectionSide(*selectable, scenePoint);
+    m_connectTargetId.clear();
+    m_connectTargetSide = -1;
+    m_connectStart = connectionPoints(*selectable).value(m_connectSourceSide, scenePoint);
     m_connectCurrent = scenePoint;
     m_dragMode = DragMode::Connect;
     m_dragMoved = false;
@@ -1491,7 +1547,31 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
 
     if (m_dragMode == DragMode::Connect)
     {
-        m_connectCurrent = scenePoint;
+        Cell *hit = cellAt(scenePoint);
+        QString targetId;
+        int targetSide = -1;
+        QPointF preview = scenePoint;
+
+        if (hit != nullptr)
+        {
+            Cell *selectable = topLevelSelectable(hit);
+
+            if (selectable->id != m_connectSourceId)
+            {
+                targetId = selectable->id;
+                targetSide = nearestConnectionSide(*selectable, scenePoint);
+                const QPointF anchor = connectionPoints(*selectable).value(targetSide);
+
+                if (QLineF(anchor, scenePoint).length() <= 18.0 / qMax(m_zoom, 0.01))
+                {
+                    preview = anchor;
+                }
+            }
+        }
+
+        m_connectTargetId = targetId;
+        m_connectTargetSide = targetSide;
+        m_connectCurrent = preview;
 
         if (QLineF(m_connectStart, m_connectCurrent).length() > 2.0)
         {
@@ -1754,7 +1834,8 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
 
     if (m_dragMode == DragMode::Connect)
     {
-        Cell *target = cellAt(m_connectCurrent);
+        const QPointF scenePoint = toScene(event->position());
+        Cell *target = cellAt(scenePoint);
 
         if (target != nullptr)
         {
@@ -1762,16 +1843,37 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
 
             if (selectableTarget->id != m_connectSourceId && m_page != nullptr)
             {
+                const int entrySide = nearestConnectionSide(*selectableTarget, scenePoint);
+                static const double sidesX[4] = {0.5, 1.0, 0.5, 0.0};
+                static const double sidesY[4] = {0.0, 0.5, 1.0, 0.5};
+
+                QString style = QStringLiteral(
+                    "edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;"
+                    "jettySize=auto;html=1;endArrow=classic;endFill=1;");
+
+                if (m_connectSourceSide >= 0 && m_connectSourceSide < 4)
+                {
+                    style += QStringLiteral("exitX=%1;exitY=%2;")
+                                 .arg(sidesX[m_connectSourceSide])
+                                 .arg(sidesY[m_connectSourceSide]);
+                }
+
+                if (entrySide >= 0 && entrySide < 4)
+                {
+                    style += QStringLiteral("entryX=%1;entryY=%2;")
+                                 .arg(sidesX[entrySide])
+                                 .arg(sidesY[entrySide]);
+                }
+
                 beginSnapshot(QStringLiteral("创建连线"));
                 Cell *edge = m_page->addEdge(m_connectSourceId, selectableTarget->id,
-                                             Style::parse(QStringLiteral(
-                                                 "edgeStyle=orthogonalEdgeStyle;rounded=0;"
-                                                 "orthogonalLoop=1;jettySize=auto;html=1;"
-                                                 "endArrow=classic;endFill=1;")));
+                                             Style::parse(style));
+
                 if (edge != nullptr)
                 {
                     m_selection = {edge->id};
                 }
+
                 commitSnapshot();
                 emit selectionChanged();
             }
@@ -1779,6 +1881,9 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
 
         m_dragMode = DragMode::None;
         m_connectSourceId.clear();
+        m_connectTargetId.clear();
+        m_connectSourceSide = -1;
+        m_connectTargetSide = -1;
         m_dragMoved = false;
         update();
         return;

@@ -140,6 +140,9 @@ public:
     void restoreSnapshot(int pageIndex, const QString &xml, const QSet<QString> &selection);
 
     // --- geometry helpers ------------------------------------------------
+    QVector<QPointF> connectionPoints(const Cell &cell) const;
+    int nearestConnectionSide(const Cell &cell, const QPointF &scenePoint) const;
+
     QPointF toScene(const QPointF &viewPoint) const;
     QPointF toView(const QPointF &scenePoint) const;
     QRectF sceneRect(const QRectF &viewRect) const;
@@ -277,8 +280,11 @@ private:
     QSet<QString> m_dragBeforeSelection;
 
     QString m_connectSourceId;
+    QString m_connectTargetId;
     QPointF m_connectStart;
     QPointF m_connectCurrent;
+    int m_connectSourceSide = -1;
+    int m_connectTargetSide = -1;
     bool m_connectFromSource = true;
 
     QPointF m_panStart;

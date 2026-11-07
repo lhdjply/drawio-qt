@@ -405,6 +405,57 @@ private slots:
         QCOMPARE(moving->absoluteRect().right(), anchor->absoluteRect().right());
     }
 
+    void connectorShowsTargetAnchorsAndUsesThem()
+    {
+        MainWindow window;
+        window.resize(1280, 800);
+        window.show();
+        (void)QTest::qWaitForWindowExposed(&window);
+
+        DiagramView *view = window.view();
+        view->page()->settings.grid = false;
+
+        Cell *source = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                      QPointF(180, 250));
+        Cell *target = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                      QPointF(520, 250));
+        view->setTool(DiagramView::Tool::Connector);
+
+        const QRectF sourceRect = source->absoluteRect();
+        const QRectF targetRect = target->absoluteRect();
+
+        const QPointF start(sourceRect.right() - 2.0, sourceRect.center().y());
+        const QPointF end(targetRect.left() + 3.0, targetRect.center().y());
+
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier,
+                          view->toView(start).toPoint());
+        QTest::mouseMove(view, view->toView(end).toPoint());
+        QCoreApplication::processEvents();
+
+        // The target anchors must be visible while the connector is dragged.
+        const QImage preview = window.grab().toImage();
+        QVERIFY(!preview.isNull());
+        QVERIFY(preview.save(QStringLiteral(DRAWIO_QT_BINARY_DIR)
+                             + QStringLiteral("/connector-points.png")));
+
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier,
+                            view->toView(end).toPoint());
+        QCoreApplication::processEvents();
+
+        QCOMPARE(view->page()->cells().size(), 3);
+        QCOMPARE(view->selection().size(), 1);
+
+        Cell *edge = view->page()->cell(*view->selection().begin());
+        QVERIFY(edge != nullptr);
+        QVERIFY(edge->isEdge());
+        QCOMPARE(edge->sourceId, source->id);
+        QCOMPARE(edge->targetId, target->id);
+        QCOMPARE(edge->styleValue(QStringLiteral("exitX")), QStringLiteral("1"));
+        QCOMPARE(edge->styleValue(QStringLiteral("exitY")), QStringLiteral("0.5"));
+        QCOMPARE(edge->styleValue(QStringLiteral("entryX")), QStringLiteral("0"));
+        QCOMPARE(edge->styleValue(QStringLiteral("entryY")), QStringLiteral("0.5"));
+    }
+
     void resizeWithMouseHandles()
     {
         MainWindow window;

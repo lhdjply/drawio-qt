@@ -13,6 +13,10 @@ PNG/SVG/PDF/HTML/XML 导出、打印以及命令行批量导出。
 
 ![对齐参考线](docs/screenshot-guides.png)
 
+连线时目标图形的锚点提示：
+
+![连线锚点](docs/screenshot-connectors.png)
+
 深色模式：
 
 ![drawio-qt 深色模式](docs/screenshot-dark.png)
@@ -31,6 +35,8 @@ PNG/SVG/PDF/HTML/XML 导出、打印以及命令行批量导出。
 - **形状浏览器**：按库分类、关键词搜索、勾选启用库；形状可拖放或双击插入。
 - **连接线**：正交 / 直线 / 折线 / 实体关系路由；起点/终点箭头（实心、空心、方块、圆、菱形）；
   自由端点、固定出入点（`exitX/exitY/entryX/entryY`）与控制点；标签自动避让背景。
+- **连线锚点提示**：连线过程中目标图形显示四个方向锚点，靠近时自动吸附并写入
+  `exitX/exitY/entryX/entryY`，再也不用凭感觉对准；悬停图形时也会显示锚点。
 - **文本编辑**：双击原位编辑，支持字体、字号、颜色、粗体/斜体/下划线、水平/垂直对齐、
   自动换行与简单 HTML（`<b>`、`<i>`、`<br>`、`<font>` 等）。
 - **文件格式兼容**：直接读写 `.drawio` / `.dio` / `.xml`，支持 draw.io 的
