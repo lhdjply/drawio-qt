@@ -226,7 +226,10 @@ void paintFlexArrow(QPainter &painter, const Cell &edge, const RoutedEdge &route
         shaft = 11.0; // style may store a fraction; fall back to the default
     }
 
-    const double headLength = qBound(8.0, edge.styleNumber(QStringLiteral("arrowSize"), 18.0), 60.0);
+    // draw.io: endSize (default 6) is multiplied by three for flexArrow.
+    const double headLength = qBound(8.0,
+                                     edge.styleNumber(QStringLiteral("endSize"), 6.0) * 3.0,
+                                     60.0);
     const double headWidth = qMax(headLength, 30.0);
     shaft = qBound(4.0, shaft, 40.0);
 

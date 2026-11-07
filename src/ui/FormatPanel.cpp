@@ -459,6 +459,19 @@ void FormatPanel::buildUi()
 
     edgeForm->addRow(QStringLiteral("起点"), m_startArrow);
     edgeForm->addRow(QStringLiteral("终点"), m_endArrow);
+
+    m_startSize = new QSpinBox(edgeGroup);
+    m_endSize = new QSpinBox(edgeGroup);
+
+    for (QSpinBox *spin : {m_startSize, m_endSize})
+    {
+        spin->setRange(1, 60);
+        spin->setValue(6);
+        spin->setSuffix(QStringLiteral(" px"));
+    }
+
+    edgeForm->addRow(QStringLiteral("起点大小"), m_startSize);
+    edgeForm->addRow(QStringLiteral("终点大小"), m_endSize);
     layout->addWidget(edgeGroup);
 
     connect(m_edgeStyle, &QComboBox::currentIndexChanged, this, [this](int)
@@ -484,6 +497,20 @@ void FormatPanel::buildUi()
         {
             m_view->applyStyle(QStringLiteral("endArrow"),
                                m_endArrow->currentData().toString());
+        }
+    });
+    connect(m_startSize, qOverload<int>(&QSpinBox::valueChanged), this, [this](int value)
+    {
+        if (!m_updating)
+        {
+            m_view->applyStyle(QStringLiteral("startSize"), QString::number(value));
+        }
+    });
+    connect(m_endSize, qOverload<int>(&QSpinBox::valueChanged), this, [this](int value)
+    {
+        if (!m_updating)
+        {
+            m_view->applyStyle(QStringLiteral("endSize"), QString::number(value));
         }
     });
 
@@ -519,6 +546,8 @@ void FormatPanel::buildUi()
     m_verticalAlign->setCurrentIndex(1);
     m_startArrow->setCurrentIndex(0);
     m_endArrow->setCurrentIndex(1);
+    m_startSize->setValue(6);
+    m_endSize->setValue(6);
     m_updating = false;
 }
 
@@ -644,6 +673,8 @@ void FormatPanel::updateFromSelection()
     const QString endArrow = cell->styleValue(QStringLiteral("endArrow"), QStringLiteral("classic"));
     m_startArrow->setCurrentIndex(qMax(0, m_startArrow->findData(startArrow)));
     m_endArrow->setCurrentIndex(qMax(0, m_endArrow->findData(endArrow)));
+    m_startSize->setValue(qRound(cell->styleNumber(QStringLiteral("startSize"), 6.0)));
+    m_endSize->setValue(qRound(cell->styleNumber(QStringLiteral("endSize"), 6.0)));
 
     m_updating = false;
 }
@@ -722,6 +753,8 @@ void FormatPanel::updateEnabled(bool hasSelection, bool hasVertex, bool hasEdge)
     m_edgeStyle->setEnabled(hasEdge);
     m_startArrow->setEnabled(hasEdge);
     m_endArrow->setEnabled(hasEdge);
+    m_startSize->setEnabled(hasEdge);
+    m_endSize->setEnabled(hasEdge);
 
 }
 

@@ -57,6 +57,8 @@ private:
     QComboBox *m_edgeStyle = nullptr;
     QComboBox *m_startArrow = nullptr;
     QComboBox *m_endArrow = nullptr;
+    QSpinBox *m_startSize = nullptr;
+    QSpinBox *m_endSize = nullptr;
     QComboBox *m_align = nullptr;
     QComboBox *m_verticalAlign = nullptr;
 
