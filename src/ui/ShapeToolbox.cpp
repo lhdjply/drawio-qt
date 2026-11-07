@@ -9,11 +9,16 @@
 #include <QMouseEvent>
 #include <QFrame>
 #include <QHBoxLayout>
+#include <QApplication>
+#include <QFontMetrics>
 #include <QIcon>
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMimeData>
+#include <QPainter>
+#include <QStyledItemDelegate>
+#include <QStyleOptionViewItem>
 #include <QTimer>
 #include <QToolButton>
 #include <QVBoxLayout>
@@ -22,6 +27,137 @@ namespace dq {
 namespace {
 
 constexpr const char *kShapeMimeType = "application/x-drawio-shape";
+
+
+QStringList wrapLabel(const QString &text, const QFontMetrics &metrics, int maxWidth,
+                       int maxLines)
+{
+    QStringList lines;
+    QString current;
+
+    for (int i = 0; i < text.size(); ++i)
+    {
+        const QChar character = text.at(i);
+        const QString candidate = current + character;
+
+        if (!current.isEmpty() && metrics.horizontalAdvance(candidate) > maxWidth)
+        {
+            const int lastSpace = current.lastIndexOf(QLatin1Char(' '));
+
+            if (lastSpace > 0 && !character.isSpace())
+            {
+                lines.append(current.left(lastSpace));
+                current = current.mid(lastSpace + 1) + character;
+            }
+            else
+            {
+                lines.append(current);
+                current = QString(character);
+            }
+
+            if (lines.size() == maxLines)
+            {
+                const int consumed = i - current.size() + 1;
+                lines.last() = metrics.elidedText(lines.last() + text.mid(consumed),
+                                                  Qt::ElideRight, maxWidth);
+                return lines;
+            }
+        }
+        else
+        {
+            current = candidate;
+        }
+    }
+
+    if (!current.isEmpty())
+    {
+        lines.append(current);
+    }
+
+    if (lines.size() > maxLines)
+    {
+        lines = lines.mid(0, maxLines);
+        lines.last() = metrics.elidedText(lines.last(), Qt::ElideRight, maxWidth);
+    }
+
+    return lines;
+}
+
+/// Draws the icon above a maximum of two centred text lines. Qt's icon mode
+/// delegate otherwise elides labels to a single line, which made longer shape
+/// names unreadable.
+class ShapeItemDelegate : public QStyledItemDelegate
+{
+public:
+    explicit ShapeItemDelegate(QObject *parent = nullptr)
+        : QStyledItemDelegate(parent)
+    {
+    }
+
+    QSize sizeHint(const QStyleOptionViewItem &option, const QModelIndex &index) const override
+    {
+        Q_UNUSED(option);
+        Q_UNUSED(index);
+        return QSize(88, 100);
+    }
+
+    void paint(QPainter *painter, const QStyleOptionViewItem &option,
+               const QModelIndex &index) const override
+    {
+        QStyleOptionViewItem opt(option);
+        initStyleOption(&opt, index);
+
+        const QWidget *widget = opt.widget;
+        QStyle *style = widget != nullptr ? widget->style() : QApplication::style();
+
+        // Background, selection and hover come from the current style.
+        opt.text.clear();
+        opt.icon = QIcon();
+        style->drawControl(QStyle::CE_ItemViewItem, &opt, painter, widget);
+
+        const QRect rect = opt.rect;
+        const QIcon icon = index.data(Qt::DecorationRole).value<QIcon>();
+        const int iconSide = qMin(38, rect.width() - 12);
+        const QRect iconRect(rect.center().x() - iconSide / 2, rect.top() + 6,
+                             iconSide, iconSide);
+
+        if (!icon.isNull())
+        {
+            icon.paint(painter, iconRect, Qt::AlignCenter,
+                       (option.state & QStyle::State_Enabled) ? QIcon::Normal
+                                                              : QIcon::Disabled);
+        }
+
+        QFont font = opt.font;
+        font.setPointSizeF(9.0);
+        const QFontMetrics metrics(font);
+        const int maxWidth = qMax(20, rect.width() - 8);
+        const QStringList lines = wrapLabel(index.data(Qt::DisplayRole).toString(),
+                                            metrics, maxWidth, 2);
+
+        const int lineHeight = metrics.height();
+        const int textHeight = lineHeight * lines.size();
+        const int blockHeight = iconSide + 4 + textHeight;
+        int top = rect.top() + qMax(2, (rect.height() - blockHeight) / 2);
+
+        painter->save();
+        painter->setFont(font);
+        painter->setPen(opt.palette.color((option.state & QStyle::State_Selected)
+                                              ? QPalette::HighlightedText
+                                              : QPalette::Text));
+
+        int y = top + iconSide + 4;
+
+        for (const QString &line : lines)
+        {
+            painter->drawText(QRect(rect.left(), y, rect.width(), lineHeight),
+                              Qt::AlignHCenter | Qt::AlignTop, line);
+            y += lineHeight;
+        }
+
+        painter->restore();
+    }
+};
 
 /// Adds the shape key to the drag payload so DiagramView can rebuild the
 /// definition on drop.
@@ -40,10 +176,11 @@ public:
         setViewMode(QListView::IconMode);
         setResizeMode(QListView::Adjust);
         setMovement(QListView::Static);
-        setIconSize(QSize(36, 36));
-        setGridSize(QSize(82, 72));
+        setIconSize(QSize(38, 38));
+        setGridSize(QSize(88, 100));
         setSpacing(2);
         setWordWrap(true);
+        setTextElideMode(Qt::ElideNone);
         setUniformItemSizes(true);
     }
 
@@ -140,6 +277,7 @@ ShapeToolbox::ShapeToolbox(QWidget *parent)
     layout->addLayout(categoryRow);
 
     m_list = new ShapeList(this);
+    m_list->setItemDelegate(new ShapeItemDelegate(m_list));
     layout->addWidget(m_list, 1);
 
     m_count = new QLabel(this);
@@ -272,6 +410,10 @@ void ShapeToolbox::populateList()
 
     m_list->clear();
 
+    QFont listFont = m_list->font();
+    listFont.setPointSizeF(9.0);
+    m_list->setFont(listFont);
+
     for (const ShapeDefinition &definition : shapes)
     {
         auto *item = new QListWidgetItem(m_list);
@@ -279,7 +421,7 @@ void ShapeToolbox::populateList()
         item->setData(Qt::UserRole, definition.key);
         item->setToolTip(QStringLiteral("%1\n%2").arg(definition.name, definition.style));
         item->setTextAlignment(Qt::AlignHCenter | Qt::AlignTop);
-        item->setIcon(ShapeCatalog::instance().iconFor(definition, 36));
+        item->setIcon(ShapeCatalog::instance().iconFor(definition, 38));
     }
 
     m_count->setText(query.isEmpty()
