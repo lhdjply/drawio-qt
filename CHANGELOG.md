@@ -5,6 +5,20 @@
 版本号遵循[语义化版本](https://semver.org/lang/zh-CN/)。
 版本号的唯一来源是仓库根目录的 `VERSION` 文件（写法与 tag 一致，如 `v0.1.0`）。
 
+## [v0.1.1] - 2026-11-07
+
+修复 Windows 下的编译问题，CI 全平台（Linux 四架构 + Windows x64/arm64）可正常出包。
+
+### 修复
+
+- 关闭 `CMAKE_INCLUDE_CURRENT_DIR`：它把源码根目录加进头文件搜索路径，
+  Windows 文件系统大小写不敏感，Qt 头文件链中的 `#include <version>` 会命中
+  根目录的 `VERSION` 文件（内容 `v0.1.0`）被当 C++ 编译，报
+  "too many decimal points in number"。include 路径改由
+  `target_include_directories` 显式给出。
+- CI 的 Windows arm64 作业（MSYS2 CLANGARM64）只有 clang 没有 g++，
+  打印工具链版本的步骤按矩阵编译器取名字，不再写死 `g++`。
+
 ## [v0.1.0] - 2026-11-07
 
 首个公开发布版本：draw.io 桌面版（Electron）的原生 Qt6 / C++ 移植，

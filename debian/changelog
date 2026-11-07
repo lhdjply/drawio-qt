@@ -1,6 +1,11 @@
-drawio-qt (0.1.0) unstable; urgency=medium
+drawio-qt (0.1.1) unstable; urgency=medium
 
-  * Initial release.
+  * 修复 Windows（MinGW）下源码根目录的 VERSION 文件被当作
+    <version> 标准头包含导致的编译失败。
+
+ -- drawio-qt Maintainers <lhdjply@users.noreply.github.com>  Sat, 07 Nov 2026 17:14:48 +0800
+
+drawio-qt (0.1.0) unstable; urgency=medium
   * 原生 Qt6/C++ 重写的 draw.io 桌面版：打开与保存 draw.io / mxGraph
     XML 文件，支持流程图、UML、ER 图，文件与原版 draw.io 兼容。
   * 支持多页面、多文件标签页、撤销/重做、组合、连线、形状旋转、
