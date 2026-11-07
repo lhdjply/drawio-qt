@@ -1,6 +1,7 @@
 #include "app/AppSettings.h"
 #include "app/UiTheme.h"
 #include "core/Document.h"
+#include "core/MxFileIO.h"
 #include "ui/DiagramView.h"
 #include "ui/FormatPanel.h"
 #include "ui/ShapeToolbox.h"
@@ -390,6 +391,79 @@ private slots:
         }
 
         QCOMPARE(dialog.enabledCategories(), QStringList{QStringLiteral("__none__")});
+    }
+
+    void rotationHandleRotatesShape()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *cell = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                    QPointF(120, 120));
+        QVERIFY(cell != nullptr);
+        view->selectCell(cell->id);
+
+        const QRectF sceneBounds = view->selectionBounds();
+        const QPointF viewTopLeft = view->toView(sceneBounds.topLeft());
+        const QPointF viewBottomRight = view->toView(sceneBounds.bottomRight());
+        const QRectF viewBounds = QRectF(viewTopLeft, viewBottomRight).normalized();
+        const QPointF handle(viewBounds.center().x(), viewBounds.top() - 24.0);
+        const QPointF target = handle + QPointF(60, 60);
+
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, handle.toPoint());
+        QTest::mouseMove(view, target.toPoint());
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, target.toPoint());
+
+        QVERIFY(qAbs(cell->effectiveRotation()) > 1.0);
+        QVERIFY(!cell->styleValue(QStringLiteral("rotation")).isEmpty());
+    }
+
+    void rotationSerializedInStyle()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *cell = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                    QPointF(120, 120));
+        QVERIFY(cell != nullptr);
+        view->selectCell(cell->id);
+        view->setRotation(45);
+
+        const QString xml = MxFileIO::pageToXml(*view->page(), false);
+        QVERIFY(xml.contains(QStringLiteral("rotation=45")));
+        QVERIFY(!xml.contains(QStringLiteral("rotation=\"45\"")));
+    }
+
+    void rotatedResizeUsesRotatedHandles()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        view->setZoom(1.0);
+        Cell *cell = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                    QPointF(100, 100));
+        QVERIFY(cell != nullptr);
+        cell->geometry = QRectF(100, 100, 100, 60);
+        view->selectCell(cell->id);
+        view->setRotation(45);
+
+        const QRectF rect = cell->absoluteRect();
+        QTransform transform;
+        transform.translate(rect.center().x(), rect.center().y());
+        transform.rotate(45);
+        transform.translate(-rect.center().x(), -rect.center().y());
+        const QPointF br = transform.map(rect.bottomRight());
+        const QPointF start = view->toView(br);
+        const QPointF target = start + QPointF(24, 24);
+
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, start.toPoint());
+        QTest::mouseMove(view, target.toPoint());
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, target.toPoint());
+
+        QVERIFY(cell->geometry.width() != 100.0 || cell->geometry.height() != 60.0);
     }
 
     void altEnterInsertsLineBreak()

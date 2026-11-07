@@ -185,16 +185,28 @@ private:
         Marquee,
         Pan,
         Connect,
-        Waypoint
+        Waypoint,
+        Rotate
     };
 
     void paintSelectionOverlay(QPainter &painter);
     void paintConnectionPreview(QPainter &painter);
 
     int waypointAt(const QPointF &viewPoint, QString *edgeId) const;
+    Cell *singleRotatedVertex() const;
+    QPointF rotationHandleCenter() const;
+    bool rotationHandleHit(const QPointF &viewPoint) const;
+    void beginRotate(const QPointF &scenePoint);
+    static double snapRotationAngle(double angle, bool strict);
 
     QString m_waypointEdgeId;
     int m_waypointIndex = -1;
+    QPointF m_rotateCenter;
+    double m_rotateStartAngle = 0.0;
+    QVector<QPair<QString, double>> m_rotateInitial;
+    bool m_rotating = false;
+    QString m_resizeRotatedCellId;
+    double m_resizeRotatedAngle = 0.0;
 
     struct Guide
     {

@@ -785,7 +785,7 @@ void FormatPanel::updateFromSelection()
     m_y->setValue(rect.y());
     m_w->setValue(qMax(1.0, rect.width()));
     m_h->setValue(qMax(1.0, rect.height()));
-    m_rotation->setValue(cell->rotation);
+    m_rotation->setValue(qRound(cell->effectiveRotation()));
 
     m_fill->setStyleValue(cell->styleValue(QStringLiteral("fillColor")));
     m_stroke->setStyleValue(cell->styleValue(QStringLiteral("strokeColor")));

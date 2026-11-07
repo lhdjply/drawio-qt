@@ -19,7 +19,9 @@
 #include <QMimeData>
 #include <QMouseEvent>
 #include <QUrl>
+#include <QFontMetrics>
 #include <QPainter>
+#include <QtMath>
 #include <QPainterPath>
 #include <QRegularExpression>
 #include <QScrollBar>
@@ -544,16 +546,30 @@ QPointF DiagramView::toView(const QPointF &scenePoint) const
 
 QVector<QPointF> DiagramView::connectionPoints(const Cell &cell) const
 {
-    // Rotated symbols connect on their visual (rotated) bounds, not on the
-    // unrotated geometry rectangle.
-    const QRectF rect = cell.visualRect();
-
-    return {
+    const QRectF rect = cell.absoluteRect();
+    QVector<QPointF> points = {
         QPointF(rect.center().x(), rect.top()),
         QPointF(rect.right(), rect.center().y()),
         QPointF(rect.center().x(), rect.bottom()),
         QPointF(rect.left(), rect.center().y()),
     };
+
+    const double angle = cell.effectiveRotation();
+
+    if (!qFuzzyIsNull(angle))
+    {
+        QTransform transform;
+        transform.translate(rect.center().x(), rect.center().y());
+        transform.rotate(angle);
+        transform.translate(-rect.center().x(), -rect.center().y());
+
+        for (QPointF &point : points)
+        {
+            point = transform.map(point);
+        }
+    }
+
+    return points;
 }
 
 int DiagramView::nearestConnectionSide(const Cell &cell, const QPointF &scenePoint) const
@@ -802,21 +818,57 @@ QRectF DiagramView::selectionBoundsInView() const
     return QRectF(toView(bounds.topLeft()), toView(bounds.bottomRight()));
 }
 
+Cell *DiagramView::singleRotatedVertex() const
+{
+    if (m_page == nullptr || m_selection.size() != 1)
+    {
+        return nullptr;
+    }
+
+    Cell *cell = m_page->cell(*m_selection.begin());
+
+    if (cell == nullptr || !cell->isVertex() || qFuzzyIsNull(cell->effectiveRotation()))
+    {
+        return nullptr;
+    }
+
+    return cell;
+}
+
 QVector<QRectF> DiagramView::handleRects() const
 {
-    const QRectF bounds = selectionBoundsInView();
     const double half = kHandleSize / 2.0;
+    QVector<QPointF> centers;
 
-    const QVector<QPointF> centers = {
-        bounds.topLeft(),
-        QPointF(bounds.center().x(), bounds.top()),
-        bounds.topRight(),
-        QPointF(bounds.right(), bounds.center().y()),
-        bounds.bottomRight(),
-        QPointF(bounds.center().x(), bounds.bottom()),
-        bounds.bottomLeft(),
-        QPointF(bounds.left(), bounds.center().y()),
-    };
+    if (Cell *rotated = singleRotatedVertex())
+    {
+        const QRectF rect = rotated->absoluteRect();
+        QTransform transform;
+        transform.translate(rect.center().x(), rect.center().y());
+        transform.rotate(rotated->effectiveRotation());
+        transform.translate(-rect.center().x(), -rect.center().y());
+        const QPointF local[] = {
+            rect.topLeft(), QPointF(rect.center().x(), rect.top()), rect.topRight(),
+            QPointF(rect.right(), rect.center().y()), rect.bottomRight(),
+            QPointF(rect.center().x(), rect.bottom()), rect.bottomLeft(),
+            QPointF(rect.left(), rect.center().y()),
+        };
+
+        for (const QPointF &point : local)
+        {
+            centers.append(toView(transform.map(point)));
+        }
+    }
+    else
+    {
+        const QRectF bounds = selectionBoundsInView();
+        centers = {
+            bounds.topLeft(), QPointF(bounds.center().x(), bounds.top()), bounds.topRight(),
+            QPointF(bounds.right(), bounds.center().y()), bounds.bottomRight(),
+            QPointF(bounds.center().x(), bounds.bottom()), bounds.bottomLeft(),
+            QPointF(bounds.left(), bounds.center().y()),
+        };
+    }
 
     QVector<QRectF> rects;
 
@@ -979,12 +1031,35 @@ void DiagramView::paintSelectionOverlay(QPainter &painter)
         }
 
         const QRectF rect = cell->absoluteRect();
-        const QRectF viewRect(toView(rect.topLeft()), toView(rect.bottomRight()));
+        const double angle = cell->effectiveRotation();
 
         QPen pen(accent, 1.5);
         painter.setPen(pen);
         painter.setBrush(Qt::NoBrush);
-        painter.drawRect(viewRect);
+
+        if (!qFuzzyIsNull(angle))
+        {
+            QTransform transform;
+            transform.translate(rect.center().x(), rect.center().y());
+            transform.rotate(angle);
+            transform.translate(-rect.center().x(), -rect.center().y());
+            QPolygonF polygon;
+            polygon << transform.map(rect.topLeft()) << transform.map(rect.topRight())
+                    << transform.map(rect.bottomRight()) << transform.map(rect.bottomLeft());
+            QPolygonF viewPolygon;
+
+            for (const QPointF &point : polygon)
+            {
+                viewPolygon << toView(point);
+            }
+
+            painter.drawPolygon(viewPolygon);
+        }
+        else
+        {
+            const QRectF viewRect(toView(rect.topLeft()), toView(rect.bottomRight()));
+            painter.drawRect(viewRect);
+        }
     }
 
     // Handles only when vertices are selected.
@@ -1007,6 +1082,43 @@ void DiagramView::paintSelectionOverlay(QPainter &painter)
         for (const QRectF &rect : rects)
         {
             painter.drawRect(rect);
+        }
+    }
+
+    // Rotation handle above the selection.
+    if (hasVertex)
+    {
+        const QPointF center = rotationHandleCenter();
+        const QRectF handle(center.x() - 6, center.y() - 6, 12, 12);
+        painter.setPen(QPen(accent, 1.4));
+        painter.setBrush(QColor(Qt::white));
+        painter.drawEllipse(handle);
+        painter.setBrush(Qt::NoBrush);
+        QPainterPath arrow;
+        arrow.arcMoveTo(handle.adjusted(2, 2, -2, -2), 40);
+        arrow.arcTo(handle.adjusted(2, 2, -2, -2), 40, 250);
+        painter.drawPath(arrow);
+        painter.drawLine(center + QPointF(4, -8), center + QPointF(4, -4));
+        painter.drawLine(center + QPointF(4, -8), center + QPointF(0, -8));
+
+        // Show the current angle while rotating.
+        if (m_rotating && !m_rotateInitial.isEmpty())
+        {
+            if (const Cell *cell = m_page != nullptr ? m_page->cell(m_rotateInitial.first().first) : nullptr)
+            {
+                const double angle = std::fmod(cell->effectiveRotation(), 360.0);
+                const QString text = tr("%1°").arg(QString::number(angle, 'f', 1));
+                const QFontMetrics metrics(painter.fontMetrics());
+                const int textWidth = metrics.horizontalAdvance(text);
+                const QRectF badge(center.x() - textWidth / 2.0 - 8.0,
+                                   center.y() - 34.0, textWidth + 16.0, 22.0);
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(QColor(0, 0, 0, 180));
+                painter.drawRoundedRect(badge, 4, 4);
+                painter.setPen(QPen(QColor(Qt::white), 1.0));
+                painter.drawText(badge, Qt::AlignCenter, text);
+                painter.setBrush(Qt::NoBrush);
+            }
         }
     }
 
@@ -1264,6 +1376,13 @@ void DiagramView::mousePressEvent(QMouseEvent *event)
         }
     }
 
+    // 1a. Rotation handle.
+    if (m_tool == Tool::Select && rotationHandleHit(viewPoint))
+    {
+        beginRotate(scenePoint);
+        return;
+    }
+
     // 1b. Waypoint handle of a selected edge.
     if (m_tool == Tool::Select && hasSelection())
     {
@@ -1446,6 +1565,83 @@ int DiagramView::waypointAt(const QPointF &viewPoint, QString *edgeId) const
     return -1;
 }
 
+QPointF DiagramView::rotationHandleCenter() const
+{
+    if (Cell *rotated = singleRotatedVertex())
+    {
+        const QRectF rect = rotated->absoluteRect();
+        QTransform transform;
+        transform.translate(rect.center().x(), rect.center().y());
+        transform.rotate(rotated->effectiveRotation());
+        transform.translate(-rect.center().x(), -rect.center().y());
+        return toView(transform.map(QPointF(rect.center().x(), rect.top() - 24.0)));
+    }
+
+    const QRectF bounds = selectionBoundsInView();
+    return QPointF(bounds.center().x(), bounds.top() - 24.0);
+}
+
+bool DiagramView::rotationHandleHit(const QPointF &viewPoint) const
+{
+    if (!hasSelection())
+    {
+        return false;
+    }
+
+    const QPointF center = rotationHandleCenter();
+    return QLineF(center, viewPoint).length() <= 10.0;
+}
+
+double DiagramView::snapRotationAngle(double angle, bool strict)
+{
+    // Strict mode (Shift) snaps to every 15° step.
+    if (strict)
+    {
+        return std::round(angle / 15.0) * 15.0;
+    }
+
+    // Otherwise magnetically snap near multiples of 45° (0°, 45°, 90°, …).
+    constexpr double kSnapStep = 45.0;
+    constexpr double kSnapRange = 8.0;
+    const double nearest = std::round(angle / kSnapStep) * kSnapStep;
+
+    if (std::abs(angle - nearest) <= kSnapRange)
+    {
+        return nearest;
+    }
+
+    return angle;
+}
+
+void DiagramView::beginRotate(const QPointF &scenePoint)
+{
+    m_rotateCenter = selectionBounds().center();
+    m_rotateStartAngle = qRadiansToDegrees(std::atan2(scenePoint.y() - m_rotateCenter.y(),
+                                                     scenePoint.x() - m_rotateCenter.x()));
+    m_rotateInitial.clear();
+
+    for (const QString &id : m_selection)
+    {
+        Cell *cell = m_page != nullptr ? m_page->cell(id) : nullptr;
+
+        if (cell != nullptr && cell->isVertex())
+        {
+            m_rotateInitial.append({id, cell->effectiveRotation()});
+        }
+    }
+
+    if (m_rotateInitial.isEmpty())
+    {
+        return;
+    }
+
+    beginSnapshot(QStringLiteral("旋转"));
+    m_dragMode = DragMode::Rotate;
+    m_rotating = true;
+    m_dragMoved = false;
+    update();
+}
+
 void DiagramView::beginResize(int handle, const QPointF &scenePoint)
 {
     m_dragMode = DragMode::Resize;
@@ -1457,6 +1653,14 @@ void DiagramView::beginResize(int handle, const QPointF &scenePoint)
     m_dragMoved = false;
 
     m_dragStartGeometry.clear();
+    m_resizeRotatedCellId.clear();
+    m_resizeRotatedAngle = 0.0;
+
+    if (Cell *rotated = singleRotatedVertex())
+    {
+        m_resizeRotatedCellId = rotated->id;
+        m_resizeRotatedAngle = rotated->effectiveRotation();
+    }
 
     for (Cell *cell : selectedCellObjects())
     {
@@ -1515,6 +1719,33 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
     if (m_dragMode == DragMode::Pan)
     {
         m_pan = m_panOrigin - (viewPoint - m_panStart) / m_zoom;
+        update();
+        return;
+    }
+
+    if (m_dragMode == DragMode::Rotate)
+    {
+        const QPointF scenePoint = toScene(event->position());
+        const double baseAngle = m_rotateInitial.isEmpty()
+                                     ? 0.0
+                                     : m_rotateInitial.first().second;
+        const double angle = qRadiansToDegrees(std::atan2(scenePoint.y() - m_rotateCenter.y(),
+                                                          scenePoint.x() - m_rotateCenter.x()));
+        const double delta = snapRotationAngle(baseAngle + angle - m_rotateStartAngle,
+                                               (event->modifiers() & Qt::ShiftModifier) != 0)
+                             - baseAngle;
+
+        for (const auto &entry : m_rotateInitial)
+        {
+            if (Cell *cell = m_page != nullptr ? m_page->cell(entry.first) : nullptr)
+            {
+                cell->rotation = 0.0;
+                cell->setStyleValue(QStringLiteral("rotation"),
+                                    QString::number(entry.second + delta, 'g', 12));
+            }
+        }
+
+        m_dragMoved = true;
         update();
         return;
     }
@@ -1675,6 +1906,78 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
 void DiagramView::updateResize(const QPointF &scenePoint, bool keepRatio,
                                bool disableSnap)
 {
+    if (!m_resizeRotatedCellId.isEmpty())
+    {
+        Cell *cell = m_page != nullptr ? m_page->cell(m_resizeRotatedCellId) : nullptr;
+        const QRectF original = m_dragStartGeometry.value(m_resizeRotatedCellId);
+
+        if (cell == nullptr || original.isEmpty())
+        {
+            return;
+        }
+
+        QTransform inverse;
+        inverse.rotate(-m_resizeRotatedAngle);
+        const QPointF delta = inverse.map(scenePoint - m_dragStartScene);
+        double left = -original.width() / 2.0;
+        double top = -original.height() / 2.0;
+        double right = original.width() / 2.0;
+        double bottom = original.height() / 2.0;
+
+        switch (m_resizeHandle)
+        {
+        case 0: left += delta.x(); top += delta.y(); break;
+        case 1: top += delta.y(); break;
+        case 2: right += delta.x(); top += delta.y(); break;
+        case 3: right += delta.x(); break;
+        case 4: right += delta.x(); bottom += delta.y(); break;
+        case 5: bottom += delta.y(); break;
+        case 6: left += delta.x(); bottom += delta.y(); break;
+        case 7: left += delta.x(); break;
+        default: break;
+        }
+
+        if (right - left < 10.0) right = left + 10.0;
+        if (bottom - top < 10.0) bottom = top + 10.0;
+
+        if (keepRatio && original.width() > 0 && original.height() > 0)
+        {
+            const double ratio = original.width() / original.height();
+            double width = right - left;
+            double height = bottom - top;
+
+            if (width / height > ratio) width = height * ratio;
+            else height = width / ratio;
+
+            if (m_resizeHandle == 0 || m_resizeHandle == 6 || m_resizeHandle == 7) left = right - width;
+            else right = left + width;
+
+            if (m_resizeHandle == 0 || m_resizeHandle == 1 || m_resizeHandle == 2) top = bottom - height;
+            else bottom = top + height;
+        }
+
+        const QPointF localCenter((left + right) / 2.0, (top + bottom) / 2.0);
+        QTransform rotate;
+        rotate.rotate(m_resizeRotatedAngle);
+        const QPointF center = original.center() + rotate.map(localCenter);
+        const QSizeF size(right - left, bottom - top);
+        QRectF mapped(center.x() - size.width() / 2.0, center.y() - size.height() / 2.0,
+                      size.width(), size.height());
+
+        if (cell->parent != nullptr && cell->parent->isVertex())
+        {
+            cell->geometry = QRectF(mapped.topLeft() - cell->parent->absolutePosition(), mapped.size());
+        }
+        else
+        {
+            cell->geometry = mapped;
+        }
+
+        m_dragMoved = true;
+        update();
+        return;
+    }
+
     QRectF rect = m_dragStartBounds;
     const QPointF delta = scenePoint - m_dragStartScene;
 
@@ -1966,6 +2269,26 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
         m_connectTargetId.clear();
         m_connectSourceSide = -1;
         m_connectTargetSide = -1;
+        m_dragMoved = false;
+        update();
+        return;
+    }
+
+    if (m_dragMode == DragMode::Rotate)
+    {
+        m_dragMode = DragMode::None;
+        m_rotating = false;
+        if (m_dragMoved)
+        {
+            commitSnapshot();
+            notifyModified();
+        }
+        else
+        {
+            cancelSnapshot();
+        }
+
+        m_rotateInitial.clear();
         m_dragMoved = false;
         update();
         return;
@@ -3339,7 +3662,9 @@ void DiagramView::setRotation(double degrees)
     }
 
     beginSnapshot(QStringLiteral("旋转"));
-    cell->rotation = degrees;
+    cell->rotation = 0.0;
+    cell->setStyleValue(QStringLiteral("rotation"),
+                        QString::number(degrees, 'g', 12));
     commitSnapshot();
     update();
 }
