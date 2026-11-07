@@ -184,11 +184,17 @@ private:
         Resize,
         Marquee,
         Pan,
-        Connect
+        Connect,
+        Waypoint
     };
 
     void paintSelectionOverlay(QPainter &painter);
     void paintConnectionPreview(QPainter &painter);
+
+    int waypointAt(const QPointF &viewPoint, QString *edgeId) const;
+
+    QString m_waypointEdgeId;
+    int m_waypointIndex = -1;
 
     struct Guide
     {

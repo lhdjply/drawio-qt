@@ -1010,6 +1010,28 @@ void DiagramView::paintSelectionOverlay(QPainter &painter)
         }
     }
 
+    // Editable waypoints of selected edges.
+    if (m_page != nullptr)
+    {
+        for (const QString &id : m_selection)
+        {
+            Cell *cell = m_page->cell(id);
+
+            if (cell == nullptr || !cell->isEdge())
+            {
+                continue;
+            }
+
+            for (const QPointF &waypoint : cell->waypoints)
+            {
+                const QPointF center = toView(waypoint);
+                painter.setPen(QPen(accent, 1.2));
+                painter.setBrush(QColor(Qt::white));
+                painter.drawRect(QRectF(center.x() - 4, center.y() - 4, 8, 8));
+            }
+        }
+    }
+
     if (!m_selection.isEmpty())
     {
         const QRectF bounds = selectionBoundsInView();
@@ -1242,6 +1264,29 @@ void DiagramView::mousePressEvent(QMouseEvent *event)
         }
     }
 
+    // 1b. Waypoint handle of a selected edge.
+    if (m_tool == Tool::Select && hasSelection())
+    {
+        QString edgeId;
+        const int waypointIndex = waypointAt(viewPoint, &edgeId);
+
+        if (waypointIndex >= 0)
+        {
+            Cell *edge = m_page != nullptr ? m_page->cell(edgeId) : nullptr;
+
+            if (edge != nullptr && waypointIndex < edge->waypoints.size())
+            {
+                beginSnapshot(QStringLiteral("移动控制点"));
+                m_dragMode = DragMode::Waypoint;
+                m_waypointEdgeId = edgeId;
+                m_waypointIndex = waypointIndex;
+                m_dragMoved = false;
+                update();
+                return;
+            }
+        }
+    }
+
     // 2. Connection handle of the hovered shape.
     if (m_tool == Tool::Select && !m_hoverCellId.isEmpty())
     {
@@ -1249,15 +1294,7 @@ void DiagramView::mousePressEvent(QMouseEvent *event)
         {
             if (hover->isVertex())
             {
-                const QRectF rect = hover->absoluteRect();
-                const QPointF centers[] = {
-                    QPointF(rect.center().x(), rect.top()),
-                    QPointF(rect.right(), rect.center().y()),
-                    QPointF(rect.center().x(), rect.bottom()),
-                    QPointF(rect.left(), rect.center().y()),
-                };
-
-                for (const QPointF &center : centers)
+                for (const QPointF &center : connectionPoints(*hover))
                 {
                     if (QLineF(toView(center), viewPoint).length() <= 8.0)
                     {
@@ -1376,6 +1413,39 @@ void DiagramView::beginMove(const QPointF &scenePoint)
     }
 }
 
+int DiagramView::waypointAt(const QPointF &viewPoint, QString *edgeId) const
+{
+    if (m_page == nullptr)
+    {
+        return -1;
+    }
+
+    for (const QString &id : m_selection)
+    {
+        Cell *cell = m_page->cell(id);
+
+        if (cell == nullptr || !cell->isEdge())
+        {
+            continue;
+        }
+
+        for (int i = 0; i < cell->waypoints.size(); ++i)
+        {
+            if (QLineF(toView(cell->waypoints.at(i)), viewPoint).length() <= 8.0)
+            {
+                if (edgeId != nullptr)
+                {
+                    *edgeId = id;
+                }
+
+                return i;
+            }
+        }
+    }
+
+    return -1;
+}
+
 void DiagramView::beginResize(int handle, const QPointF &scenePoint)
 {
     m_dragMode = DragMode::Resize;
@@ -1446,6 +1516,21 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
     {
         m_pan = m_panOrigin - (viewPoint - m_panStart) / m_zoom;
         update();
+        return;
+    }
+
+    if (m_dragMode == DragMode::Waypoint)
+    {
+        Cell *edge = m_page != nullptr ? m_page->cell(m_waypointEdgeId) : nullptr;
+
+        if (edge != nullptr && m_waypointIndex >= 0
+            && m_waypointIndex < edge->waypoints.size())
+        {
+            edge->waypoints[m_waypointIndex] = scenePoint;
+            m_dragMoved = true;
+            update();
+        }
+
         return;
     }
 
@@ -1881,6 +1966,27 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
         m_connectTargetId.clear();
         m_connectSourceSide = -1;
         m_connectTargetSide = -1;
+        m_dragMoved = false;
+        update();
+        return;
+    }
+
+    if (m_dragMode == DragMode::Waypoint)
+    {
+        m_dragMode = DragMode::None;
+        m_waypointEdgeId.clear();
+        m_waypointIndex = -1;
+
+        if (m_dragMoved)
+        {
+            commitSnapshot();
+            notifyModified();
+        }
+        else
+        {
+            cancelSnapshot();
+        }
+
         m_dragMoved = false;
         update();
         return;
