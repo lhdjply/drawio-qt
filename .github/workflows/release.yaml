@@ -219,7 +219,9 @@ jobs:
 
       - name: Print the toolchain versions
         run: |
-          g++ --version | head -1
+          # x64 的编译器是 gcc，arm64 的 clang 没有可执行的 g++（别名都不存在）；
+          # 按矩阵取编译器名，别写死
+          "${{ matrix.compiler }}" --version | head -1
           cmake --version | head -1
           echo "Qt6Core $(pkg-config --modversion Qt6Core)"
 

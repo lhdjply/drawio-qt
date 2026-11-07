@@ -183,7 +183,8 @@ jobs:
 
       - name: Print the toolchain versions
         run: |
-          g++ --version | head -1
+          # Windows 作业统一用 gcc（UCRT64），没有 g++ 别名歧义；仍按包名核对
+          gcc --version | head -1
           cmake --version | head -1
           echo "Qt6Core $(pkg-config --modversion Qt6Core)"
 
