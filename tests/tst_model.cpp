@@ -134,7 +134,8 @@ private slots:
     {
         for (const auto &definition : ShapeRegistry::toolboxShapes())
         {
-            if (definition.category != QLatin1String("basic"))
+            if (definition.category != QLatin1String("basic")
+                && definition.category != QLatin1String("cloud"))
             {
                 continue;
             }

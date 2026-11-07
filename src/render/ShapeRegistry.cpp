@@ -350,6 +350,59 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=button;whiteSpace=wrap;html=1;") + green,
         QSizeF(120, 50), QStringLiteral("basic"));
 
+    // --- cloud -----------------------------------------------------------
+    add(QStringLiteral("cloud.generic"), QStringLiteral("云"),
+        QStringLiteral("shape=cloud;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(150, 100), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.callout"), QStringLiteral("云标注"),
+        QStringLiteral("shape=cloudCallout;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(160, 100), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.rect"), QStringLiteral("云矩形"),
+        QStringLiteral("shape=cloudRect;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(160, 90), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.server"), QStringLiteral("服务器"),
+        QStringLiteral("shape=cloudServer;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(100, 130), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.datacenter"), QStringLiteral("数据中心"),
+        QStringLiteral("shape=cloudDatacenter;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(120, 110), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.firewall"), QStringLiteral("防火墙"),
+        QStringLiteral("shape=cloudFirewall;whiteSpace=wrap;html=1;") + red,
+        QSizeF(120, 100), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.globe"), QStringLiteral("全球网络"),
+        QStringLiteral("shape=cloudGlobe;whiteSpace=wrap;html=1;") + green,
+        QSizeF(110, 110), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.cdn"), QStringLiteral("CDN"),
+        QStringLiteral("shape=cloudCdn;whiteSpace=wrap;html=1;") + green,
+        QSizeF(110, 110), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.laptop"), QStringLiteral("笔记本"),
+        QStringLiteral("shape=cloudLaptop;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(130, 90), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.mobile"), QStringLiteral("移动设备"),
+        QStringLiteral("shape=cloudMobile;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(70, 120), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.loadbalancer"), QStringLiteral("负载均衡"),
+        QStringLiteral("shape=cloudLoadBalancer;whiteSpace=wrap;html=1;") + green,
+        QSizeF(110, 100), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.router"), QStringLiteral("路由器"),
+        QStringLiteral("shape=cloudRouter;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(100, 100), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.switch"), QStringLiteral("交换机"),
+        QStringLiteral("shape=cloudSwitch;whiteSpace=wrap;html=1;") + blue,
+        QSizeF(110, 80), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.vpc"), QStringLiteral("VPC"),
+        QStringLiteral("shape=cloudVpc;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QSizeF(160, 110), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.database"), QStringLiteral("云数据库"),
+        QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;") + blue,
+        QSizeF(90, 110), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.storage"), QStringLiteral("云存储"),
+        QStringLiteral("shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;") + green,
+        QSizeF(110, 100), QStringLiteral("cloud"));
+    add(QStringLiteral("cloud.user"), QStringLiteral("云用户"),
+        QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;")
+            + blue, QSizeF(60, 110), QStringLiteral("cloud"));
+
     // --- flowchart -------------------------------------------------------
     add(QStringLiteral("decision"), QStringLiteral("判定"),
         QStringLiteral("rhombus;") + plain + orange, QSizeF(130, 90), QStringLiteral("flowchart"));
@@ -1288,6 +1341,137 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         path.lineTo(point(0, h));
         path.lineTo(point(w * 0.12, h * 0.5));
         path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("cloudServer"))
+    {
+        path.addRect(QRectF(x, y, w, h));
+
+        for (int i = 1; i < 4; ++i)
+        {
+            path.moveTo(point(0, h * i / 4.0));
+            path.lineTo(point(w, h * i / 4.0));
+        }
+
+        path.addEllipse(QPointF(x + w * 0.86, y + h * 0.12), w * 0.025, w * 0.025);
+        return path;
+    }
+
+    if (key == QLatin1String("cloudDatacenter"))
+    {
+        path.addRect(QRectF(x, y, w, h));
+
+        for (int i = 1; i < 4; ++i)
+        {
+            path.moveTo(point(w * i / 4.0, 0));
+            path.lineTo(point(w * i / 4.0, h));
+        }
+
+        for (int i = 1; i < 3; ++i)
+        {
+            path.moveTo(point(0, h * i / 3.0));
+            path.lineTo(point(w, h * i / 3.0));
+        }
+
+        return path;
+    }
+
+    if (key == QLatin1String("cloudFirewall"))
+    {
+        path.addRect(QRectF(x, y, w, h));
+
+        for (int row = 1; row < 4; ++row)
+        {
+            path.moveTo(point(0, h * row / 4.0));
+            path.lineTo(point(w, h * row / 4.0));
+        }
+
+        for (int row = 0; row < 4; ++row)
+        {
+            const double offset = row % 2 == 0 ? 0.5 : 0.0;
+
+            for (int col = 0; col < 3; ++col)
+            {
+                path.moveTo(point(w * (col + offset) / 3.0, h * row / 4.0));
+                path.lineTo(point(w * (col + offset) / 3.0, h * (row + 1) / 4.0));
+            }
+        }
+
+        return path;
+    }
+
+    if (key == QLatin1String("cloudGlobe") || key == QLatin1String("cloudCdn"))
+    {
+        const double rx = w / 2.0;
+        const double ry = h / 2.0;
+        path.addEllipse(QPointF(x + rx, y + ry), rx, ry);
+        path.addEllipse(QPointF(x + rx, y + ry), rx * 0.5, ry);
+        path.moveTo(point(0, h * 0.5));
+        path.lineTo(point(w, h * 0.5));
+        path.moveTo(point(w * 0.15, h * 0.25));
+        path.lineTo(point(w * 0.85, h * 0.25));
+        path.moveTo(point(w * 0.15, h * 0.75));
+        path.lineTo(point(w * 0.85, h * 0.75));
+        return path;
+    }
+
+    if (key == QLatin1String("cloudLaptop"))
+    {
+        const double screenH = h * 0.72;
+        path.addRoundedRect(QRectF(x, y, w, screenH), 4, 4);
+        path.moveTo(point(w * 0.1, screenH));
+        path.lineTo(point(w * 0.05, h));
+        path.lineTo(point(w * 0.95, h));
+        path.lineTo(point(w * 0.9, screenH));
+        return path;
+    }
+
+    if (key == QLatin1String("cloudMobile"))
+    {
+        path.addRoundedRect(QRectF(x + w * 0.2, y, w * 0.6, h), 8, 8);
+        path.moveTo(point(w * 0.4, h * 0.92));
+        path.lineTo(point(w * 0.6, h * 0.92));
+        return path;
+    }
+
+    if (key == QLatin1String("cloudLoadBalancer") || key == QLatin1String("cloudRouter"))
+    {
+        const QPointF center(w / 2.0, h / 2.0);
+
+        for (int i = 0; i < 6; ++i)
+        {
+            const double angle = i * M_PI / 3.0;
+            const QPointF p(center.x() + std::cos(angle) * w / 2.0,
+                            center.y() + std::sin(angle) * h / 2.0);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+        }
+
+        path.closeSubpath();
+        path.moveTo(point(w * 0.2, h * 0.5));
+        path.lineTo(point(w * 0.8, h * 0.5));
+        path.moveTo(point(w * 0.5, h * 0.2));
+        path.lineTo(point(w * 0.5, h * 0.8));
+        return path;
+    }
+
+    if (key == QLatin1String("cloudSwitch"))
+    {
+        path.addRect(QRectF(x, y + h * 0.2, w, h * 0.6));
+
+        for (int i = 1; i < 4; ++i)
+        {
+            path.moveTo(point(w * i / 4.0, h * 0.2));
+            path.lineTo(point(w * i / 4.0, h * 0.8));
+        }
+
+        return path;
+    }
+
+    if (key == QLatin1String("cloudVpc"))
+    {
+        path.addRoundedRect(QRectF(x, y, w, h), 10, 10);
+        path.addRoundedRect(QRectF(x + w * 0.1, y + h * 0.1, w * 0.8, h * 0.8), 8, 8);
         return path;
     }
 
