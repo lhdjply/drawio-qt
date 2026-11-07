@@ -217,9 +217,18 @@ void paintFlexArrow(QPainter &painter, const Cell &edge, const RoutedEdge &route
 
     // draw.io's flexArrow has a solid shaft and a wide triangular head; its
     // size is independent of the generic arrow markers.
-    const double shaft = qBound(4.0, edge.styleNumber(QStringLiteral("arrowWidth"), 10.0), 40.0);
+    // Matches draw.io's default flexArrow proportions: the head is almost as
+    // wide as the available gap, while the shaft is roughly one third of it.
+    double shaft = edge.styleNumber(QStringLiteral("arrowWidth"), 11.0);
+
+    if (shaft < 2.0)
+    {
+        shaft = 11.0; // style may store a fraction; fall back to the default
+    }
+
     const double headLength = qBound(8.0, edge.styleNumber(QStringLiteral("arrowSize"), 18.0), 60.0);
-    const double headWidth = qMax(headLength, 24.0);
+    const double headWidth = qMax(headLength, 30.0);
+    shaft = qBound(4.0, shaft, 40.0);
 
     const QPointF tip = route.points.last();
     const QPointF previous = route.points.at(route.points.size() - 2);
