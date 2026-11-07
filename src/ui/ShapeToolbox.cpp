@@ -58,7 +58,7 @@ ShapeToolbox::ShapeToolbox(QWidget *parent)
 
     auto *hint = new QLabel(QStringLiteral("拖动形状到画布，或双击插入"), this);
     hint->setWordWrap(true);
-    hint->setStyleSheet(QStringLiteral("color: #666; font-size: 11px;"));
+    hint->setStyleSheet(QStringLiteral("color: #8a9099; font-size: 11px;"));
     layout->addWidget(hint);
 
     m_list = new ShapeList(this);

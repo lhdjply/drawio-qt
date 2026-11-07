@@ -1,3 +1,5 @@
+#include "app/AppSettings.h"
+#include "app/UiTheme.h"
 #include "core/Document.h"
 #include "ui/DiagramView.h"
 #include "ui/OverlayEditor.h"
@@ -19,6 +21,12 @@ class TestUiSmoke : public QObject
     Q_OBJECT
 
 private slots:
+    void initTestCase()
+    {
+        UiTheme::applyFusionStyle();
+        UiTheme::applyColorScheme(QStringLiteral("light"));
+    }
+
     void windowRendersExample()
     {
         MainWindow window;
@@ -74,6 +82,38 @@ private slots:
         }
 
         QVERIFY(foundDifferent);
+    }
+
+    void darkThemeRenders()
+    {
+        // The window applies its theme on construction, so set the stored
+        // preference (not just the palette) before creating it.
+        AppSettings::instance().setTheme(QStringLiteral("dark"));
+
+        MainWindow window;
+        window.resize(1100, 720);
+        window.show();
+        (void)QTest::qWaitForWindowExposed(&window);
+
+        const QString example = QStringLiteral(DRAWIO_QT_SOURCE_DIR)
+            + QStringLiteral("/resources/examples/basic-flow.drawio");
+        QVERIFY(window.openFile(example));
+        window.view()->setDarkTheme(true);
+        QCoreApplication::processEvents();
+
+        const QImage screenshot = window.grab().toImage();
+        QVERIFY(!screenshot.isNull());
+
+        const QString outputPath = QStringLiteral(DRAWIO_QT_BINARY_DIR)
+            + QStringLiteral("/ui-dark.png");
+        QVERIFY(screenshot.save(outputPath));
+
+        QVERIFY(screenshot.pixelColor(screenshot.width() / 2, 4).lightness() < 110
+                || screenshot.pixelColor(4, screenshot.height() / 2).lightness() < 110);
+
+        // Restore the light theme for the remaining tests.
+        AppSettings::instance().setTheme(QStringLiteral("light"));
+        UiTheme::applyColorScheme(QStringLiteral("light"));
     }
 
     void canvasSelectionAndUndo()

@@ -74,6 +74,8 @@ private:
     void renamePage(int index);
 
     void applyTheme(const QString &theme);
+    void updateActionIcons();
+    void updateTabStyle();
 
     void watchCurrentFile(bool watch);
     void checkDraftRecovery();

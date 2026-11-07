@@ -57,6 +57,8 @@ set(DRAWIO_QT_SOURCES
     src/app/CliExport.h
     src/app/AppSettings.cpp
     src/app/AppSettings.h
+    src/app/UiTheme.cpp
+    src/app/UiTheme.h
     src/ui/MainWindow.cpp
     src/ui/MainWindow.h
     src/ui/DiagramView.cpp
@@ -114,6 +116,8 @@ qt_add_resources(drawioqt_lib "drawioqt_resources"
         resources/icons/export.svg
         resources/icons/grid.svg
         resources/icons/select.svg
+        resources/icons/tab-close.svg
+        resources/icons/tab-close-dark.svg
         resources/icons/connector.svg
         resources/icons/pan.svg
         resources/icons/text.svg

@@ -1,5 +1,6 @@
 #include "app/Args.h"
 #include "app/CliExport.h"
+#include "app/UiTheme.h"
 #include "ui/DiagramView.h"
 #include "ui/MainWindow.h"
 
@@ -57,6 +58,9 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     QApplication::setApplicationDisplayName(QStringLiteral("drawio-qt"));
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/app.png")));
+
+    // A single, platform independent look: Fusion everywhere.
+    dq::UiTheme::applyFusionStyle();
 
     if (parsed.options.exportMode)
     {

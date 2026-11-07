@@ -59,8 +59,10 @@ public:
     explicit ColorButton(QWidget *parent = nullptr)
         : QToolButton(parent)
     {
-        setMinimumSize(46, 24);
+        setMinimumSize(64, 24);
         setToolButtonStyle(Qt::ToolButtonTextOnly);
+        setStyleSheet(QStringLiteral(
+            "QToolButton { padding-left: 22px; text-align: left; }"));
         setText(QStringLiteral("…"));
         setToolTip(QStringLiteral("单击选择颜色，右键清除"));
         setContextMenuPolicy(Qt::CustomContextMenu);
@@ -172,7 +174,7 @@ void FormatPanel::buildUi()
     auto *scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
-    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
     outer->addWidget(scroll);
 
     auto *content = new QWidget(scroll);
@@ -196,6 +198,8 @@ void FormatPanel::buildUi()
         spin->setSingleStep(1);
         spin->setSuffix(suffix);
         spin->setKeyboardTracking(false);
+        spin->setMinimumWidth(64);
+        spin->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Fixed);
         return spin;
     };
 
@@ -269,11 +273,13 @@ void FormatPanel::buildUi()
     m_strokeWidth = new QSpinBox(styleGroup);
     m_strokeWidth->setRange(0, 40);
     m_strokeWidth->setSuffix(QStringLiteral(" px"));
+    m_strokeWidth->setMinimumWidth(64);
     styleForm->addRow(QStringLiteral("线宽"), m_strokeWidth);
 
     m_opacity = new QSpinBox(styleGroup);
     m_opacity->setRange(0, 100);
     m_opacity->setSuffix(QStringLiteral(" %"));
+    m_opacity->setMinimumWidth(64);
     styleForm->addRow(QStringLiteral("不透明度"), m_opacity);
 
     auto *flagRow = new QHBoxLayout();
@@ -345,6 +351,7 @@ void FormatPanel::buildUi()
     m_fontSize = new QSpinBox(textGroup);
     m_fontSize->setRange(4, 200);
     m_fontSize->setSuffix(QStringLiteral(" px"));
+    m_fontSize->setMinimumWidth(64);
     textForm->addRow(QStringLiteral("字号"), m_fontSize);
     textForm->addRow(QStringLiteral("颜色"), m_fontColor);
 

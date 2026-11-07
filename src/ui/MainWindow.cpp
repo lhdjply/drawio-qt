@@ -1,6 +1,7 @@
 #include "ui/MainWindow.h"
 
 #include "app/AppSettings.h"
+#include "app/UiTheme.h"
 #include "core/Document.h"
 #include "core/MxFileIO.h"
 #include "io/Exporter.h"
@@ -35,6 +36,7 @@
 #include <QMimeData>
 #include <QPageSize>
 #include <QPainter>
+#include <QPixmap>
 #include <QPrintDialog>
 #include <QPrintPreviewDialog>
 #include <QPrinter>
@@ -60,6 +62,38 @@ QKeySequence key(const QString &text)
 QIcon iconFor(const QString &name)
 {
     return QIcon(QStringLiteral(":/icons/%1.svg").arg(name));
+}
+
+/// Rasterises a monochrome toolbar glyph and tints it, so the icons stay
+/// readable when the dark palette is active.
+QPixmap tintedGlyph(const QString &name, int size, const QColor &color)
+{
+    QPixmap pixmap(QStringLiteral(":/icons/%1.svg").arg(name));
+
+    if (pixmap.isNull())
+    {
+        return pixmap;
+    }
+
+    pixmap = pixmap.scaled(size, size, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+
+    QPainter painter(&pixmap);
+    painter.setCompositionMode(QPainter::CompositionMode_SourceIn);
+    painter.fillRect(pixmap.rect(), color);
+    painter.end();
+
+    return pixmap;
+}
+
+QIcon themedIcon(const QString &name, bool dark)
+{
+    const QColor normal = dark ? QColor(0xE8, 0xEA, 0xED) : QColor(0x3C, 0x40, 0x43);
+    const QColor disabled = dark ? QColor(0x7A, 0x7F, 0x86) : QColor(0xB0, 0xB4, 0xB9);
+
+    QIcon icon;
+    icon.addPixmap(tintedGlyph(name, 20, normal), QIcon::Normal);
+    icon.addPixmap(tintedGlyph(name, 20, disabled), QIcon::Disabled);
+    return icon;
 }
 
 } // namespace
@@ -260,11 +294,6 @@ void MainWindow::createPageTabs()
     m_pageTabs->setTabsClosable(true);
     m_pageTabs->setMovable(true);
     m_pageTabs->setElideMode(Qt::ElideRight);
-    m_pageTabs->setStyleSheet(QStringLiteral(
-        "QTabBar::tab { padding: 3px 14px; margin-right: 2px; }"
-        "QTabBar::close-button { background: transparent; }"
-        "QTabBar::close-button:hover { background: rgba(0,0,0,0.12); border-radius: 2px; }"));
-
     layout->addWidget(m_pageTabs, 1);
 
     auto *addButton = new QToolButton(container);
@@ -828,9 +857,11 @@ void MainWindow::createDocks()
     formatDock->setObjectName(QStringLiteral("formatDock"));
     formatDock->setWidget(m_formatPanel);
     formatDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    formatDock->setMinimumWidth(300);
     addDockWidget(Qt::RightDockWidgetArea, formatDock);
 
-    m_formatPanel->setMinimumWidth(230);
+    m_formatPanel->setMinimumWidth(280);
+    resizeDocks({formatDock}, {300}, Qt::Horizontal);
 
     connect(m_toolbox, &ShapeToolbox::shapeActivated, this,
             [this](const ShapeDefinition &definition)
@@ -1473,31 +1504,74 @@ void MainWindow::renamePage(int index)
 
 void MainWindow::applyTheme(const QString &theme)
 {
-    const bool dark = theme == QLatin1String("dark");
+    const bool dark = theme == QLatin1String("dark")
+        || (theme != QLatin1String("light") && UiTheme::isDarkScheme());
 
     m_darkAction->setChecked(dark);
     m_view->setDarkTheme(dark);
-
-    if (dark)
-    {
-        QPalette palette;
-        palette.setColor(QPalette::Window, QColor(0x1B, 0x1D, 0x1E));
-        palette.setColor(QPalette::WindowText, QColor(0xE8, 0xEA, 0xED));
-        palette.setColor(QPalette::Base, QColor(0x24, 0x27, 0x2B));
-        palette.setColor(QPalette::AlternateBase, QColor(0x2C, 0x30, 0x35));
-        palette.setColor(QPalette::Text, QColor(0xE8, 0xEA, 0xED));
-        palette.setColor(QPalette::Button, QColor(0x2C, 0x30, 0x35));
-        palette.setColor(QPalette::ButtonText, QColor(0xE8, 0xEA, 0xED));
-        palette.setColor(QPalette::Highlight, QColor(0x1A, 0x73, 0xE8));
-        palette.setColor(QPalette::HighlightedText, Qt::white);
-        qApp->setPalette(palette);
-    }
-    else
-    {
-        qApp->setPalette(QApplication::style()->standardPalette());
-    }
+    UiTheme::applyColorScheme(theme);
+    updateActionIcons();
+    updateTabStyle();
 
     AppSettings::instance().setTheme(theme);
+}
+
+void MainWindow::updateActionIcons()
+{
+    if (m_view == nullptr)
+    {
+        return;
+    }
+
+    const bool dark = m_view->isDarkTheme();
+    const QVector<QPair<QAction *, QString>> icons = {
+        {m_newAction, QStringLiteral("new")},
+        {m_openAction, QStringLiteral("open")},
+        {m_saveAction, QStringLiteral("save")},
+        {m_exportAction, QStringLiteral("export")},
+        {m_printAction, QStringLiteral("print")},
+        {m_undoAction, QStringLiteral("undo")},
+        {m_redoAction, QStringLiteral("redo")},
+        {m_deleteAction, QStringLiteral("delete")},
+        {m_zoomInAction, QStringLiteral("zoom-in")},
+        {m_zoomOutAction, QStringLiteral("zoom-out")},
+        {m_fitAction, QStringLiteral("fit")},
+        {m_gridAction, QStringLiteral("grid")},
+        {m_groupAction, QStringLiteral("group")},
+        {m_ungroupAction, QStringLiteral("ungroup")},
+        {m_selectToolAction, QStringLiteral("select")},
+        {m_panToolAction, QStringLiteral("pan")},
+        {m_connectorAction, QStringLiteral("connector")},
+        {m_textAction, QStringLiteral("text")},
+    };
+
+    for (const auto &entry : icons)
+    {
+        if (entry.first != nullptr)
+        {
+            entry.first->setIcon(themedIcon(entry.second, dark));
+        }
+    }
+}
+
+void MainWindow::updateTabStyle()
+{
+    if (m_pageTabs == nullptr)
+    {
+        return;
+    }
+
+    const bool dark = m_view != nullptr && m_view->isDarkTheme();
+    const QString closeIcon = dark ? QStringLiteral(":/icons/tab-close-dark.svg")
+                                   : QStringLiteral(":/icons/tab-close.svg");
+
+    m_pageTabs->setStyleSheet(
+        QStringLiteral("QTabBar::tab { padding: 3px 14px; margin-right: 2px; }"
+                       "QTabBar::close-button { image: url(%1);"
+                       " subcontrol-position: right; margin-left: 4px; }"
+                       "QTabBar::close-button:hover { background: rgba(127,127,127,0.25);"
+                       " border-radius: 2px; }")
+            .arg(closeIcon));
 }
 
 // --- drafts --------------------------------------------------------------
