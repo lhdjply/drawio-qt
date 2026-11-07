@@ -49,9 +49,12 @@ void OverlayEditor::keyPressEvent(QKeyEvent *event)
 
     if (event->key() == Qt::Key_Return || event->key() == Qt::Key_Enter)
     {
-        if (event->modifiers() & Qt::ShiftModifier)
+        if (event->modifiers() & (Qt::ShiftModifier | Qt::AltModifier))
         {
-            QTextEdit::keyPressEvent(event);
+            // Shift/Alt+Enter inserts a line break; plain Enter commits.
+            QTextCursor cursor = textCursor();
+            cursor.insertBlock();
+            setTextCursor(cursor);
             return;
         }
 

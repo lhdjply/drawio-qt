@@ -392,6 +392,18 @@ private slots:
         QCOMPARE(dialog.enabledCategories(), QStringList{QStringLiteral("__none__")});
     }
 
+    void altEnterInsertsLineBreak()
+    {
+        OverlayEditor editor;
+        editor.show();
+        editor.begin(QRect(0, 0, 120, 80), QStringLiteral("第一行"), true);
+
+        QSignalSpy committed(&editor, &OverlayEditor::committed);
+        QTest::keyClick(&editor, Qt::Key_Return, Qt::AltModifier);
+        QVERIFY(editor.toPlainText().contains(QLatin1Char('\n')));
+        QCOMPARE(committed.count(), 0);
+    }
+
     void closingLastTabDoesNotCrash()
     {
         MainWindow window;
