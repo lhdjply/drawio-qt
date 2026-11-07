@@ -2,6 +2,7 @@
 
 #include "app/AppSettings.h"
 #include "app/UiTheme.h"
+#include "app/UpdateChecker.h"
 #include "core/Document.h"
 #include "core/MxFileIO.h"
 #include "io/Exporter.h"
@@ -11,6 +12,7 @@
 #include "ui/FormatPanel.h"
 #include "ui/ShapeLibraryDialog.h"
 #include "ui/ShapeToolbox.h"
+#include "ui/UpdateDialog.h"
 
 #include <QAction>
 #include <QActionGroup>
@@ -226,9 +228,73 @@ MainWindow::MainWindow(QWidget *parent)
     updateActions();
     updatePageTabs();
     updateStatus();
+
+    // 启动后自动检查一次更新：先让窗口画出来再查，只有真发现新版本才弹窗。
+    if (AppSettings::instance().autoCheckUpdate())
+    {
+        QTimer::singleShot(3000, this, [this]()
+        {
+            checkForUpdates(false);
+        });
+    }
 }
 
 MainWindow::~MainWindow() = default;
+
+void MainWindow::checkForUpdates(bool manual)
+{
+    // 同一进程只安排一次启动检查：关掉再开新窗口不必再弹一遍
+    if (!manual)
+    {
+        if (m_updateCheckScheduled)
+        {
+            return;
+        }
+        m_updateCheckScheduled = true;
+
+        // 托盘/最小化状态没有窗口可弹，等窗口真的出来再说
+        if (!isVisible())
+        {
+            return;
+        }
+    }
+
+    auto *checker = new UpdateChecker(this);
+    connect(checker, &UpdateChecker::updateAvailable, this,
+            [this, checker, manual](const ReleaseInfo &release)
+    {
+        checker->deleteLater();
+        if (!manual && !isVisible())
+        {
+            return;
+        }
+        UpdateDialog dialog(release, this);
+        dialog.exec();
+    });
+    connect(checker, &UpdateChecker::failed, this,
+            [this, checker, manual](const QString &reason)
+    {
+        checker->deleteLater();
+        // 自动检查失败是后台的一次尝试，不打扰；手动检查必须给出可读原因
+        if (manual)
+        {
+            QMessageBox::warning(this, QStringLiteral("检查更新"),
+                                 QStringLiteral("无法检查更新：\n%1").arg(reason));
+        }
+    });
+    connect(checker, &UpdateChecker::upToDate, this,
+            [this, checker, manual](const QString &current)
+    {
+        checker->deleteLater();
+        if (manual)
+        {
+            QMessageBox::information(this, QStringLiteral("检查更新"),
+                                     QStringLiteral("当前已是最新版本（v%1）。").arg(current));
+        }
+    });
+
+    checker->check();
+}
 
 // --- UI construction -----------------------------------------------------
 
@@ -969,6 +1035,11 @@ void MainWindow::createMenus()
     connect(shortcuts, &QAction::triggered, this, [this]()
     {
         showShortcutsDialog(this);
+    });
+    QAction *checkUpdates = helpMenu->addAction(QStringLiteral("检查更新…"));
+    connect(checkUpdates, &QAction::triggered, this, [this]()
+    {
+        checkForUpdates(true);
     });
     QAction *about = helpMenu->addAction(QStringLiteral("关于 drawio-qt"));
     connect(about, &QAction::triggered, this, [this]()

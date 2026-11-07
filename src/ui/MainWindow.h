@@ -80,6 +80,7 @@ private:
     void printPreview();
     void pageSetup();
     void insertImage();
+    void checkForUpdates(bool manual);
 
     void addPage();
     void removePage(int index);
@@ -107,6 +108,7 @@ private:
     QTabBar *m_fileTabs = nullptr;
     QVector<Document *> m_documents;
     QTimer *m_autoSaveTimer = nullptr;
+    bool m_updateCheckScheduled = false;
     QFileSystemWatcher *m_watcher = nullptr;
     QMenu *m_recentMenu = nullptr;
     QActionGroup *m_toolGroup = nullptr;

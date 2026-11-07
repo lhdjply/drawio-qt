@@ -185,6 +185,16 @@ void AppSettings::setAutoSaveEnabled(bool enabled)
     m_settings->setValue(QStringLiteral("editor/autoSave"), enabled);
 }
 
+bool AppSettings::autoCheckUpdate() const
+{
+    return m_settings->value(QStringLiteral("app/autoCheckUpdate"), true).toBool();
+}
+
+void AppSettings::setAutoCheckUpdate(bool enabled)
+{
+    m_settings->setValue(QStringLiteral("app/autoCheckUpdate"), enabled);
+}
+
 QString AppSettings::theme() const
 {
     return m_settings->value(QStringLiteral("view/theme"), QStringLiteral("auto")).toString();

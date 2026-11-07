@@ -48,6 +48,11 @@ public:
     bool autoSaveEnabled() const;
     void setAutoSaveEnabled(bool enabled);
 
+    /// Check for updates once on startup. Enabled by default; failures are
+    /// silent, only a real update shows a dialog.
+    bool autoCheckUpdate() const;
+    void setAutoCheckUpdate(bool enabled);
+
     QString theme() const;
     void setTheme(const QString &theme);
 

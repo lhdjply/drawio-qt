@@ -71,7 +71,7 @@ set(DRAWIO_QT_APP_DISPLAY_NAME   "drawio-qt")
 
 include(GNUInstallDirs)
 
-find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Xml)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Network Svg PrintSupport Xml)
 find_package(ZLIB REQUIRED)
 
 option(DRAWIO_QT_BUILD_TESTS "Build the unit tests" OFF)
@@ -116,6 +116,8 @@ set(DRAWIO_QT_SOURCES
     src/app/AppSettings.h
     src/app/UiTheme.cpp
     src/app/UiTheme.h
+    src/app/UpdateChecker.cpp
+    src/app/UpdateChecker.h
     src/ui/MainWindow.cpp
     src/ui/MainWindow.h
     src/ui/DiagramView.cpp
@@ -130,6 +132,8 @@ set(DRAWIO_QT_SOURCES
     src/ui/OverlayEditor.h
     src/ui/Dialogs.cpp
     src/ui/Dialogs.h
+    src/ui/UpdateDialog.cpp
+    src/ui/UpdateDialog.h
 )
 
 add_library(drawioqt_lib OBJECT ${DRAWIO_QT_SOURCES})
@@ -141,6 +145,7 @@ target_link_libraries(drawioqt_lib PUBLIC
     Qt6::Core
     Qt6::Gui
     Qt6::Widgets
+    Qt6::Network
     Qt6::Svg
     Qt6::PrintSupport
     Qt6::Xml
