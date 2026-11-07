@@ -248,18 +248,17 @@ void ShapeCatalog::loadBuiltins()
     }
 
     // Stable, user friendly ordering of the standard libraries.
-    const QStringList order = {QStringLiteral("basic"), QStringLiteral("advanced"),
-                               QStringLiteral("flowchart"),
-                               QStringLiteral("arrows"), QStringLiteral("uml"),
+    const QStringList order = {QStringLiteral("basic"), QStringLiteral("arrows"),
+                               QStringLiteral("misc"), QStringLiteral("advanced"),
+                               QStringLiteral("flowchart"), QStringLiteral("uml"),
                                QStringLiteral("er"), QStringLiteral("bpmn"),
-                               QStringLiteral("network"), QStringLiteral("cloud"),
-                               QStringLiteral("electrical"),
-                               QStringLiteral("floorplan"), QStringLiteral("infographic"),
-                               QStringLiteral("sysml"), QStringLiteral("archimate"),
-                               QStringLiteral("eip"), QStringLiteral("bootstrap"),
-                               QStringLiteral("kubernetes"), QStringLiteral("mockup"),
-                               QStringLiteral("c4"), QStringLiteral("dfd"),
-                               QStringLiteral("software")};
+                               QStringLiteral("cloud"), QStringLiteral("network"),
+                               QStringLiteral("electrical"), QStringLiteral("floorplan"),
+                               QStringLiteral("infographic"), QStringLiteral("sysml"),
+                               QStringLiteral("archimate"), QStringLiteral("eip"),
+                               QStringLiteral("bootstrap"), QStringLiteral("kubernetes"),
+                               QStringLiteral("mockup"), QStringLiteral("c4"),
+                               QStringLiteral("dfd"), QStringLiteral("software")};
 
     for (const QString &id : order)
     {
@@ -466,6 +465,7 @@ QString ShapeCatalog::builtinCategoryName(const QString &id)
 {
     static const QHash<QString, QString> names = {
         {QStringLiteral("basic"), QStringLiteral("基本形状")},
+        {QStringLiteral("misc"), QStringLiteral("其他")},
         {QStringLiteral("advanced"), QStringLiteral("高级")},
         {QStringLiteral("flowchart"), QStringLiteral("流程图")},
         {QStringLiteral("arrows"), QStringLiteral("箭头")},

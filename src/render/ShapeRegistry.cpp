@@ -403,6 +403,23 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;")
             + blue, QSizeF(60, 110), QStringLiteral("cloud"));
 
+    // --- misc ------------------------------------------------------------
+    add(QStringLiteral("misc.container"), QStringLiteral("容器"),
+        QStringLiteral("swimlane;startSize=0;html=1;fillColor=none;strokeColor=#666666;"),
+        QSizeF(220, 160), QStringLiteral("misc"));
+    add(QStringLiteral("misc.table"), QStringLiteral("表格"),
+        QStringLiteral("shape=miscTable;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QSizeF(180, 120), QStringLiteral("misc"));
+    add(QStringLiteral("misc.list"), QStringLiteral("列表"),
+        QStringLiteral("shape=miscList;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QSizeF(180, 120), QStringLiteral("misc"));
+    add(QStringLiteral("misc.note"), QStringLiteral("便签"),
+        QStringLiteral("shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;"),
+        QSizeF(120, 100), QStringLiteral("misc"));
+    add(QStringLiteral("misc.callout"), QStringLiteral("标注"),
+        QStringLiteral("shape=callout;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QSizeF(150, 90), QStringLiteral("misc"));
+
     // --- advanced layouts ------------------------------------------------
     add(QStringLiteral("advanced.container"), QStringLiteral("布局容器"),
         QStringLiteral("swimlane;startSize=0;html=1;fillColor=#f5f5f5;strokeColor=#666666;"),
@@ -1425,6 +1442,41 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         path.lineTo(point(0, h));
         path.lineTo(point(w * 0.12, h * 0.5));
         path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("miscTable"))
+    {
+        path.addRect(QRectF(x, y, w, h));
+        path.moveTo(point(0, h / 4.0));
+        path.lineTo(point(w, h / 4.0));
+        path.moveTo(point(0, h / 2.0));
+        path.lineTo(point(w, h / 2.0));
+        path.moveTo(point(0, h * 3.0 / 4.0));
+        path.lineTo(point(w, h * 3.0 / 4.0));
+        path.moveTo(point(w / 3.0, 0));
+        path.lineTo(point(w / 3.0, h));
+        path.moveTo(point(w * 2.0 / 3.0, 0));
+        path.lineTo(point(w * 2.0 / 3.0, h));
+        return path;
+    }
+
+    if (key == QLatin1String("miscList"))
+    {
+        path.addRect(QRectF(x, y, w, h));
+
+        for (int i = 1; i < 4; ++i)
+        {
+            path.moveTo(point(0, h * i / 4.0));
+            path.lineTo(point(w, h * i / 4.0));
+        }
+
+        for (int i = 0; i < 4; ++i)
+        {
+            path.addEllipse(QPointF(x + w * 0.1, y + h * (i + 0.5) / 4.0),
+                            w * 0.025, w * 0.025);
+        }
+
         return path;
     }
 

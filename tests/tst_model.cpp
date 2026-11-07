@@ -137,7 +137,8 @@ private slots:
             if (definition.category != QLatin1String("basic")
                 && definition.category != QLatin1String("cloud")
                 && definition.category != QLatin1String("advanced")
-                && definition.category != QLatin1String("arrows"))
+                && definition.category != QLatin1String("arrows")
+                && definition.category != QLatin1String("misc"))
             {
                 continue;
             }
