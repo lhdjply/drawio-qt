@@ -541,7 +541,7 @@ QVector<ShapeDefinition> toolboxShapes()
         {"elec.led", "发光二极管", "elec.led", true, QSizeF(110, 70)},
         {"elec.transistornpn", "NPN 三极管", "elec.transistornpn", false, QSizeF(100, 100)},
         {"elec.transistorpnp", "PNP 三极管", "elec.transistorpnp", false, QSizeF(100, 100)},
-        {"elec.battery", "电池", "elec.battery", false, QSizeF(120, 60)},
+        {"elec.batterystack", "电池", "mxgraph.electrical.miscellaneous.batteryStack", false, QSizeF(120, 60)},
         {"elec.ground", "接地", "elec.ground", false, QSizeF(80, 70)},
         {"elec.groundchassis", "机壳地", "elec.groundchassis", false, QSizeF(80, 70)},
         {"elec.lamp", "灯泡", "elec.lamp", false, QSizeF(80, 80)},
