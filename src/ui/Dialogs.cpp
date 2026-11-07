@@ -389,6 +389,22 @@ PageSetupDialog::PageSetupDialog(const Page &page, QWidget *parent)
     m_width->setValue(m_original.pageWidth);
     m_height->setValue(m_original.pageHeight);
 
+    // Select the preset matching the current page size, if any.
+    int presetIndex = -1;
+    for (int i = 0; i < m_preset->count() - 1; ++i)
+    {
+        const QSizeF size = m_preset->itemData(i).toSizeF();
+        const double w = m_original.pageWidth;
+        const double h = m_original.pageHeight;
+
+        if (qFuzzyCompare(size.width(), qMin(w, h)) && qFuzzyCompare(size.height(), qMax(w, h)))
+        {
+            presetIndex = i;
+            break;
+        }
+    }
+    m_preset->setCurrentIndex(presetIndex >= 0 ? presetIndex : m_preset->count() - 1);
+
     if (m_original.pageWidth > m_original.pageHeight)
     {
         m_orientation->setCurrentIndex(1);
