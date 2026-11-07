@@ -248,7 +248,8 @@ void ShapeCatalog::loadBuiltins()
     }
 
     // Stable, user friendly ordering of the standard libraries.
-    const QStringList order = {QStringLiteral("basic"), QStringLiteral("flowchart"),
+    const QStringList order = {QStringLiteral("basic"), QStringLiteral("advanced"),
+                               QStringLiteral("flowchart"),
                                QStringLiteral("arrows"), QStringLiteral("uml"),
                                QStringLiteral("er"), QStringLiteral("bpmn"),
                                QStringLiteral("network"), QStringLiteral("cloud"),
@@ -465,6 +466,7 @@ QString ShapeCatalog::builtinCategoryName(const QString &id)
 {
     static const QHash<QString, QString> names = {
         {QStringLiteral("basic"), QStringLiteral("基本形状")},
+        {QStringLiteral("advanced"), QStringLiteral("高级")},
         {QStringLiteral("flowchart"), QStringLiteral("流程图")},
         {QStringLiteral("arrows"), QStringLiteral("箭头")},
         {QStringLiteral("uml"), QStringLiteral("UML")},

@@ -403,6 +403,38 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;")
             + blue, QSizeF(60, 110), QStringLiteral("cloud"));
 
+    // --- advanced layouts ------------------------------------------------
+    add(QStringLiteral("advanced.container"), QStringLiteral("布局容器"),
+        QStringLiteral("swimlane;startSize=0;html=1;fillColor=#f5f5f5;strokeColor=#666666;"),
+        QSizeF(220, 160), QStringLiteral("advanced"));
+    add(QStringLiteral("advanced.horizontal"), QStringLiteral("水平容器"),
+        QStringLiteral("swimlane;horizontal=0;startSize=30;html=1;fillColor=#f5f5f5;strokeColor=#666666;"),
+        QSizeF(220, 160), QStringLiteral("advanced"));
+    add(QStringLiteral("advanced.vertical"), QStringLiteral("垂直容器"),
+        QStringLiteral("swimlane;startSize=30;html=1;fillColor=#f5f5f5;strokeColor=#666666;"),
+        QSizeF(220, 160), QStringLiteral("advanced"));
+    add(QStringLiteral("advanced.poolHorizontal"), QStringLiteral("水平池"),
+        QStringLiteral("swimlane;horizontal=0;startSize=40;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QSizeF(260, 180), QStringLiteral("advanced"));
+    add(QStringLiteral("advanced.poolVertical"), QStringLiteral("垂直池"),
+        QStringLiteral("swimlane;startSize=40;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QSizeF(260, 180), QStringLiteral("advanced"));
+    add(QStringLiteral("advanced.treeHorizontal"), QStringLiteral("水平树"),
+        QStringLiteral("shape=advTreeH;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QSizeF(220, 150), QStringLiteral("advanced"));
+    add(QStringLiteral("advanced.treeVertical"), QStringLiteral("垂直树"),
+        QStringLiteral("shape=advTreeV;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QSizeF(200, 190), QStringLiteral("advanced"));
+    add(QStringLiteral("advanced.treeBalloon"), QStringLiteral("气球树"),
+        QStringLiteral("shape=advTreeBalloon;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QSizeF(220, 190), QStringLiteral("advanced"));
+    add(QStringLiteral("advanced.flowHorizontal"), QStringLiteral("水平流"),
+        QStringLiteral("shape=advFlowH;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
+        QSizeF(260, 110), QStringLiteral("advanced"));
+    add(QStringLiteral("advanced.flowVertical"), QStringLiteral("垂直流"),
+        QStringLiteral("shape=advFlowV;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
+        QSizeF(160, 240), QStringLiteral("advanced"));
+
     // --- flowchart -------------------------------------------------------
     add(QStringLiteral("decision"), QStringLiteral("判定"),
         QStringLiteral("rhombus;") + plain + orange, QSizeF(130, 90), QStringLiteral("flowchart"));
@@ -1341,6 +1373,78 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         path.lineTo(point(0, h));
         path.lineTo(point(w * 0.12, h * 0.5));
         path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("advTreeH") || key == QLatin1String("advTreeV")
+        || key == QLatin1String("advTreeBalloon"))
+    {
+        const bool vertical = key == QLatin1String("advTreeV");
+        const bool balloon = key == QLatin1String("advTreeBalloon");
+        const double nodeW = balloon ? w * 0.22 : (vertical ? w * 0.3 : w * 0.28);
+        const double nodeH = balloon ? h * 0.22 : (vertical ? h * 0.22 : h * 0.24);
+        const QRectF root = balloon
+            ? QRectF(x + (w - nodeW) / 2.0, y + (h - nodeH) / 2.0, nodeW, nodeH)
+            : (vertical ? QRectF(x + (w - nodeW) / 2.0, y, nodeW, nodeH)
+                        : QRectF(x, y + (h - nodeH) / 2.0, nodeW, nodeH));
+        path.addRoundedRect(root, 5, 5);
+
+        for (int i = 0; i < 3; ++i)
+        {
+            QRectF child;
+
+            if (balloon)
+            {
+                const double angle = -M_PI / 2.0 + i * 2.0 * M_PI / 3.0;
+                child = QRectF(root.center().x() + std::cos(angle) * w * 0.34 - nodeW / 2.0,
+                               root.center().y() + std::sin(angle) * h * 0.32 - nodeH / 2.0,
+                               nodeW, nodeH);
+            }
+            else if (vertical)
+            {
+                child = QRectF(x + w * (0.05 + i * 0.32), y + h - nodeH, nodeW, nodeH);
+            }
+            else
+            {
+                child = QRectF(x + w - nodeW, y + h * (0.03 + i * 0.34), nodeW, nodeH);
+            }
+
+            path.addRoundedRect(child, 5, 5);
+            const QPointF from = root.center();
+            const QPointF to = child.center();
+            path.moveTo(from);
+            path.lineTo(to);
+        }
+
+        return path;
+    }
+
+    if (key == QLatin1String("advFlowH") || key == QLatin1String("advFlowV"))
+    {
+        const bool vertical = key == QLatin1String("advFlowV");
+        const double nodeW = vertical ? w * 0.52 : w * 0.18;
+        const double nodeH = vertical ? h * 0.16 : h * 0.42;
+
+        for (int i = 0; i < 4; ++i)
+        {
+            const QRectF node = vertical
+                ? QRectF(x + (w - nodeW) / 2.0, y + h * (0.02 + i * 0.25), nodeW, nodeH)
+                : QRectF(x + w * (0.02 + i * 0.25), y + (h - nodeH) / 2.0, nodeW, nodeH);
+            path.addRoundedRect(node, 6, 6);
+
+            if (i > 0)
+            {
+                const QPointF previous = vertical
+                    ? QPointF(x + w / 2.0, y + h * (0.02 + (i - 1) * 0.25) + nodeH)
+                    : QPointF(x + w * (0.02 + (i - 1) * 0.25) + nodeW, y + h / 2.0);
+                const QPointF current = vertical
+                    ? QPointF(x + w / 2.0, y + h * (0.02 + i * 0.25))
+                    : QPointF(x + w * (0.02 + i * 0.25), y + h / 2.0);
+                path.moveTo(previous);
+                path.lineTo(current);
+            }
+        }
+
         return path;
     }
 
