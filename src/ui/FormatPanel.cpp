@@ -9,6 +9,8 @@
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFormLayout>
+#include <QPainter>
+#include <QPixmap>
 #include <QGridLayout>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -150,6 +152,98 @@ private:
     QString m_value;
     QColor m_color;
 };
+
+namespace {
+
+QIcon arrowPreviewIcon(const QString &type)
+{
+    const int w = 48;
+    const int h = 24;
+    QPixmap pixmap(w, h);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+
+    const QColor ink(0x5F, 0x63, 0x68);
+    const QPointF tip(40, 12);
+    const QPointF back(30, 12);
+    QPen pen(ink, 1.6);
+    pen.setCapStyle(Qt::RoundCap);
+    painter.setPen(pen);
+    painter.setBrush(ink);
+
+    if (type == QStringLiteral("none") || type.isEmpty())
+    {
+        painter.drawLine(QPointF(3, 12), tip);
+    }
+    else if (type == QStringLiteral("classic") || type == QStringLiteral("classicThin"))
+    {
+        const double f = type == QStringLiteral("classicThin") ? 0.75 : 1.0;
+        painter.drawLine(QPointF(3, 12), back);
+        QPolygonF p;
+        p << tip << back + QPointF(0, -5 * f) << QPointF(32.5, 12)
+          << back + QPointF(0, 5 * f);
+        painter.drawPolygon(p);
+    }
+    else if (type == QStringLiteral("block") || type == QStringLiteral("blockThin"))
+    {
+        const double f = type == QStringLiteral("blockThin") ? 0.7 : 1.0;
+        painter.drawLine(QPointF(3, 12), back);
+        QPolygonF p;
+        p << tip << back + QPointF(0, -5 * f) << back + QPointF(0, 5 * f);
+        painter.drawPolygon(p);
+    }
+    else if (type == QStringLiteral("open") || type == QStringLiteral("openThin"))
+    {
+        const double f = type == QStringLiteral("openThin") ? 0.65 : 1.0;
+        painter.drawLine(QPointF(3, 12), QPointF(33, 12));
+        painter.drawLine(tip, back + QPointF(0, -6 * f));
+        painter.drawLine(tip, back + QPointF(0, 6 * f));
+    }
+    else if (type == QStringLiteral("oval"))
+    {
+        painter.drawLine(QPointF(3, 12), QPointF(30, 12));
+        painter.drawEllipse(QPointF(34, 12), 4, 4);
+    }
+    else if (type == QStringLiteral("diamond") || type == QStringLiteral("diamondThin"))
+    {
+        const double f = type == QStringLiteral("diamondThin") ? 0.55 : 1.0;
+        painter.drawLine(QPointF(3, 12), QPointF(28, 12));
+        QPolygonF p;
+        p << tip << QPointF(34, 12 - 6 * f) << QPointF(28, 12)
+          << QPointF(34, 12 + 6 * f);
+        painter.drawPolygon(p);
+    }
+    else if (type == QStringLiteral("baseDash"))
+    {
+        painter.drawLine(QPointF(3, 12), QPointF(33, 12));
+        painter.drawLine(QPointF(33, 6), QPointF(33, 18));
+    }
+    else if (type == QStringLiteral("doubleBlock"))
+    {
+        painter.drawLine(QPointF(3, 12), QPointF(24, 12));
+        for (int i = 0; i < 2; ++i)
+        {
+            const double x = 30 + i * 6;
+            QPolygonF p;
+            p << QPointF(x + 4, 12) << QPointF(x, 7) << QPointF(x, 17);
+            painter.drawPolygon(p);
+        }
+    }
+    else
+    {
+        painter.drawLine(QPointF(3, 12), QPointF(26, 12));
+        painter.drawEllipse(QPointF(30, 12), 4, 4);
+        painter.drawLine(QPointF(34, 12), QPointF(40, 12));
+        painter.drawLine(QPointF(38, 12), QPointF(36, 9));
+        painter.drawLine(QPointF(38, 12), QPointF(36, 15));
+    }
+
+    painter.end();
+    return QIcon(pixmap);
+}
+
+} // namespace
 
 FormatPanel::FormatPanel(QWidget *parent)
     : QWidget(parent)
@@ -440,8 +534,12 @@ void FormatPanel::buildUi()
     edgeForm->addRow(QStringLiteral("线路"), m_edgeStyle);
 
     m_arrowShape = new QComboBox(edgeGroup);
-    m_arrowShape->addItem(QStringLiteral("普通箭头"), QString());
-    m_arrowShape->addItem(QStringLiteral("块状箭头（flexArrow）"), QStringLiteral("flexArrow"));
+    m_arrowShape->addItem(arrowPreviewIcon(QStringLiteral("classic")), QString(), QString());
+    m_arrowShape->addItem(arrowPreviewIcon(QStringLiteral("block")), QString(),
+                          QStringLiteral("flexArrow"));
+    m_arrowShape->setItemData(0, QStringLiteral("普通箭头"), Qt::ToolTipRole);
+    m_arrowShape->setItemData(1, QStringLiteral("块状箭头（flexArrow）"), Qt::ToolTipRole);
+    m_arrowShape->setIconSize(QSize(48, 24));
     edgeForm->addRow(QStringLiteral("箭头形状"), m_arrowShape);
 
     m_startArrow = new QComboBox(edgeGroup);
@@ -450,17 +548,35 @@ void FormatPanel::buildUi()
     const QVector<QPair<QString, QString>> arrows = {
         {QStringLiteral("无"), QStringLiteral("none")},
         {QStringLiteral("实心箭头"), QStringLiteral("classic")},
+        {QStringLiteral("细实心箭头"), QStringLiteral("classicThin")},
+        {QStringLiteral("方块箭头"), QStringLiteral("block")},
+        {QStringLiteral("细方块箭头"), QStringLiteral("blockThin")},
         {QStringLiteral("空心箭头"), QStringLiteral("open")},
-        {QStringLiteral("方块"), QStringLiteral("block")},
+        {QStringLiteral("细空心箭头"), QStringLiteral("openThin")},
         {QStringLiteral("圆形"), QStringLiteral("oval")},
         {QStringLiteral("菱形"), QStringLiteral("diamond")},
+        {QStringLiteral("细菱形"), QStringLiteral("diamondThin")},
+        {QStringLiteral("基线"), QStringLiteral("baseDash")},
+        {QStringLiteral("双方块"), QStringLiteral("doubleBlock")},
+        {QStringLiteral("多选"), QStringLiteral("manyOptional")},
     };
 
     for (const auto &entry : arrows)
     {
-        m_startArrow->addItem(entry.first, entry.second);
-        m_endArrow->addItem(entry.first, entry.second);
+        const QIcon icon = arrowPreviewIcon(entry.second);
+        m_startArrow->addItem(icon, QString(), entry.second);
+        m_endArrow->addItem(icon, QString(), entry.second);
+        const int row = m_startArrow->count() - 1;
+        m_startArrow->setItemData(row, entry.first, Qt::ToolTipRole);
+        m_endArrow->setItemData(row, entry.first, Qt::ToolTipRole);
     }
+
+    m_startArrow->setIconSize(QSize(48, 24));
+    m_endArrow->setIconSize(QSize(48, 24));
+    m_startArrow->setMinimumWidth(72);
+    m_endArrow->setMinimumWidth(72);
+    m_startArrow->setToolTip(QStringLiteral("起点箭头"));
+    m_endArrow->setToolTip(QStringLiteral("终点箭头"));
 
     edgeForm->addRow(QStringLiteral("起点"), m_startArrow);
     edgeForm->addRow(QStringLiteral("终点"), m_endArrow);

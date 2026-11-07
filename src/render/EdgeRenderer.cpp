@@ -38,10 +38,11 @@ QPointF normalized(const QPointF &vector)
 
 void drawArrowHead(QPainter &painter, const QPointF &tip, const QPointF &direction,
                    const QString &type, const QColor &color, double size,
-                   double strokeWidth = 1.0)
+                   double strokeWidth = 1.0, bool filled = true)
 {
     const QPointF dir = normalized(direction);
     const QPointF normal(-dir.y(), dir.x());
+    const QString t = type.toLower();
     // mxMarker.createArrow adds the stroke width to the requested size.
     const double effective = size + qMax(0.0, strokeWidth);
     const QPointF back = tip - dir * effective;
@@ -50,13 +51,13 @@ void drawArrowHead(QPainter &painter, const QPointF &tip, const QPointF &directi
     painter.setPen(Qt::NoPen);
     painter.setBrush(color);
 
-    if (type == QLatin1String("none") || type.isEmpty())
+    if (t == QLatin1String("none") || type.isEmpty())
     {
         painter.restore();
         return;
     }
 
-    if (type == QLatin1String("open") || type == QLatin1String("openasync"))
+    if (t == QLatin1String("open") || t == QLatin1String("openasync"))
     {
         QPen pen(color);
         pen.setWidthF(qMax(1.0, strokeWidth));
@@ -69,42 +70,130 @@ void drawArrowHead(QPainter &painter, const QPointF &tip, const QPointF &directi
         return;
     }
 
-    if (type == QLatin1String("oval"))
+    if (t == QLatin1String("oval"))
     {
+        painter.setBrush(filled ? QBrush(color) : QBrush(Qt::NoBrush));
+
+        if (!filled)
+        {
+            QPen pen(color);
+            pen.setWidthF(qMax(1.0, strokeWidth));
+            painter.setPen(pen);
+        }
+
         painter.drawEllipse(tip - dir * effective * 0.5,
-                            effective * 0.45, effective * 0.45);
+                            effective * 0.5, effective * 0.5);
         painter.restore();
         return;
     }
 
-    if (type == QLatin1String("diamond") || type == QLatin1String("diamondthin"))
+    if (t == QLatin1String("diamond") || t == QLatin1String("diamondthin"))
     {
-        const QPointF middle = tip - dir * effective * 0.5;
-        const double halfWidth = effective * (type == QLatin1String("diamondthin") ? 0.28 : 0.42);
+        const double halfWidth = effective / (t == QLatin1String("diamondthin") ? 3.4 : 2.0);
         QPolygonF polygon;
-        polygon << tip << middle + normal * halfWidth
-                << tip - dir * effective << middle - normal * halfWidth;
+        polygon << tip << tip - dir * effective * 0.5 + normal * halfWidth
+                << tip - dir * effective
+                << tip - dir * effective * 0.5 - normal * halfWidth;
+        painter.setBrush(filled ? QBrush(color) : QBrush(Qt::NoBrush));
+
+        if (!filled)
+        {
+            QPen pen(color);
+            pen.setWidthF(qMax(1.0, strokeWidth));
+            painter.setPen(pen);
+        }
+
         painter.drawPolygon(polygon);
         painter.restore();
         return;
     }
 
-    if (type == QLatin1String("block") || type == QLatin1String("blockthin"))
+    if (t == QLatin1String("baseDash"))
     {
-        const double halfWidth = effective * (type == QLatin1String("blockthin") ? 1.0 / 3.0 : 0.5);
+        QPen pen(color);
+        pen.setWidthF(qMax(1.0, strokeWidth));
+        painter.setPen(pen);
+        painter.drawLine(tip + normal * effective * 0.5,
+                         tip - normal * effective * 0.5);
+        painter.restore();
+        return;
+    }
+
+    if (t == QLatin1String("doubleBlock"))
+    {
+        const double halfWidth = effective / 2.0;
+        QPolygonF first;
+        first << tip << back + normal * halfWidth << back - normal * halfWidth;
+        QPolygonF second;
+        const QPointF secondTip = tip - dir * effective;
+        second << secondTip << secondTip - dir * effective + normal * halfWidth
+               << secondTip - dir * effective - normal * halfWidth;
+        painter.setBrush(filled ? QBrush(color) : QBrush(Qt::NoBrush));
+
+        if (!filled)
+        {
+            QPen pen(color);
+            pen.setWidthF(qMax(1.0, strokeWidth));
+            painter.setPen(pen);
+        }
+
+        painter.drawPolygon(first);
+        painter.drawPolygon(second);
+        painter.restore();
+        return;
+    }
+
+    if (t == QLatin1String("manyOptional"))
+    {
+        QPen pen(color);
+        pen.setWidthF(qMax(1.0, strokeWidth));
+        painter.setPen(pen);
+        painter.setBrush(filled ? QBrush(color) : QBrush(Qt::NoBrush));
+        painter.drawEllipse(tip - dir * effective * 1.5,
+                            effective * 0.5, effective * 0.5);
+        painter.drawLine(tip, tip - dir * effective);
+        painter.drawLine(tip - dir * effective + normal * effective * 0.5,
+                         tip - dir * effective);
+        painter.drawLine(tip - dir * effective - normal * effective * 0.5,
+                         tip - dir * effective);
+        painter.restore();
+        return;
+    }
+
+    if (t == QLatin1String("block") || t == QLatin1String("blockthin"))
+    {
+        const double halfWidth = effective * (t == QLatin1String("blockthin") ? 1.0 / 3.0 : 0.5);
         QPolygonF polygon;
         polygon << tip << back + normal * halfWidth << back - normal * halfWidth;
+        painter.setBrush(filled ? QBrush(color) : QBrush(Qt::NoBrush));
+
+        if (!filled)
+        {
+            QPen pen(color);
+            pen.setWidthF(qMax(1.0, strokeWidth));
+            painter.setPen(pen);
+        }
+
         painter.drawPolygon(polygon);
         painter.restore();
         return;
     }
 
     // classic: a concave triangle with a 3/4 notch on the back edge.
-    const double widthFactor = type == QLatin1String("classicthin") ? 3.0 : 2.0;
+    const double widthFactor = t == QLatin1String("classicthin") ? 3.0 : 2.0;
     const double halfWidth = effective / widthFactor;
     const QPointF notch = tip - dir * effective * 0.75;
     QPolygonF polygon;
     polygon << tip << back + normal * halfWidth << notch << back - normal * halfWidth;
+    painter.setBrush(filled ? QBrush(color) : QBrush(Qt::NoBrush));
+
+    if (!filled)
+    {
+        QPen pen(color);
+        pen.setWidthF(qMax(1.0, strokeWidth));
+        painter.setPen(pen);
+    }
+
     painter.drawPolygon(polygon);
     painter.restore();
 }
@@ -382,16 +471,20 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
     const QPointF endDirection = route.points.last() - route.points.at(route.points.size() - 2);
     const QString endArrow = edge.styleValue(QStringLiteral("endArrow"), QStringLiteral("classic"));
     const double strokeWidth = edge.styleNumber(QStringLiteral("strokeWidth"), 1.0);
+    const bool endFilled = edge.styleValue(QStringLiteral("endFill"), QStringLiteral("1"))
+        != QLatin1String("0");
     drawArrowHead(painter, route.points.last(), endDirection, endArrow, color,
-                  arrowSize(edge, QStringLiteral("end")), strokeWidth);
+                  arrowSize(edge, QStringLiteral("end")), strokeWidth, endFilled);
 
     const QString startArrow = edge.styleValue(QStringLiteral("startArrow"), QStringLiteral("none"));
 
     if (startArrow != QLatin1String("none") && !startArrow.isEmpty())
     {
         const QPointF startDirection = route.points.first() - route.points.at(1);
+        const bool startFilled = edge.styleValue(QStringLiteral("startFill"), QStringLiteral("1"))
+            != QLatin1String("0");
         drawArrowHead(painter, route.points.first(), startDirection, startArrow, color,
-                      arrowSize(edge, QStringLiteral("start")), strokeWidth);
+                      arrowSize(edge, QStringLiteral("start")), strokeWidth, startFilled);
     }
 
     painter.restore();
