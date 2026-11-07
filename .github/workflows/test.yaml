@@ -1,0 +1,300 @@
+name: Test
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # tst_ui_smoke 会构造 QWidget，runner 上没有显示服务；
+  # 统一 offscreen，避免偶发失败。各测试在 CMake 里也设了
+  # QT_QPA_PLATFORM=offscreen，这里再兜一层方便本地复现。
+  QT_QPA_PLATFORM: offscreen
+
+jobs:
+  test:
+    name: Test (Linux)
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install system Qt and build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates \
+            cmake \
+            ninja-build \
+            g++ \
+            pkg-config \
+            qt6-base-dev \
+            qt6-base-dev-tools \
+            qt6-svg-dev \
+            qt6-tools-dev \
+            zlib1g-dev
+
+      - name: Verify Qt version
+        run: |
+          version=$(pkg-config --modversion Qt6Core)
+          echo "Qt6Core $version"
+          dpkg-query -W -f='${Package} ${Version}\n' qt6-base-dev qt6-svg-dev qt6-tools-dev
+
+          # CMakeLists 里要求 Qt 6.5+（6.5 引入的 API 在界面层用到）。
+          # 发行版 Qt 太旧时在这里明确失败，否则报出来的会是
+          # "no member named ..."，看起来像代码写错了。
+          major=${version%%.*}
+          rest=${version#*.}
+          minor=${rest%%.*}
+          if [ "$major" -lt 6 ] || { [ "$major" -eq 6 ] && [ "$minor" -lt 5 ]; }; then
+            echo "::error::Qt >= 6.5 is required, found $version. Upgrade the runner's Qt or install a newer one via jurplel/install-qt-action."
+            exit 1
+          fi
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DDRAWIO_QT_BUILD_TESTS=ON
+
+      # 测试目标不是 EXCLUDE_FROM_ALL，一次构建连同主程序与 7 个测试二进制
+      # 全部编出来；ctest 不会替你编译缺失的目标
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Run tests
+        run: |
+          # 失败时用 --rerun-failed -V 重跑失败用例：QtTest 的断言位置只在
+          # 详细输出里才有，单看 "Failed" 那一行定位不到代码
+          set +e
+          ctest --test-dir build --output-on-failure 2>&1 | tee build/ctest-run.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo
+            echo "########## Rerunning failed tests (verbose) ##########"
+            ctest --test-dir build --rerun-failed -V || true
+            echo "######################################################"
+          fi
+          exit "$status"
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: ctest-log
+          path: build/ctest-run.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+  # Windows 走 MSYS2 / MinGW（UCRT64），工具链选择理由见 build.yaml 里的同名作业。
+  #
+  # 7 个用例都是 QtTest，不碰网络、不需要 root； tst_ui_smoke 会构造 QWidget，
+  # 统一 offscreen 运行。测试在 CMake 里已设 QT_QPA_PLATFORM=offscreen，
+  # 这里 env 再兜一层方便本地复现。
+  test-windows:
+    name: Test (Windows / MinGW)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    env:
+      QT_QPA_PLATFORM: offscreen
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # action 只负责把 MSYS2 装起来。它的 update: true 是用一条 pacman 命令跑完
+      # 上千个包，任何一次镜像限速都让整步失败且无法重试（曾挂在 harfbuzz 的 .sig
+      # 上：Operation too slow, Less than 1 bytes/sec）。升级与装包放到下一步自己做：
+      # 可以在命令外加重试，并带上 --disable-download-timeout 关掉 libcurl 的
+      # 低速中断，那条报错正是它产生的。
+      - name: Install MSYS2 (base only)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ucrt64
+          update: false
+          cache: true
+
+      # msys2-runtime 的升级会让 pacman 终止所有 MSYS2 进程——包括执行它的这个
+      # shell，所以本步骤可能以 exit 1 结束。这不是失败：包已经装好并入库，只是
+      # shell 连同尚未执行的命令一起没了。用 continue-on-error 放过它，真正的判据
+      # 放在下一步：新 shell 里幂等补完升级与装包，再逐个确认工具能跑。
+      - name: Upgrade the MSYS2 core
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+
+          # pacman 没有重试开关，在命令外做三次；已下完的包留在缓存里，重试只补缺的
+          retry() {
+            local attempt
+            for attempt in 1 2 3; do
+              echo "--- attempt $attempt: $*"
+              if "$@"; then
+                return 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "::warning::attempt $attempt failed; retrying in 10s"
+                sleep 10
+              fi
+            done
+            echo "::error::giving up after 3 attempts: $*"
+            return 1
+          }
+
+          # MSYS2 不支持部分升级：运行时与库必须同版本，装包前先整系统升到最新。
+          # 这里的失败不判死（镜像抖动很常见），下一步会以硬失败的标准重试一次。
+          retry pacman -Syu --noconfirm --needed --disable-download-timeout \
+            || echo "::warning::the core upgrade did not complete; the next step retries it"
+
+      - name: Install the toolchain
+        run: |
+          set -euo pipefail
+
+          retry() {
+            local attempt
+            for attempt in 1 2 3; do
+              echo "--- attempt $attempt: $*"
+              if "$@"; then
+                return 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "::warning::attempt $attempt failed; retrying in 10s"
+                sleep 10
+              fi
+            done
+            echo "::error::giving up after 3 attempts: $*"
+            return 1
+          }
+
+          # 上一步若被 msys2-runtime 的替换打断，这里在新 shell 里把剩余部分补完；
+          # 系统已经是最新时，这条只会打印 "there is nothing to do"
+          retry pacman -Syu --noconfirm --needed --disable-download-timeout
+
+          # 直接点名 mingw-w64-<env>-<arch>-*，不用 pacboy 的 :p 后缀：pacboy 来自
+          # pactoys 包，不保证在 update: false 的基础安装里已经存在
+          retry pacman -S --noconfirm --needed --disable-download-timeout \
+            mingw-w64-ucrt-x86_64-cmake \
+            mingw-w64-ucrt-x86_64-ninja \
+            mingw-w64-ucrt-x86_64-gcc \
+            mingw-w64-ucrt-x86_64-pkgconf \
+            mingw-w64-ucrt-x86_64-qt6-base \
+            mingw-w64-ucrt-x86_64-qt6-svg \
+            mingw-w64-ucrt-x86_64-qt6-tools \
+            mingw-w64-ucrt-x86_64-zlib
+
+          # 以「工具真的能跑」为准：上一步的退出码既可能来自成功，也可能来自被
+          # 中断，唯一可靠的判据是命令存不存在
+          missing=0
+          for tool in cmake ninja pkgconf gcc; do
+            if command -v "$tool" >/dev/null 2>&1; then
+              echo "ok: $tool -> $(command -v "$tool")"
+            else
+              echo "::error::$tool is missing after the package installation"
+              missing=$((missing + 1))
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Print the toolchain versions
+        run: |
+          g++ --version | head -1
+          cmake --version | head -1
+          echo "Qt6Core $(pkg-config --modversion Qt6Core)"
+
+      - name: Verify Qt version
+        run: |
+          version=$(pkg-config --modversion Qt6Core)
+          echo "Qt6Core $version"
+
+          # 与 Linux 作业同一套判定：CMakeLists 里要求 Qt 6.5+。
+          # MSYS2 的 qt6-base 当前远新于 6.5，正常不会触发；保留这个检查是为了
+          # 镜像里 Qt 被降级时能给出明确原因。
+          major=${version%%.*}
+          rest=${version#*.}
+          minor=${rest%%.*}
+          if [ "$major" -lt 6 ] || { [ "$major" -eq 6 ] && [ "$minor" -lt 5 ]; }; then
+            echo "::error::Qt >= 6.5 is required, found $version."
+            exit 1
+          fi
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DDRAWIO_QT_BUILD_TESTS=ON
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      # Windows 上测试失败最常见的成因不是代码，而是运行时 DLL 被别的环境
+      # 抢先解析（runner 镜像里常驻着 IDE 自带的 Qt / MinGW）。先把解析结果
+      # 摆出来，出问题时一眼能分清是「代码挂了」还是「加载了错版本的库」。
+      - name: Check runtime DLL resolution
+        run: |
+          prefix="${MINGW_PREFIX:-/ucrt64}/bin"
+          echo "expecting runtime DLLs under $prefix"
+
+          checked=0
+          bad=0
+          for exe in build/tst_*.exe; do
+            [ -f "$exe" ] || continue
+            checked=$((checked + 1))
+            while read -r name _ path _; do
+              # 只认「来自 MSYS2 安装树」这一条：ldd 在不同版本里可能打印
+              # /ucrt64/... 或 C:/msys64/ucrt64/...，按路径前缀写死容易误报
+              case "$path" in
+                *ucrt64/*) ;;
+                *)
+                  echo "::warning file=$exe::$name resolves outside the MSYS2 prefix: $path"
+                  bad=$((bad + 1))
+                  ;;
+              esac
+            done < <(ldd "$exe" | grep -iE '^[[:space:]]*(libQt6Core|libQt6Test|libstdc|libgcc|libwinpthread)')
+          done
+
+          if [ "$checked" -eq 0 ]; then
+            echo "::error::no test binaries were produced under build/"
+            exit 1
+          fi
+          echo "checked $checked test binaries"
+          if [ "$bad" -ne 0 ]; then
+            echo "::error::$bad runtime dependencies were resolved outside $prefix"
+            exit 1
+          fi
+
+      - name: Run tests
+        run: |
+          # 失败时用 --rerun-failed -V 重跑失败用例：QtTest 的断言位置只在
+          # 详细输出里才有，单看 "Failed" 那一行定位不到代码
+          set +e
+          ctest --test-dir build --output-on-failure 2>&1 | tee build/ctest-run.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [ "$status" -ne 0 ]; then
+            echo
+            echo "########## Rerunning failed tests (verbose) ##########"
+            ctest --test-dir build --rerun-failed -V || true
+            echo "######################################################"
+          fi
+          exit "$status"
+
+      - name: Upload test log
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          # 与 Linux 作业的产物同名会在同一次运行里撞车，加后缀区分
+          name: ctest-log-windows
+          path: build/ctest-run.log
+          if-no-files-found: ignore
+          retention-days: 7

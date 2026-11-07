@@ -1,0 +1,237 @@
+name: Build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (Linux)
+    runs-on: ubuntu-26.04
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install system Qt and build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            ca-certificates \
+            cmake \
+            ninja-build \
+            g++ \
+            pkg-config \
+            qt6-base-dev \
+            qt6-base-dev-tools \
+            qt6-svg-dev \
+            qt6-tools-dev \
+            zlib1g-dev
+
+      - name: Print the Qt version in use
+        run: |
+          # 把版本打出来，便于对照「本地 6.8.0 上能过、CI 上为什么不行」
+          pkg-config --modversion Qt6Core
+          dpkg-query -W -f='${Package} ${Version}\n' qt6-base-dev qt6-svg-dev qt6-tools-dev
+
+      - name: Verify Qt version
+        run: |
+          version=$(pkg-config --modversion Qt6Core)
+          # CMakeLists 里要求 Qt 6.5+。发行版 Qt 太旧时在这里明确失败，
+          # 否则报出来的会是 "no member named ..."，看起来像代码写错了。
+          major=${version%%.*}
+          rest=${version#*.}
+          minor=${rest%%.*}
+          if [ "$major" -lt 6 ] || { [ "$major" -eq 6 ] && [ "$minor" -lt 5 ]; }; then
+            echo "::error::Qt >= 6.5 is required, found $version. Upgrade the runner's Qt or install a newer one via jurplel/install-qt-action."
+            exit 1
+          fi
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DDRAWIO_QT_BUILD_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      - name: Verify the produced executable
+        run: |
+          if [ ! -x build/drawio-qt ]; then
+            echo "::error::build/drawio-qt was not produced"
+            exit 1
+          fi
+          # 版本号来自根目录 VERSION 文件，产物上对一下
+          ./build/drawio-qt --version
+
+  # Windows 走 MSYS2 / MinGW（UCRT64），而不是 MSVC + install-qt-action：
+  #   * 一次装齐 Qt6 的 Base / Svg / Tools 三个模块与 Ninja，不必为 CI
+  #     下载约 1GB 的 Qt 安装包；
+  #   * 这个作业的价值在于让代码在 MinGW 工具链下真的被编译器过一遍——
+  #     Linux 上发现不了的 MinGW 专属问题（头文件差异、类型宽度、链接行为）
+  #     在这里暴露。
+  build-windows:
+    name: Build (Windows / MinGW)
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      # action 只负责把 MSYS2 装起来。它的 update: true 是用一条 pacman 命令跑完
+      # 上千个包，任何一次镜像限速都让整步失败且无法重试。升级与装包放到下一步
+      # 自己做：可以在命令外加重试，并带上 --disable-download-timeout 关掉
+      # libcurl 的低速中断。
+      - name: Install MSYS2 (base only)
+        uses: msys2/setup-msys2@v2
+        with:
+          msystem: ucrt64
+          update: false
+          cache: true
+
+      # msys2-runtime 的升级会让 pacman 终止所有 MSYS2 进程——包括执行它的这个
+      # shell，所以本步骤可能以 exit 1 结束。这不是失败：包已经装好并入库，只是
+      # shell 连同尚未执行的命令一起没了。用 continue-on-error 放过它，真正的判据
+      # 放在下一步：新 shell 里幂等补完升级与装包，再逐个确认工具能跑。
+      - name: Upgrade the MSYS2 core
+        continue-on-error: true
+        run: |
+          set -euo pipefail
+
+          retry() {
+            local attempt
+            for attempt in 1 2 3; do
+              echo "--- attempt $attempt: $*"
+              if "$@"; then
+                return 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "::warning::attempt $attempt failed; retrying in 10s"
+                sleep 10
+              fi
+            done
+            echo "::error::giving up after 3 attempts: $*"
+            return 1
+          }
+
+          # MSYS2 不支持部分升级：运行时与库必须同版本，装包前先整系统升到最新。
+          # 这里的失败不判死（镜像抖动很常见），下一步会以硬失败的标准重试一次。
+          retry pacman -Syu --noconfirm --needed --disable-download-timeout \
+            || echo "::warning::the core upgrade did not complete; the next step retries it"
+
+      - name: Install the toolchain
+        run: |
+          set -euo pipefail
+
+          retry() {
+            local attempt
+            for attempt in 1 2 3; do
+              echo "--- attempt $attempt: $*"
+              if "$@"; then
+                return 0
+              fi
+              if [ "$attempt" -lt 3 ]; then
+                echo "::warning::attempt $attempt failed; retrying in 10s"
+                sleep 10
+              fi
+            done
+            echo "::error::giving up after 3 attempts: $*"
+            return 1
+          }
+
+          # 上一步若被 msys2-runtime 的替换打断，这里在新 shell 里把剩余部分补完；
+          # 系统已经是最新时，这条只会打印 "there is nothing to do"
+          retry pacman -Syu --noconfirm --needed --disable-download-timeout
+
+          # 直接点名 mingw-w64-<env>-<arch>-*，不用 pacboy 的 :p 后缀：pacboy 来自
+          # pactoys 包，不保证在 update: false 的基础安装里已经存在
+          retry pacman -S --noconfirm --needed --disable-download-timeout \
+            mingw-w64-ucrt-x86_64-cmake \
+            mingw-w64-ucrt-x86_64-ninja \
+            mingw-w64-ucrt-x86_64-gcc \
+            mingw-w64-ucrt-x86_64-binutils \
+            mingw-w64-ucrt-x86_64-pkgconf \
+            mingw-w64-ucrt-x86_64-qt6-base \
+            mingw-w64-ucrt-x86_64-qt6-svg \
+            mingw-w64-ucrt-x86_64-qt6-tools \
+            mingw-w64-ucrt-x86_64-zlib
+
+          # 以「工具真的能跑」为准：上一步的退出码既可能来自成功，也可能来自被
+          # 中断，唯一可靠的判据是命令存不存在
+          missing=0
+          for tool in cmake ninja pkgconf gcc; do
+            if command -v "$tool" >/dev/null 2>&1; then
+              echo "ok: $tool -> $(command -v "$tool")"
+            else
+              echo "::error::$tool is missing after the package installation"
+              missing=$((missing + 1))
+            fi
+          done
+          if [ "$missing" -ne 0 ]; then
+            exit 1
+          fi
+
+      - name: Print the toolchain versions
+        run: |
+          g++ --version | head -1
+          cmake --version | head -1
+          echo "Qt6Core $(pkg-config --modversion Qt6Core)"
+
+      - name: Verify Qt version
+        run: |
+          version=$(pkg-config --modversion Qt6Core)
+          echo "Qt6Core $version"
+
+          # 与 Linux 作业同一套判定：CMakeLists 里要求 Qt 6.5+。
+          # MSYS2 的 qt6-base 当前远新于 6.5，正常不会触发；保留这个检查是为了
+          # 镜像里 Qt 被降级时能给出明确原因。
+          major=${version%%.*}
+          rest=${version#*.}
+          minor=${rest%%.*}
+          if [ "$major" -lt 6 ] || { [ "$major" -eq 6 ] && [ "$minor" -lt 5 ]; }; then
+            echo "::error::Qt >= 6.5 is required, found $version."
+            exit 1
+          fi
+
+      - name: Configure
+        run: >
+          cmake -S . -B build -G Ninja
+          -DCMAKE_BUILD_TYPE=RelWithDebInfo
+          -DDRAWIO_QT_BUILD_TESTS=OFF
+
+      - name: Build
+        run: cmake --build build --parallel
+
+      # 构建成功不代表产物是一个 Windows 应用：主程序是 WIN32_EXECUTABLE，
+      # 这里确认产物带 GUI 子系统，避免退化成控制台程序还静默通过。
+      - name: Verify the produced executable
+        run: |
+          exe=build/drawio-qt.exe
+          if [ ! -f "$exe" ]; then
+            echo "::error::$exe was not produced"
+            exit 1
+          fi
+
+          # objdump 随 gcc 一起装好（binutils），比手工按 PE 头偏移取字段可靠
+          subsystem=$(objdump -p "$exe" | awk '/^Subsystem/ {print $2; exit}')
+          echo "subsystem=$subsystem"
+          # 2 = Windows GUI，3 = Windows Console（十六进制 00000002 / 00000003）
+          case "$subsystem" in
+            00000002|2)
+              echo "OK: GUI subsystem"
+              ;;
+            *)
+              echo "::error::drawio-qt.exe is not a GUI-subsystem binary (subsystem=$subsystem)"
+              exit 1
+              ;;
+          esac

@@ -59,6 +59,16 @@ set(CMAKE_AUTORCC ON)
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
+# ---------------------------------------------------------------------------
+#  应用标识
+#
+#  源码与打包文件里不再重复出现 "drawio-qt" 字面量：desktop 模板里的
+#  Exec / Icon / StartupWMClass 与显示名都由这里的两个变量派生，
+#  改软件名只需要改 project() 与显示名。
+# ---------------------------------------------------------------------------
+set(DRAWIO_QT_APP_NAME           "${PROJECT_NAME}")   # 可执行文件 / desktop ID
+set(DRAWIO_QT_APP_DISPLAY_NAME   "drawio-qt")
+
 include(GNUInstallDirs)
 
 find_package(Qt6 6.5 REQUIRED COMPONENTS Core Gui Widgets Svg PrintSupport Xml)
@@ -213,6 +223,11 @@ qt_add_resources(drawioqt_lib "drawioqt_resources"
 add_executable(drawio-qt src/main.cpp)
 target_link_libraries(drawio-qt PRIVATE drawioqt_lib)
 
+# Windows：把图标写进 PE 资源段（qrc 只作用于运行期窗口图标）
+if(WIN32)
+    target_sources(drawio-qt PRIVATE resources/win/drawio-qt.rc)
+endif()
+
 set_target_properties(drawio-qt PROPERTIES
     WIN32_EXECUTABLE TRUE
     MACOSX_BUNDLE TRUE
@@ -226,11 +241,15 @@ install(TARGETS drawio-qt
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 
 if (UNIX AND NOT APPLE)
+    # 桌面入口是模板：Exec / Icon / StartupWMClass 与显示名都来自上面的
+    # 变量，避免改名时漏掉其中一处。
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/resources/linux/drawio-qt.desktop.in"
+        "${CMAKE_BINARY_DIR}/${DRAWIO_QT_APP_NAME}.desktop" @ONLY)
+    install(FILES "${CMAKE_BINARY_DIR}/${DRAWIO_QT_APP_NAME}.desktop"
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
     install(FILES resources/icons/app.png
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
         RENAME drawio-qt.png)
-    install(FILES packaging/io.github.drawioqt.desktop
-        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications)
     install(FILES packaging/drawio-qt-mime.xml
         DESTINATION ${CMAKE_INSTALL_DATADIR}/mime/packages
         RENAME drawio-qt.xml)

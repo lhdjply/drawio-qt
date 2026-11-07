@@ -5,7 +5,7 @@ drawio-qt for Debian
 --------
 
   /usr/bin/drawio-qt                          主程序
-  /usr/share/applications/io.github.drawioqt.desktop
+  /usr/share/applications/drawio-qt.desktop
   /usr/share/icons/hicolor/256x256/apps/drawio-qt.png
   /usr/share/mime/packages/drawio-qt.xml      .drawio 文件类型关联
   /usr/share/drawio-qt/examples/              内置示例图表

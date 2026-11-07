@@ -1,19 +1,19 @@
 [Desktop Entry]
 Type=Application
 Version=1.0
-Name=drawio-qt
-Name[zh_CN]=drawio-qt 图表编辑器
+Name=@DRAWIO_QT_APP_DISPLAY_NAME@
+Name[zh_CN]=@DRAWIO_QT_APP_DISPLAY_NAME@ 图表编辑器
 GenericName=Diagram Editor
 GenericName[zh_CN]=图表编辑器
 Comment=Native Qt6 diagram editor compatible with draw.io files
 Comment[zh_CN]=兼容 draw.io 文件格式的原生 Qt6 图表编辑器
-Exec=drawio-qt %F
-TryExec=drawio-qt
-Icon=drawio-qt
+Exec=@DRAWIO_QT_APP_NAME@ %F
+TryExec=@DRAWIO_QT_APP_NAME@
+Icon=@DRAWIO_QT_APP_NAME@
 Terminal=false
 Categories=Graphics;Office;FlowChart;Qt;
 MimeType=application/x-drawio;
 Keywords=diagram;flowchart;drawio;diagrams;UML;ER;
 Keywords[zh_CN]=图表;流程图;drawio;UML;思维导图;
 StartupNotify=true
-StartupWMClass=drawio-qt
+StartupWMClass=@DRAWIO_QT_APP_NAME@
