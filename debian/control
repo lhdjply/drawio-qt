@@ -1,0 +1,29 @@
+Source: drawio-qt
+Section: graphics
+Priority: optional
+Maintainer: drawio-qt Maintainers <lhdjply@users.noreply.github.com>
+Build-Depends:
+ debhelper-compat (= 13),
+ cmake (>= 3.21),
+ qt6-base-dev,
+ qt6-svg-dev,
+ qt6-tools-dev,
+ zlib1g-dev,
+Standards-Version: 4.7.0
+Homepage: https://github.com/lhdjply/drawio-qt
+Rules-Requires-Root: no
+
+Package: drawio-qt
+Architecture: any
+Depends:
+ ${shlibs:Depends},
+ ${misc:Depends},
+ qt6-qpa-plugins,
+ qt6-translations-l10n,
+Description: native Qt6 diagram editor compatible with draw.io files
+ drawio-qt is a native Qt6/C++ port of the draw.io desktop application.
+ It does not use Electron, Node.js, or Qt WebEngine.
+ .
+ It opens and saves draw.io / mxGraph XML files, supports flowcharts,
+ UML and ER diagrams, and stays file-compatible with the original
+ draw.io desktop application.

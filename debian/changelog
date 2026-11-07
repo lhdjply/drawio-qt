@@ -1,0 +1,9 @@
+drawio-qt (1.0.0) unstable; urgency=medium
+
+  * Initial release.
+  * 原生 Qt6/C++ 重写的 draw.io 桌面版：打开与保存 draw.io / mxGraph
+    XML 文件，支持流程图、UML、ER 图，文件与原版 draw.io 兼容。
+  * 支持多页面、多文件标签页、撤销/重做、组合、连线、形状旋转、
+    导出图片与打印。
+
+ -- drawio-qt Maintainers <lhdjply@users.noreply.github.com>  Sat, 07 Nov 2026 15:45:29 +0800

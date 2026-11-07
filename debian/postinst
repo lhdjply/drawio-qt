@@ -1,0 +1,19 @@
+#!/bin/sh
+set -e
+
+# 升级或重装后刷新 MIME 数据库与桌面项缓存，确保 .drawio 文件关联即时生效。
+if command -v update-desktop-database >/dev/null 2>&1; then
+    update-desktop-database -q || true
+fi
+
+if command -v update-mime-database >/dev/null 2>&1; then
+    update-mime-database -q /usr/share/mime || true
+fi
+
+if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+    gtk-update-icon-cache -q -f /usr/share/icons/hicolor || true
+fi
+
+#DEBHELPER#
+
+exit 0

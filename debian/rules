@@ -1,0 +1,27 @@
+#!/usr/bin/make -f
+
+# ---------------------------------------------------------------------------
+#  Debian 打包规则
+#
+#  构建目录固定为 build/（与开发时一致），CMake 参数全部在这里显式给出，
+#  不依赖环境变量或调用者的 shell。
+#
+#  不做的事：
+#    * 不跑单元测试（-DDRAWIO_QT_BUILD_TESTS=OFF）—— 测试依赖 Qt6::Test，
+#      与安装内容无关，交给 CI 的 ctest 跑
+#    * 不用 ccache —— 打包环境应可复现，缓存会引入不确定性
+# ---------------------------------------------------------------------------
+
+%:
+	dh $@ --buildsystem=cmake --builddirectory=build
+
+# 不要在这里指定 -G：dh 的 cmake 序列在 build 阶段调用的是 make
+# （dh_auto_build 执行 `make -jN`）。若配置阶段改成 Ninja，build 阶段
+# 就会因为 build 目录里没有 Makefile 而报 "No targets specified"。
+override_dh_auto_configure:
+	dh_auto_configure -- \
+		-DCMAKE_BUILD_TYPE=RelWithDebInfo \
+		-DDRAWIO_QT_BUILD_TESTS=OFF
+
+# 安装内容由 CMake 的 install 规则负责（二进制、图标、desktop、MIME、示例），
+# 无需额外的 override_dh_auto_install。

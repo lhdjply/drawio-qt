@@ -1,0 +1,27 @@
+drawio-qt for Debian
+====================
+
+安装内容
+--------
+
+  /usr/bin/drawio-qt                          主程序
+  /usr/share/applications/io.github.drawioqt.desktop
+  /usr/share/icons/hicolor/256x256/apps/drawio-qt.png
+  /usr/share/mime/packages/drawio-qt.xml      .drawio 文件类型关联
+  /usr/share/drawio-qt/examples/              内置示例图表
+
+配置文件位置
+------------
+
+drawio-qt 不在系统目录写任何状态；文档保存在用户选择的位置，
+应用偏好保存在 QSettings 默认位置（~/.config/ 下）。
+
+卸载包不会删除用户文档与偏好，需要彻底清理时手动删除即可。
+
+文件关联
+--------
+
+安装或升级后由 postinst 刷新 MIME 数据库与桌面项缓存；若文件管理器
+仍未识别 .drawio，注销重新登录一次即可。
+
+ -- drawio-qt Maintainers <lhdjply@users.noreply.github.com>
