@@ -330,6 +330,32 @@ private slots:
         QCOMPARE(view->page()->cell(id)->value, QString());
     }
 
+    void htmlInlineFontSurvivesEditing()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *cell = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                    QPointF(120, 120));
+        QVERIFY(cell != nullptr);
+        const QString id = cell->id;
+        cell->style = Style::parse(QStringLiteral("html=1;fontSize=28;"));
+        cell->value = QStringLiteral(
+            "<span style=\"font-size: 11pt;\">原文字</span>");
+
+        view->startEditing(id, true);
+        auto *editor = view->findChild<OverlayEditor *>();
+        QVERIFY(editor != nullptr);
+        editor->setPlainText(QStringLiteral("新文字"));
+        view->commitEditing();
+
+        const QString value = view->page()->cell(id)->value;
+        QVERIFY(value.contains(QStringLiteral("新文字")));
+        QVERIFY(value.contains(QStringLiteral("font-size: 11pt")));
+        QVERIFY(value.contains(QStringLiteral("fontSize")) == false);
+    }
+
     void saveAndReopenDocument()
     {
         const QString path = QStringLiteral(DRAWIO_QT_BINARY_DIR)

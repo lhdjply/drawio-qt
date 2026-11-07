@@ -21,6 +21,7 @@
 #include <QUrl>
 #include <QPainter>
 #include <QPainterPath>
+#include <QRegularExpression>
 #include <QScrollBar>
 #include <QTextDocument>
 #include <QUndoCommand>
@@ -3018,6 +3019,42 @@ void DiagramView::startEditing(const QString &cellId, bool selectAll)
     emit editStarted();
 }
 
+QString inlineFontStyle(const QString &html)
+{
+    static const QRegularExpression sizePattern(
+        QStringLiteral("font-size\\s*:\\s*([0-9.]+\\s*(?:pt|px))"),
+        QRegularExpression::CaseInsensitiveOption);
+    static const QRegularExpression familyPattern(
+        QStringLiteral("font-family\\s*:\\s*([^;\"']+)"),
+        QRegularExpression::CaseInsensitiveOption);
+    QString style;
+    QRegularExpressionMatch size;
+
+    for (auto it = sizePattern.globalMatch(html); it.hasNext();)
+    {
+        size = it.next();
+    }
+
+    if (size.hasMatch())
+    {
+        style += QStringLiteral("font-size: %1;").arg(size.captured(1).trimmed());
+    }
+
+    QRegularExpressionMatch family;
+
+    for (auto it = familyPattern.globalMatch(html); it.hasNext();)
+    {
+        family = it.next();
+    }
+
+    if (family.hasMatch())
+    {
+        style += QStringLiteral("font-family: %1;").arg(family.captured(1).trimmed());
+    }
+
+    return style;
+}
+
 void DiagramView::commitEditing()
 {
     if (!m_editor->isVisible() || m_editorCellId.isEmpty() || m_page == nullptr)
@@ -3041,6 +3078,17 @@ void DiagramView::commitEditing()
     {
         value = htmlEscape(text);
         value.replace(QStringLiteral("\n"), QStringLiteral("<br>"));
+
+        // Keep Word/draw.io inline typography when the plain-text editor
+        // replaces an HTML label; otherwise the cell's fontSize (often 28)
+        // takes over and the text size jumps after a double click.
+        const QString inlineStyle = inlineFontStyle(cell->value);
+
+        if (!inlineStyle.isEmpty())
+        {
+            value = QStringLiteral("<span style=\"%1\">%2</span>")
+                        .arg(inlineStyle, value);
+        }
     }
 
     const QString before = m_editorBeforeXml;
