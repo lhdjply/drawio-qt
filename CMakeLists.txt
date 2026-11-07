@@ -77,7 +77,7 @@ set(DRAWIO_QT_SOURCES
     src/ui/Dialogs.h
 )
 
-add_library(drawioqt_lib STATIC ${DRAWIO_QT_SOURCES})
+add_library(drawioqt_lib OBJECT ${DRAWIO_QT_SOURCES})
 
 target_include_directories(drawioqt_lib PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR}/src)
