@@ -78,31 +78,6 @@ QPen penFor(const Cell &cell)
     return pen;
 }
 
-QString htmlForCell(const Cell &cell)
-{
-    const QColor color = LabelPainter::textColor(cell);
-    const int fontSize = qMax(1, static_cast<int>(cell.styleNumber(QStringLiteral("fontSize"), 11.0)));
-    const QString family = normalizedFontFamily(cell.styleValue(QStringLiteral("fontFamily")));
-    const QString align = [&cell]()
-    {
-        const QString value = cell.styleValue(QStringLiteral("align"), QStringLiteral("center"));
-        return value == QLatin1String("left") ? QStringLiteral("left")
-            : value == QLatin1String("right") ? QStringLiteral("right")
-                                              : QStringLiteral("center");
-    }();
-
-    QString html = cell.value;
-
-    // draw.io HTML labels are HTML fragments. Wrap them so a fragment such as
-    // `<b>Hi</b><br>there` keeps its markup but inherits the style colours.
-    return QStringLiteral("<div style=\"font-family:%1;font-size:%2px;color:%3;"
-                          "text-align:%4;line-height:120%;\">%5</div>")
-        .arg(family)
-        .arg(fontSize)
-        .arg(color.name())
-        .arg(align)
-        .arg(html);
-}
 
 } // namespace
 
@@ -221,94 +196,108 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
         }
     }
 
-    const Qt::Alignment alignment = alignmentFor(cell);
-    const bool html = cell.isHtmlLabel();
-    const bool wrap = cell.styleValue(QStringLiteral("whiteSpace")) == QLatin1String("wrap")
-        || html;
-
-    if (html)
-    {
-        QTextDocument document;
-        document.setDocumentMargin(0);
-        document.setDefaultFont(fontFor(cell));
-        document.setHtml(htmlForCell(cell));
-
-        const QTextOption option = document.defaultTextOption();
-        Q_UNUSED(option);
-
-        if (wrap)
-        {
-            document.setTextWidth(rect.width());
-        }
-        else
-        {
-            document.setTextWidth(-1);
-        }
-
-        const double textHeight = document.size().height();
-        double top = rect.top();
-
-        if (alignment & Qt::AlignVCenter)
-        {
-            top = rect.center().y() - textHeight / 2.0;
-        }
-        else if (alignment & Qt::AlignBottom)
-        {
-            top = rect.bottom() - textHeight;
-        }
-
-        painter.setClipRect(rect.adjusted(-1, -1, 1, 1));
-        painter.translate(rect.left(), top);
-        document.drawContents(&painter, QRectF(0, 0, rect.width(), textHeight));
-        painter.restore();
-        return;
-    }
-
     QFont font = fontFor(cell);
     painter.setFont(font);
     painter.setPen(textColor(cell));
 
-    QTextOption option;
-    option.setAlignment(alignment & Qt::AlignHorizontal_Mask);
-    option.setWrapMode(wrap ? QTextOption::WrapAtWordBoundaryOrAnywhere : QTextOption::NoWrap);
+    const QFontMetricsF metrics(font);
+    const bool wrap = cell.styleValue(QStringLiteral("whiteSpace")) == QLatin1String("wrap")
+        || cell.isHtmlLabel();
+    const QString text = cell.plainLabel();
+    const double maxWidth = wrap ? rect.width() : 100000.0;
 
-    QTextLayout layout(cell.value, font);
-    layout.setTextOption(option);
+    // Lay out the text ourselves with drawText: QTextDocument applies its own
+    // DPI metrics and produced oversized glyphs on high-DPI screens and in
+    // exports. draw.io also uses the font size as the line advance for these
+    // labels, which keeps stacked CJK labels inside their shapes.
+    QStringList lines;
 
-    // Lay out with the available width so wrapping matches the shape.
-    layout.beginLayout();
-    double y = 0;
+    const QStringList paragraphs = text.split(QLatin1Char('\n'));
 
-    while (true)
+    for (const QString &paragraph : paragraphs)
     {
-        QTextLine line = layout.createLine();
-
-        if (!line.isValid())
+        if (paragraph.isEmpty())
         {
-            break;
+            lines.append(QString());
+            continue;
         }
 
-        line.setLineWidth(rect.width());
-        line.setPosition(QPointF(0, y));
-        y += line.height();
+        QString current;
+
+        for (const QChar character : paragraph)
+        {
+            const QString candidate = current + character;
+
+            if (!current.isEmpty() && metrics.horizontalAdvance(candidate) > maxWidth)
+            {
+                const int lastSpace = current.lastIndexOf(QLatin1Char(' '));
+
+                if (lastSpace > 0 && !character.isSpace())
+                {
+                    lines.append(current.left(lastSpace));
+                    current = current.mid(lastSpace + 1) + character;
+                }
+                else
+                {
+                    lines.append(current);
+                    current = QString(character);
+                }
+            }
+            else
+            {
+                current = candidate;
+            }
+        }
+
+        if (!current.isEmpty() || paragraph.isEmpty())
+        {
+            lines.append(current);
+        }
     }
 
-    layout.endLayout();
+    if (lines.isEmpty())
+    {
+        painter.restore();
+        return;
+    }
 
-    const double textHeight = y;
+    double lineHeight = cell.styleNumber(QStringLiteral("fontSize"), 11.0) * 1.05;
+
+    if (lineHeight <= 0.0)
+    {
+        lineHeight = metrics.height();
+    }
+
+    const double totalHeight = lineHeight * lines.size();
     double top = rect.top();
 
-    if (alignment & Qt::AlignVCenter)
+    if (alignmentFor(cell) & Qt::AlignVCenter)
     {
-        top = rect.center().y() - textHeight / 2.0;
+        top = rect.center().y() - totalHeight / 2.0;
     }
-    else if (alignment & Qt::AlignBottom)
+    else if (alignmentFor(cell) & Qt::AlignBottom)
     {
-        top = rect.bottom() - textHeight;
+        top = rect.bottom() - totalHeight;
     }
 
-    painter.setClipRect(rect);
-    layout.draw(&painter, QPointF(rect.left(), top));
+    // Text-only shapes are allowed to overflow their bounds, exactly like the
+    // draw.io text tool; a small text cell inside a banner must not clip the
+    // stacked characters.
+    if (!ShapeRegistry::isTextShape(cell))
+    {
+        painter.setClipRect(rect.adjusted(-1, -1, 1, 1));
+    }
+
+    Qt::Alignment horizontal = alignmentFor(cell) & Qt::AlignHorizontal_Mask;
+    double y = top;
+
+    for (const QString &line : lines)
+    {
+        painter.drawText(QRectF(rect.left(), y, rect.width(), lineHeight),
+                         horizontal | Qt::AlignVCenter, line);
+        y += lineHeight;
+    }
+
     painter.restore();
 }
 
@@ -369,6 +358,13 @@ void paintShadow(QPainter &painter, const Cell &cell)
 
 void paint(QPainter &painter, const Cell &cell)
 {
+    // draw.io groups are invisible containers: their children carry the
+    // visible geometry. Painting a group produced a stray black outline.
+    if (cell.isGroup() || cell.styleFlag(QStringLiteral("group")))
+    {
+        return;
+    }
+
     painter.save();
 
     const QRectF local(QPointF(0, 0), cell.geometry.size());
