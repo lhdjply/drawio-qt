@@ -7,6 +7,7 @@
 #include "ui/ShapeToolbox.h"
 #include "ui/ShapeLibraryDialog.h"
 #include "render/ShapeCatalog.h"
+#include "render/EdgeRouter.h"
 #include "ui/OverlayEditor.h"
 #include "ui/MainWindow.h"
 
@@ -434,6 +435,39 @@ private slots:
         const QString xml = MxFileIO::pageToXml(*view->page(), false);
         QVERIFY(xml.contains(QStringLiteral("rotation=45")));
         QVERIFY(!xml.contains(QStringLiteral("rotation=\"45\"")));
+    }
+
+    void draggingConnectorAddsWaypoint()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *a = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                 QPointF(100, 200));
+        Cell *b = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                 QPointF(400, 200));
+        QVERIFY(a != nullptr && b != nullptr);
+
+        Cell *edge = view->page()->addEdge(a->id, b->id,
+                                           Style::parse(QStringLiteral(
+                                               "edgeStyle=none;endArrow=none;")));
+        QVERIFY(edge != nullptr);
+        view->selectCell(edge->id);
+
+        const RoutedEdge route = EdgeRouter::route(*view->page(), *edge);
+        const QPointF middle = route.pointAt(0.5);
+        const QPointF start = view->toView(middle);
+        const QPointF target = start + QPointF(0, 40);
+
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, start.toPoint());
+        QVERIFY(!edge->waypoints.isEmpty());
+        const QPointF before = edge->waypoints.first();
+        QMouseEvent moveEvent(QEvent::MouseMove, target, view->mapToGlobal(target.toPoint()),
+                              Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(view, &moveEvent);
+        QVERIFY(edge->waypoints.first() != before);
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, target.toPoint());
     }
 
     void rotatedResizeUsesRotatedHandles()

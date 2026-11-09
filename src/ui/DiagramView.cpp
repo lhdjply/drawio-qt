@@ -1122,8 +1122,9 @@ void DiagramView::paintSelectionOverlay(QPainter &painter)
         }
     }
 
-    // Editable waypoints of selected edges.
-    if (m_page != nullptr)
+    // Editable waypoints of selected edges. Hide them while dragging so the
+    // inserted handle does not sit under the cursor.
+    if (m_page != nullptr && m_dragMode == DragMode::None)
     {
         for (const QString &id : m_selection)
         {
@@ -1137,9 +1138,9 @@ void DiagramView::paintSelectionOverlay(QPainter &painter)
             for (const QPointF &waypoint : cell->waypoints)
             {
                 const QPointF center = toView(waypoint);
-                painter.setPen(QPen(accent, 1.2));
-                painter.setBrush(QColor(Qt::white));
-                painter.drawRect(QRectF(center.x() - 4, center.y() - 4, 8, 8));
+                painter.setPen(QPen(accent, 1.0));
+                painter.setBrush(accent);
+                painter.drawEllipse(center, 3.5, 3.5);
             }
         }
     }
@@ -1399,8 +1400,54 @@ void DiagramView::mousePressEvent(QMouseEvent *event)
                 m_dragMode = DragMode::Waypoint;
                 m_waypointEdgeId = edgeId;
                 m_waypointIndex = waypointIndex;
+                m_waypointAdded = false;
                 m_dragMoved = false;
                 update();
+                return;
+            }
+        }
+    }
+
+    // 1c. Drag a selected connector segment as a whole. Also allow this
+    // while the connector tool is active so dragging a just-created edge does
+    // not start another connector.
+    if ((m_tool == Tool::Select || m_tool == Tool::Connector) && hasSelection())
+    {
+        QPointF projected;
+
+        if (Cell *edge = selectedEdgeAt(scenePoint, &projected))
+        {
+            const RoutedEdge route = EdgeRouter::route(*m_page, *edge);
+            int segmentIndex = -1;
+            double best = qMax(4.0, 6.0 / qMax(m_zoom, 0.01));
+
+            for (int i = 1; i < route.points.size(); ++i)
+            {
+                const QPointF a = route.points.at(i - 1);
+                const QPointF b = route.points.at(i);
+                const QPointF ab = b - a;
+                const double lengthSquared = ab.x() * ab.x() + ab.y() * ab.y();
+
+                if (lengthSquared <= 0.0)
+                {
+                    continue;
+                }
+
+                const double t = qBound(0.0, QPointF::dotProduct(scenePoint - a, ab) / lengthSquared, 1.0);
+                const double distance = QLineF(a + ab * t, scenePoint).length();
+
+                if (distance < best)
+                {
+                    best = distance;
+                    segmentIndex = i;
+                }
+            }
+
+            if (segmentIndex > 0)
+            {
+                beginSegmentDrag(edge, route, segmentIndex,
+                                 route.points.at(segmentIndex - 1),
+                                 route.points.at(segmentIndex), scenePoint);
                 return;
             }
         }
@@ -1532,6 +1579,60 @@ void DiagramView::beginMove(const QPointF &scenePoint)
     }
 }
 
+Cell *DiagramView::selectedEdgeAt(const QPointF &scenePoint, QPointF *projected) const
+{
+    if (m_page == nullptr)
+    {
+        return nullptr;
+    }
+
+    Cell *best = nullptr;
+    double bestDistance = qMax(4.0, 6.0 / qMax(m_zoom, 0.01));
+    const double limit = bestDistance;
+
+    for (const QString &id : m_selection)
+    {
+        Cell *cell = m_page->cell(id);
+
+        if (cell == nullptr || !cell->isEdge())
+        {
+            continue;
+        }
+
+        const RoutedEdge route = EdgeRouter::route(*m_page, *cell);
+
+        for (int i = 1; i < route.points.size(); ++i)
+        {
+            const QPointF a = route.points.at(i - 1);
+            const QPointF b = route.points.at(i);
+            const QPointF ab = b - a;
+            const double lengthSquared = ab.x() * ab.x() + ab.y() * ab.y();
+
+            if (lengthSquared <= 0.0)
+            {
+                continue;
+            }
+
+            const double t = qBound(0.0, QPointF::dotProduct(scenePoint - a, ab) / lengthSquared, 1.0);
+            const QPointF point = a + ab * t;
+            const double distance = QLineF(point, scenePoint).length();
+
+            if (distance < bestDistance)
+            {
+                bestDistance = distance;
+                best = cell;
+
+                if (projected != nullptr)
+                {
+                    *projected = point;
+                }
+            }
+        }
+    }
+
+    return bestDistance <= limit ? best : nullptr;
+}
+
 int DiagramView::waypointAt(const QPointF &viewPoint, QString *edgeId) const
 {
     if (m_page == nullptr)
@@ -1611,6 +1712,60 @@ double DiagramView::snapRotationAngle(double angle, bool strict)
     }
 
     return angle;
+}
+
+void DiagramView::beginSegmentDrag(Cell *edge, const RoutedEdge &route, int index,
+                                   const QPointF &a, const QPointF &b,
+                                   const QPointF &startScene)
+{
+    m_segmentOriginalWaypoints = edge->waypoints;
+    m_dragStartScene = startScene;
+    m_segmentBaseA = a;
+    m_segmentBaseB = b;
+    m_segmentIndexA = -1;
+    m_segmentIndexB = -1;
+
+    QVector<QPointF> waypoints;
+
+    for (int i = 1; i < route.points.size() - 1; ++i)
+    {
+        waypoints.append(route.points.at(i));
+    }
+
+    const bool startInserted = index - 1 == 0;
+
+    if (startInserted)
+    {
+        waypoints.prepend(a);
+        m_segmentIndexA = 0;
+    }
+    else
+    {
+        m_segmentIndexA = index - 2;
+    }
+
+    if (index == route.points.size() - 1)
+    {
+        waypoints.append(b);
+        m_segmentIndexB = waypoints.size() - 1;
+    }
+    else
+    {
+        m_segmentIndexB = (index - 1) + (startInserted ? 1 : 0);
+    }
+
+    if (m_segmentIndexA < 0 || m_segmentIndexB < 0
+        || m_segmentIndexA >= waypoints.size() || m_segmentIndexB >= waypoints.size())
+    {
+        return;
+    }
+
+    beginSnapshot(QStringLiteral("调整连线"));
+    edge->waypoints = waypoints;
+    m_waypointEdgeId = edge->id;
+    m_dragMode = DragMode::Segment;
+    m_dragMoved = false;
+    update();
 }
 
 void DiagramView::beginRotate(const QPointF &scenePoint)
@@ -1747,6 +1902,44 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
 
         m_dragMoved = true;
         update();
+        return;
+    }
+
+    if (m_dragMode == DragMode::Segment)
+    {
+        Cell *edge = m_page != nullptr ? m_page->cell(m_waypointEdgeId) : nullptr;
+
+        if (edge != nullptr)
+        {
+            QPointF delta = scenePoint - m_dragStartScene;
+            const bool vertical = qAbs(m_segmentBaseB.y() - m_segmentBaseA.y())
+                >= qAbs(m_segmentBaseB.x() - m_segmentBaseA.x());
+
+            // Orthogonal segment drag only moves perpendicular to the segment,
+            // exactly like draw.io; dragging along it should not add extra bends.
+            if (vertical)
+            {
+                delta.setY(0.0);
+            }
+            else
+            {
+                delta.setX(0.0);
+            }
+
+            if (m_segmentIndexA >= 0 && m_segmentIndexA < edge->waypoints.size())
+            {
+                edge->waypoints[m_segmentIndexA] = m_segmentBaseA + delta;
+            }
+
+            if (m_segmentIndexB >= 0 && m_segmentIndexB < edge->waypoints.size())
+            {
+                edge->waypoints[m_segmentIndexB] = m_segmentBaseB + delta;
+            }
+
+            m_dragMoved = true;
+            update();
+        }
+
         return;
     }
 
@@ -2294,11 +2487,10 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
         return;
     }
 
-    if (m_dragMode == DragMode::Waypoint)
+    if (m_dragMode == DragMode::Segment)
     {
         m_dragMode = DragMode::None;
-        m_waypointEdgeId.clear();
-        m_waypointIndex = -1;
+        Cell *edge = m_page != nullptr ? m_page->cell(m_waypointEdgeId) : nullptr;
 
         if (m_dragMoved)
         {
@@ -2307,9 +2499,51 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
         }
         else
         {
+            if (edge != nullptr)
+            {
+                edge->waypoints = m_segmentOriginalWaypoints;
+            }
+
             cancelSnapshot();
         }
 
+        m_segmentOriginalWaypoints.clear();
+        m_segmentIndexA = -1;
+        m_segmentIndexB = -1;
+        m_waypointEdgeId.clear();
+        m_dragMoved = false;
+        update();
+        return;
+    }
+
+    if (m_dragMode == DragMode::Waypoint)
+    {
+        m_dragMode = DragMode::None;
+
+        if (m_dragMoved)
+        {
+            commitSnapshot();
+            notifyModified();
+        }
+        else
+        {
+            if (m_waypointAdded)
+            {
+                if (Cell *edge = m_page != nullptr ? m_page->cell(m_waypointEdgeId) : nullptr)
+                {
+                    if (!edge->waypoints.isEmpty())
+                    {
+                        edge->waypoints.removeLast();
+                    }
+                }
+            }
+
+            cancelSnapshot();
+        }
+
+        m_waypointEdgeId.clear();
+        m_waypointIndex = -1;
+        m_waypointAdded = false;
         m_dragMoved = false;
         update();
         return;

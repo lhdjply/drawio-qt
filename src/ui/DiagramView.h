@@ -13,6 +13,8 @@ class QUndoStack;
 
 namespace dq {
 
+struct RoutedEdge;
+
 class OverlayEditor;
 
 /// The diagram canvas. Paints the page through DiagramRenderer and implements
@@ -186,6 +188,7 @@ private:
         Pan,
         Connect,
         Waypoint,
+        Segment,
         Rotate
     };
 
@@ -193,14 +196,24 @@ private:
     void paintConnectionPreview(QPainter &painter);
 
     int waypointAt(const QPointF &viewPoint, QString *edgeId) const;
+    Cell *selectedEdgeAt(const QPointF &scenePoint, QPointF *projected) const;
     Cell *singleRotatedVertex() const;
     QPointF rotationHandleCenter() const;
     bool rotationHandleHit(const QPointF &viewPoint) const;
     void beginRotate(const QPointF &scenePoint);
+    void beginSegmentDrag(Cell *edge, const RoutedEdge &route, int index,
+                          const QPointF &a, const QPointF &b,
+                          const QPointF &startScene);
     static double snapRotationAngle(double angle, bool strict);
 
     QString m_waypointEdgeId;
     int m_waypointIndex = -1;
+    bool m_waypointAdded = false;
+    QPointF m_segmentBaseA;
+    QPointF m_segmentBaseB;
+    int m_segmentIndexA = -1;
+    int m_segmentIndexB = -1;
+    QVector<QPointF> m_segmentOriginalWaypoints;
     QPointF m_rotateCenter;
     double m_rotateStartAngle = 0.0;
     QVector<QPair<QString, double>> m_rotateInitial;
