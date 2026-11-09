@@ -457,12 +457,8 @@ QRectF EdgeRenderer::boundsFor(const RoutedEdge &route, const Cell &edge)
         return bounds;
     }
 
-    bounds = QRectF(route.points.first(), QSizeF(0, 0));
-
-    for (const QPointF &point : route.points)
-    {
-        bounds |= QRectF(point, QSizeF(0, 0));
-    }
+    const QPolygonF polygon(route.points);
+    bounds = polygon.boundingRect();
 
     double margin = qMax(1.0, edge.styleNumber(QStringLiteral("strokeWidth"), 1.0))
         + arrowSize(edge, QStringLiteral("end"));
@@ -474,6 +470,42 @@ QRectF EdgeRenderer::boundsFor(const RoutedEdge &route, const Cell &edge)
     }
 
     return bounds.adjusted(-margin, -margin, margin, margin);
+}
+
+void EdgeRenderer::paintMarkers(QPainter &painter, const Page &page, const Cell &edge)
+{
+    if (edge.styleValue(QStringLiteral("shape")).compare(QLatin1String("flexArrow"),
+                                                         Qt::CaseInsensitive) == 0)
+    {
+        return;
+    }
+
+    const RoutedEdge route = EdgeRouter::route(page, edge);
+
+    if (route.points.size() < 2)
+    {
+        return;
+    }
+
+    const QColor color = edgeColor(edge);
+    const double strokeWidth = edge.styleNumber(QStringLiteral("strokeWidth"), 1.0);
+    const QPointF endDirection = route.points.last() - route.points.at(route.points.size() - 2);
+    const QString endArrow = edge.styleValue(QStringLiteral("endArrow"), QStringLiteral("classic"));
+    const bool endFilled = edge.styleValue(QStringLiteral("endFill"), QStringLiteral("1"))
+        != QLatin1String("0");
+    drawArrowHead(painter, route.points.last(), endDirection, endArrow, color,
+                  arrowSize(edge, QStringLiteral("end")), strokeWidth, endFilled);
+
+    const QString startArrow = edge.styleValue(QStringLiteral("startArrow"), QStringLiteral("none"));
+
+    if (startArrow != QLatin1String("none") && !startArrow.isEmpty())
+    {
+        const QPointF startDirection = route.points.first() - route.points.at(1);
+        const bool startFilled = edge.styleValue(QStringLiteral("startFill"), QStringLiteral("1"))
+            != QLatin1String("0");
+        drawArrowHead(painter, route.points.first(), startDirection, startArrow, color,
+                      arrowSize(edge, QStringLiteral("start")), strokeWidth, startFilled);
+    }
 }
 
 void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)

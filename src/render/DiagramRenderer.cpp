@@ -264,19 +264,21 @@ void DiagramRenderer::paint(QPainter &painter, const Page &page, const RenderOpt
 
     const QVector<Cell *> cells = paintOrder(page);
 
-    for (Cell *cell : cells)
-    {
-        if (cell->isEdge())
-        {
-            EdgeRenderer::paint(painter, page, *cell);
-        }
-    }
-
+    // draw.io paints edges over the shape fills (the XML order usually puts
+    // edges after vertices), so a connector crossing a shape stays visible.
     for (Cell *cell : cells)
     {
         if (cell->isVertex())
         {
             ShapeRenderer::paint(painter, *cell);
+        }
+    }
+
+    for (Cell *cell : cells)
+    {
+        if (cell->isEdge())
+        {
+            EdgeRenderer::paint(painter, page, *cell);
         }
     }
 
