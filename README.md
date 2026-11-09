@@ -39,18 +39,26 @@ PNG/SVG/PDF/HTML/XML 导出、打印以及命令行批量导出。
   `exitX/exitY/entryX/entryY`，再也不用凭感觉对准；悬停图形时也会显示锚点。
 - **文本编辑**：双击原位编辑，支持字体、字号、颜色、粗体/斜体/下划线、水平/垂直对齐、
   自动换行与简单 HTML（`<b>`、`<i>`、`<br>`、`<font>` 等）。
-- **文件格式兼容**：直接读写 `.drawio` / `.dio` / `.xml`，支持 draw.io 的
-  **base64 + raw-deflate + percent-encoding** 压缩页面格式，可与 draw.io 网页版/桌面版互相打开。
+- **文件格式兼容**：直接读写 `.drawio` / `.dio` / `.xml`，兼容 draw.io 的
+  **base64 + raw-deflate + percent-encoding** 压缩页面；保存时输出**未压缩、带缩进**的
+  `mxGraphModel`，可直接阅读和 diff，也可与 draw.io 网页版/桌面版互相打开。
 - **内嵌图数据**：PNG（`zTXt: mxGraphModel`）、PDF（`/Subject`）、SVG（`content` 属性）
   三种格式都能写入并可再次打开，与 Electron 版保持一致。
-- **多页面**：底部页面标签，新增、重命名、删除、拖动排序；图层数据可完整读写。
+- **多文件标签页**：同一窗口打开多个文件，标签显示文件名与修改状态，支持 `Ctrl+W` 关闭。
+- **多页面**：底部页面标签，新增、重命名、删除、拖动排序。
+- **图层管理器**：新建/删除/重命名/上下移动/显隐/锁定图层；图层下展开对象列表，
+  最上层优先显示，画布与面板选中双向同步，对象支持层内上下调整。
+- **旋转**：选中显示旋转手柄，实时角度、45° 倍数吸附、Shift 15° 步进；
+  旋转后的选中框、缩放手柄和连接点跟随旋转，角度写入 style 的 `rotation=…`。
 - **撤销/重做**：基于页面快照的 200 步历史，所有编辑操作（移动、样式、文本、页面设置等）均可撤销。
 - **导出**：PNG / JPEG / SVG / PDF / XML / HTML；支持缩放、边距、透明背景、嵌入图数据、
   目标宽高、全部页面（PDF）、按页面尺寸导出。
 - **打印**：打印与打印预览，按页面尺寸自动适配纸张，支持多页。
 - **统一外观**：使用 Qt Fusion 风格，跨平台一致；支持深色/浅色配色（可跟随系统）。
 - **桌面集成**：最近文件、自动保存草稿与崩溃恢复、外部修改监视、拖放打开、
-  窗口几何记忆、多窗口、命令行打开文件。
+  窗口几何记忆、命令行打开文件。
+- **检查更新**：启动后自动检查 Release 更新清单；帮助菜单可手动检查，
+  展示版本、日期与更新日志并跳转发布页。
 - **命令行导出**：与 Electron 版一致的核心参数（`-x/-f/-o/-s/-b/-t/-e/-a/-p/-g/-k/-r` 等），
   可在无显示器的服务器上以 `offscreen` 模式批量转换。
 
@@ -162,10 +170,11 @@ drawio-qt/
 │   │   ├── DiagramView.*       # 画布：选择、拖拽、连线、撤销
 │   │   ├── ShapeToolbox.*      # 形状面板（可拖放）
 │   │   ├── FormatPanel.*       # 格式面板
+│   │   ├── LayerPanel.*        # 图层管理器
 │   │   ├── OverlayEditor.*     # 原位文本编辑
 │   │   └── Dialogs.*           # 导出、页面设置、快捷键、关于
 │   └── main.cpp                # 入口：CLI 分发与窗口创建
-├── resources/                  # 图标、示例 .drawio
+├── resources/assets/           # 图标、示例、形状库资源
 ├── tests/                      # QtTest 单元测试与离屏 UI 冒烟测试
 ├── packaging/                  # .desktop 文件
 └── docs/                       # 架构、移植说明、功能对照、构建文档
@@ -196,15 +205,15 @@ drawio-qt/
 - 不加载 Web 编辑器，因此没有 MathJax、Mermaid/VSDX 导入、在线模板、插件市场与云存储。
 - 复杂样式按近似方式渲染：自定义 stencil、完整 CSS/HTML 标签、渐变方向、
   阴影细节等与网页版存在差异。
-- 图层可以读写，但暂未提供图层管理面板。
-- 自动更新不适用原生版本，`--disable-update` 参数被接受但无效果。
-- 旋转图形可渲染与编辑属性，但选择框/命中检测仍按外接矩形计算。
+- 图层已支持管理面板与锁定，但尚未实现“锁定图层内局部解锁对象”等精细规则。
+- 检查更新只查询并跳转发布页，不会自动下载或替换程序。
+- 云厂商完整图标库（AWS/GCP/Cisco 等）未全部内置，可按 `docs/形状库.md` 继续扩展。
 - 从 PNG/PDF/SVG 内嵌图数据打开时，首次保存会建议另存为 `.drawio`，不会覆盖原图。
 
 ## 参与开发
 
 ```bash
-cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Debug -DDRAWIO_QT_BUILD_TESTS=ON
 cmake --build build -j$(nproc)
 QT_QPA_PLATFORM=offscreen ctest --test-dir build --output-on-failure
 ```
