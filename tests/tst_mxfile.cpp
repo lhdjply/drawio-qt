@@ -71,6 +71,7 @@ private slots:
         const QString xml = QString::fromUtf8(file.readAll());
         QVERIFY(xml.contains(QStringLiteral("<mxGraphModel")));
         QVERIFY(xml.contains(QStringLiteral("value=\"A\"")));
+        QVERIFY(xml.contains(QStringLiteral("\n")));
     }
 
     void compressedRoundTrip()

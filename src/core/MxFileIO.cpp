@@ -134,7 +134,8 @@ QString pageModelXml(const Page &page)
 {
     QString model;
     QXmlStreamWriter writer(&model);
-    writer.setAutoFormatting(false);
+    writer.setAutoFormatting(true);
+    writer.setAutoFormattingIndent(2);
 
     const Page::Settings &s = page.settings;
 
@@ -209,7 +210,7 @@ QString pageModelXml(const Page &page)
     writer.writeEndElement(); // root
     writer.writeEndElement(); // mxGraphModel
 
-    return model;
+    return model.trimmed();
 }
 
 // --- reading -------------------------------------------------------------
