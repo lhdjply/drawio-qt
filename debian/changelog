@@ -1,3 +1,11 @@
+drawio-qt (0.1.2) unstable; urgency=medium
+
+  * 新增图层管理器：新建/删除/重命名/排序/显隐/锁定，图层对象列表。
+  * 完善连线控制点、入口方向、绘制层级与 mxGeometry 序列化。
+  * .drawio 改为未压缩、带缩进的 XML 保存。
+
+ -- drawio-qt Maintainers <lhdjply@users.noreply.github.com>  Mon, 09 Nov 2026 16:06:49 +0800
+
 drawio-qt (0.1.1) unstable; urgency=medium
 
   * 修复 Windows（MinGW）下源码根目录的 VERSION 文件被当作
