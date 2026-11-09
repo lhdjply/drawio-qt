@@ -34,6 +34,7 @@ void writePoint(QXmlStreamWriter &writer, const QPointF &point, const char *type
 void writeCellGeometry(QXmlStreamWriter &writer, const Cell &cell)
 {
     writer.writeStartElement(QStringLiteral("mxGeometry"));
+    writer.writeAttribute(QStringLiteral("as"), QStringLiteral("geometry"));
 
     if (cell.isVertex())
     {
@@ -56,6 +57,12 @@ void writeCellGeometry(QXmlStreamWriter &writer, const Cell &cell)
             writePoint(writer, cell.targetPoint, "targetPoint");
         }
 
+        if (cell.rotation != 0.0)
+        {
+            writer.writeAttribute(QStringLiteral("rotation"),
+                                  QString::number(cell.rotation, 'g', 12));
+        }
+
         if (!cell.waypoints.isEmpty())
         {
             writer.writeStartElement(QStringLiteral("Array"));
@@ -70,13 +77,6 @@ void writeCellGeometry(QXmlStreamWriter &writer, const Cell &cell)
         }
     }
 
-    if (cell.rotation != 0.0)
-    {
-        writer.writeAttribute(QStringLiteral("rotation"),
-                              QString::number(cell.rotation, 'g', 12));
-    }
-
-    writer.writeAttribute(QStringLiteral("as"), QStringLiteral("geometry"));
     writer.writeEndElement();
 }
 

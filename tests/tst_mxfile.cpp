@@ -33,6 +33,9 @@ private slots:
         const QString xml = MxFileIO::documentToXml(document, false);
         QVERIFY(xml.contains(QStringLiteral("<mxGraphModel")));
         QVERIFY(xml.contains(QStringLiteral("value=\"开始\"")));
+        QVERIFY(xml.contains(QStringLiteral("as=\"geometry\"")));
+        QVERIFY(!xml.contains(QStringLiteral("</mxGeometry> as=")));
+        QVERIFY(xml.contains(QStringLiteral("<Array as=\"points\">")));
 
         Document loaded;
         QString error;
