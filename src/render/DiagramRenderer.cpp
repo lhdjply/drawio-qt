@@ -28,8 +28,8 @@ bool layerVisible(const Page &page, const QString &layerId)
 
 QVector<Cell *> paintOrder(const Page &page)
 {
-    QVector<Cell *> vertices;
-    QVector<Cell *> edges;
+    QVector<Cell *> result;
+    result.reserve(page.cells().size());
 
     for (Cell *cell : page.cells())
     {
@@ -55,38 +55,11 @@ QVector<Cell *> paintOrder(const Page &page)
             continue;
         }
 
-        if (cell->isVertex())
+        if (page.layer(cell->parentId) != nullptr && !layerVisible(page, cell->parentId))
         {
-            if (!layerVisible(page, cell->parentId) && page.layer(cell->parentId) != nullptr)
-            {
-                continue;
-            }
-
-            vertices.append(cell);
+            continue;
         }
-        else
-        {
-            edges.append(cell);
-        }
-    }
 
-    std::stable_sort(vertices.begin(), vertices.end(), [](Cell *a, Cell *b)
-    {
-        return a->depth() < b->depth();
-    });
-
-    QVector<Cell *> result;
-    result.reserve(vertices.size() + edges.size());
-
-    // draw.io paints edges below vertices, so a filled symbol (for example an
-    // inductor) hides the wire that passes behind it.
-    for (Cell *cell : edges)
-    {
-        result.append(cell);
-    }
-
-    for (Cell *cell : vertices)
-    {
         result.append(cell);
     }
 
@@ -264,21 +237,17 @@ void DiagramRenderer::paint(QPainter &painter, const Page &page, const RenderOpt
 
     const QVector<Cell *> cells = paintOrder(page);
 
-    // draw.io paints edges over the shape fills (the XML order usually puts
-    // edges after vertices), so a connector crossing a shape stays visible.
-    for (Cell *cell : cells)
-    {
-        if (cell->isVertex())
-        {
-            ShapeRenderer::paint(painter, *cell);
-        }
-    }
-
+    // Paint in document order so "bring to front" / "send to back" really
+    // changes whether an edge is hidden behind a shape.
     for (Cell *cell : cells)
     {
         if (cell->isEdge())
         {
             EdgeRenderer::paint(painter, page, *cell);
+        }
+        else if (cell->isVertex())
+        {
+            ShapeRenderer::paint(painter, *cell);
         }
     }
 
