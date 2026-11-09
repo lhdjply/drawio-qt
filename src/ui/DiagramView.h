@@ -129,6 +129,17 @@ public:
     void applyGeometry(double x, double y, double width, double height);
     void setRotation(double degrees);
 
+    // --- layers ----------------------------------------------------------
+    void addLayer();
+    void removeLayer(const QString &layerId);
+    void renameLayer(const QString &layerId, const QString &name);
+    void setActiveLayer(const QString &layerId);
+    void setLayerVisible(const QString &layerId, bool visible);
+    void moveLayer(const QString &layerId, int delta);
+    void moveObject(const QString &cellId, int delta);
+    void setLayerLocked(const QString &layerId, bool locked);
+    bool isLayerLocked(const QString &layerId) const;
+
     Cell *addShape(const ShapeDefinition &definition, const QPointF &scenePos);
     Cell *addText(const QPointF &scenePos);
     Cell *addEdgeFromSelection();
@@ -195,6 +206,7 @@ private:
     void paintSelectionOverlay(QPainter &painter);
     void paintConnectionPreview(QPainter &painter);
 
+    QString layerIdForCell(const Cell *cell) const;
     int waypointAt(const QPointF &viewPoint, QString *edgeId) const;
     Cell *selectedEdgeAt(const QPointF &scenePoint, QPointF *projected) const;
     Cell *singleRotatedVertex() const;

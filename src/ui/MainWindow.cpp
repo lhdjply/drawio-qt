@@ -10,6 +10,7 @@
 #include "ui/Dialogs.h"
 #include "ui/DiagramView.h"
 #include "ui/FormatPanel.h"
+#include "ui/LayerPanel.h"
 #include "ui/ShapeLibraryDialog.h"
 #include "ui/ShapeToolbox.h"
 #include "ui/UpdateDialog.h"
@@ -407,6 +408,11 @@ void MainWindow::switchToDocument(int index)
     if (m_formatPanel != nullptr)
     {
         m_formatPanel->setView(m_view);
+    }
+
+    if (m_layerPanel != nullptr)
+    {
+        m_layerPanel->setView(m_view);
     }
 
     updatePageTabs();
@@ -897,6 +903,7 @@ void MainWindow::createMenus()
     editMenu->addAction(m_ungroupAction);
 
     QMenu *viewMenu = menuBar()->addMenu(QStringLiteral("视图(&V)"));
+    viewMenu->setObjectName(QStringLiteral("viewMenu"));
     viewMenu->addAction(m_zoomInAction);
     viewMenu->addAction(m_zoomOutAction);
     viewMenu->addAction(m_resetZoomAction);
@@ -1106,6 +1113,20 @@ void MainWindow::createDocks()
     m_formatPanel->setMinimumWidth(270);
     resizeDocks({formatDock}, {290}, Qt::Horizontal);
 
+    m_layerPanel = new LayerPanel(this);
+
+    auto *layerDock = new QDockWidget(QStringLiteral("图层"), this);
+    layerDock->setObjectName(QStringLiteral("layerDock"));
+    layerDock->setWidget(m_layerPanel);
+    layerDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    addDockWidget(Qt::RightDockWidgetArea, layerDock);
+    m_layerPanel->setView(m_view);
+
+    if (QMenu *viewMenu = findChild<QMenu *>(QStringLiteral("viewMenu")))
+    {
+        viewMenu->addAction(layerDock->toggleViewAction());
+    }
+
     connect(m_toolbox, &ShapeToolbox::shapeActivated, this,
             [this](const ShapeDefinition &definition)
     {
@@ -1232,6 +1253,11 @@ void MainWindow::updatePageTabs()
     }
 
     m_pageTabs->setCurrentIndex(m_document->currentIndex());
+
+    if (m_layerPanel != nullptr)
+    {
+        m_layerPanel->refresh();
+    }
 }
 
 void MainWindow::updateStatus()

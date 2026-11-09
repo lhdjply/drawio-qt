@@ -55,6 +55,24 @@ private slots:
         QVERIFY(loadedPage->cell(edge->id)->waypoints == QVector<QPointF>({QPointF(200, 90)}));
     }
 
+    void layersAreWrittenWithTheirCells()
+    {
+        Document document;
+        Page *page = document.currentPage();
+        page->layers = {Layer{QStringLiteral("L1"), QStringLiteral("图层1"), true, false},
+                        Layer{QStringLiteral("L2"), QStringLiteral("图层2"), true, false}};
+        page->activeLayerId = QStringLiteral("L1");
+        page->addVertex(QRectF(10, 10, 50, 30), {}, QStringLiteral("A"));
+        page->activeLayerId = QStringLiteral("L2");
+        page->addVertex(QRectF(100, 10, 50, 30), {}, QStringLiteral("B"));
+
+        const QString xml = MxFileIO::documentToXml(document, false);
+        const int layer2 = xml.indexOf(QStringLiteral("id=\"L2\""));
+        const int cellA = xml.indexOf(QStringLiteral("value=\"A\""));
+        QVERIFY(layer2 > 0 && cellA > 0);
+        QVERIFY(!xml.contains(QStringLiteral("</mxCell><mxCell id=\"L2\" vertex")));
+    }
+
     void savedDrawioIsUncompressed()
     {
         Document document;

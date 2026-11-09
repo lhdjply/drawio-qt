@@ -23,6 +23,7 @@
 #include <QPainter>
 #include <QtMath>
 #include <QPainterPath>
+#include <QUuid>
 #include <QRegularExpression>
 #include <QScrollBar>
 #include <QTextDocument>
@@ -630,7 +631,8 @@ Cell *DiagramView::cellAt(const QPointF &scenePoint, bool includeEdges) const
         {
             Cell *cell = cells.at(i);
 
-            if (!cell->isEdge() || !cell->visible)
+            if (!cell->isEdge() || !cell->visible
+                || isLayerLocked(layerIdForCell(cell)))
             {
                 continue;
             }
@@ -2405,7 +2407,8 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
         {
             for (Cell *cell : m_page->cells())
             {
-                if (!cell->visible)
+                if (!cell->visible || (cell->isVertex()
+                    && isLayerLocked(layerIdForCell(cell))))
                 {
                     continue;
                 }
@@ -3660,7 +3663,7 @@ void DiagramView::startEditing(const QString &cellId, bool selectAll)
 
     Cell *cell = m_page->cell(cellId);
 
-    if (cell == nullptr)
+    if (cell == nullptr || isLayerLocked(layerIdForCell(cell)))
     {
         return;
     }
@@ -3928,12 +3931,305 @@ void DiagramView::setRotation(double degrees)
     update();
 }
 
+QString DiagramView::layerIdForCell(const Cell *cell) const
+{
+    if (m_page == nullptr || cell == nullptr)
+    {
+        return {};
+    }
+
+    QString parentId = cell->parentId;
+
+    while (!parentId.isEmpty())
+    {
+        if (m_page->layer(parentId) != nullptr)
+        {
+            return parentId;
+        }
+
+        const Cell *parent = m_page->cell(parentId);
+
+        if (parent == nullptr)
+        {
+            break;
+        }
+
+        parentId = parent->parentId;
+    }
+
+    return {};
+}
+
+bool DiagramView::isLayerLocked(const QString &layerId) const
+{
+    const Layer *layer = m_page != nullptr ? m_page->layer(layerId) : nullptr;
+    return layer != nullptr && layer->locked;
+}
+
+void DiagramView::setLayerLocked(const QString &layerId, bool locked)
+{
+    if (m_page == nullptr)
+    {
+        return;
+    }
+
+    Layer *layer = m_page->layer(layerId);
+
+    if (layer == nullptr || layer->locked == locked)
+    {
+        return;
+    }
+
+    if (!locked && layer->locked)
+    {
+        // Unlocking is always allowed.
+    }
+
+    beginSnapshot(QStringLiteral("锁定图层"));
+    layer->locked = locked;
+
+    if (locked)
+    {
+        for (auto it = m_selection.begin(); it != m_selection.end();)
+        {
+            Cell *cell = m_page->cell(*it);
+
+            if (cell != nullptr && layerIdForCell(cell) == layerId)
+            {
+                it = m_selection.erase(it);
+            }
+            else
+            {
+                ++it;
+            }
+        }
+
+        emit selectionChanged();
+    }
+
+    commitSnapshot();
+    notifyModified();
+    update();
+}
+
+void DiagramView::addLayer()
+{
+    if (m_page == nullptr)
+    {
+        return;
+    }
+
+    beginSnapshot(QStringLiteral("新建图层"));
+    Layer layer;
+    layer.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
+    layer.name = QStringLiteral("图层 %1").arg(m_page->layers.size() + 1);
+    layer.visible = true;
+    m_page->layers.append(layer);
+    m_page->activeLayerId = layer.id;
+    commitSnapshot();
+    notifyModified();
+    update();
+}
+
+void DiagramView::removeLayer(const QString &layerId)
+{
+    if (m_page == nullptr || layerId.isEmpty() || m_page->layers.size() <= 1)
+    {
+        return;
+    }
+
+    const Layer *layerToRemove = m_page->layer(layerId);
+
+    if (layerToRemove != nullptr && layerToRemove->locked)
+    {
+        return;
+    }
+
+    beginSnapshot(QStringLiteral("删除图层"));
+    const QVector<Cell *> cells = m_page->cells();
+
+    for (Cell *cell : cells)
+    {
+        if (cell->parentId == layerId)
+        {
+            m_page->removeCell(cell);
+        }
+    }
+
+    for (int i = 0; i < m_page->layers.size(); ++i)
+    {
+        if (m_page->layers.at(i).id == layerId)
+        {
+            m_page->layers.removeAt(i);
+            break;
+        }
+    }
+
+    if (m_page->activeLayerId == layerId)
+    {
+        m_page->activeLayerId = m_page->layers.isEmpty()
+            ? QStringLiteral("1") : m_page->layers.first().id;
+    }
+
+    commitSnapshot();
+    notifyModified();
+    update();
+}
+
+void DiagramView::renameLayer(const QString &layerId, const QString &name)
+{
+    if (m_page == nullptr)
+    {
+        return;
+    }
+
+    Layer *layer = m_page->layer(layerId);
+
+    if (layer == nullptr || name.isEmpty())
+    {
+        return;
+    }
+
+    beginSnapshot(QStringLiteral("重命名图层"));
+    layer->name = name;
+    commitSnapshot();
+    notifyModified();
+    update();
+}
+
+void DiagramView::setActiveLayer(const QString &layerId)
+{
+    if (m_page != nullptr && m_page->layer(layerId) != nullptr)
+    {
+        m_page->activeLayerId = layerId;
+    }
+}
+
+void DiagramView::setLayerVisible(const QString &layerId, bool visible)
+{
+    if (m_page == nullptr)
+    {
+        return;
+    }
+
+    Layer *layer = m_page->layer(layerId);
+
+    if (layer == nullptr || layer->visible == visible)
+    {
+        return;
+    }
+
+    beginSnapshot(QStringLiteral("切换图层可见性"));
+    layer->visible = visible;
+    commitSnapshot();
+    notifyModified();
+    update();
+}
+
+void DiagramView::moveLayer(const QString &layerId, int delta)
+{
+    if (m_page == nullptr || delta == 0)
+    {
+        return;
+    }
+
+    int index = -1;
+
+    for (int i = 0; i < m_page->layers.size(); ++i)
+    {
+        if (m_page->layers.at(i).id == layerId)
+        {
+            index = i;
+            break;
+        }
+    }
+
+    const int target = index + delta;
+
+    if (index < 0 || target < 0 || target >= m_page->layers.size())
+    {
+        return;
+    }
+
+    beginSnapshot(QStringLiteral("调整图层顺序"));
+    m_page->layers.swapItemsAt(index, target);
+    commitSnapshot();
+    notifyModified();
+    update();
+}
+
+void DiagramView::moveObject(const QString &cellId, int delta)
+{
+    if (m_page == nullptr || delta == 0)
+    {
+        return;
+    }
+
+    Cell *cell = m_page->cell(cellId);
+
+    if (cell == nullptr)
+    {
+        return;
+    }
+
+    const auto layerOf = [this](const Cell *candidate)
+    {
+        QString parentId = candidate != nullptr ? candidate->parentId : QString();
+
+        while (!parentId.isEmpty())
+        {
+            if (m_page->layer(parentId) != nullptr)
+            {
+                return parentId;
+            }
+
+            const Cell *parent = m_page->cell(parentId);
+
+            if (parent == nullptr)
+            {
+                break;
+            }
+
+            parentId = parent->parentId;
+        }
+
+        return QString();
+    };
+
+    const QString layerId = layerOf(cell);
+    const int current = m_page->indexOf(cell);
+    int target = current + delta;
+
+    while (target >= 0 && target < m_page->cells().size()
+           && layerOf(m_page->cells().at(target)) != layerId)
+    {
+        target += delta;
+    }
+
+    if (current < 0 || target < 0 || target >= m_page->cells().size())
+    {
+        return;
+    }
+
+    beginSnapshot(QStringLiteral("调整对象层级"));
+    m_page->moveCell(cell, target);
+    commitSnapshot();
+    notifyModified();
+    update();
+}
+
 // --- creation ------------------------------------------------------------
 
 Cell *DiagramView::addShape(const ShapeDefinition &definition, const QPointF &scenePos)
 {
     if (m_page == nullptr)
     {
+        return nullptr;
+    }
+
+    if (isLayerLocked(m_page->activeLayerId))
+    {
+        emit statusMessage(QStringLiteral("当前图层已锁定，无法添加对象"));
         return nullptr;
     }
 
@@ -3953,6 +4249,7 @@ Cell *DiagramView::addShape(const ShapeDefinition &definition, const QPointF &sc
                                    QStringLiteral(""));
     m_selection = {cell->id};
     commitSnapshot();
+    notifyModified();
     update();
     emit selectionChanged();
     return cell;
@@ -4003,6 +4300,7 @@ Cell *DiagramView::addEdgeFromSelection()
     }
 
     commitSnapshot();
+    notifyModified();
     update();
     emit selectionChanged();
     return edge;

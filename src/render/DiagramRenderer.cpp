@@ -26,10 +26,34 @@ bool layerVisible(const Page &page, const QString &layerId)
     return layer->visible;
 }
 
+QString layerIdFor(const Page &page, const Cell *cell)
+{
+    QString parentId = cell != nullptr ? cell->parentId : QString();
+
+    while (!parentId.isEmpty())
+    {
+        if (page.layer(parentId) != nullptr)
+        {
+            return parentId;
+        }
+
+        const Cell *parent = page.cell(parentId);
+
+        if (parent == nullptr)
+        {
+            break;
+        }
+
+        parentId = parent->parentId;
+    }
+
+    return {};
+}
+
 QVector<Cell *> paintOrder(const Page &page)
 {
-    QVector<Cell *> result;
-    result.reserve(page.cells().size());
+    QHash<QString, QVector<Cell *>> byLayer;
+    QVector<Cell *> orphans;
 
     for (Cell *cell : page.cells())
     {
@@ -55,14 +79,28 @@ QVector<Cell *> paintOrder(const Page &page)
             continue;
         }
 
-        if (page.layer(cell->parentId) != nullptr && !layerVisible(page, cell->parentId))
-        {
-            continue;
-        }
+        const QString layerId = layerIdFor(page, cell);
 
-        result.append(cell);
+        if (layerId.isEmpty())
+        {
+            orphans.append(cell);
+        }
+        else if (layerVisible(page, layerId))
+        {
+            byLayer[layerId].append(cell);
+        }
     }
 
+    QVector<Cell *> result;
+    result.reserve(page.cells().size());
+
+    // Paint bottom layer first; page.layers is stored bottom-to-top.
+    for (const Layer &layer : page.layers)
+    {
+        result.append(byLayer.value(layer.id));
+    }
+
+    result.append(orphans);
     return result;
 }
 

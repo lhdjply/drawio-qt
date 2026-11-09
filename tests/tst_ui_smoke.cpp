@@ -10,6 +10,7 @@
 #include "render/EdgeRouter.h"
 #include "ui/OverlayEditor.h"
 #include "ui/MainWindow.h"
+#include "ui/LayerPanel.h"
 
 #include <QApplication>
 #include <QComboBox>
@@ -25,6 +26,8 @@
 #include <QUndoStack>
 #include <QListWidget>
 #include <QTabBar>
+#include <QTreeWidget>
+#include <QToolButton>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -498,6 +501,209 @@ private slots:
         QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, target.toPoint());
 
         QVERIFY(cell->geometry.width() != 100.0 || cell->geometry.height() != 60.0);
+    }
+
+    void layerFileLoadsIntoPanel()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("layers.drawio"));
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::WriteOnly));
+        file.write(QStringLiteral(
+            "<mxfile><diagram id=\"p\" name=\"p\"><mxGraphModel><root>"
+            "<mxCell id=\"0\"/><mxCell id=\"L1\" parent=\"0\" value=\"图层1\"/>"
+            "<mxCell id=\"L2\" parent=\"0\" value=\"图层2\"/>"
+            "<mxCell id=\"v\" parent=\"L1\" vertex=\"1\" value=\"box\">"
+            "<mxGeometry x=\"10\" y=\"10\" width=\"40\" height=\"30\" as=\"geometry\"/>"
+            "</mxCell></root></mxGraphModel></diagram></mxfile>").toUtf8());
+        file.close();
+
+        MainWindow window;
+        window.show();
+        QVERIFY(window.openFile(path));
+        QCOMPARE(window.document()->currentPage()->layers.size(), 2);
+
+        auto *panel = window.findChild<LayerPanel *>();
+        QVERIFY(panel != nullptr);
+        auto *tree = panel->findChild<QTreeWidget *>();
+        QVERIFY(tree != nullptr);
+        QCOMPARE(tree->topLevelItemCount(), 2);
+        int objectCount = 0;
+
+        for (int i = 0; i < tree->topLevelItemCount(); ++i)
+        {
+            objectCount += tree->topLevelItem(i)->childCount();
+        }
+
+        QCOMPARE(objectCount, 1);
+    }
+
+    void layersUpdateWhenShapesAdded()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        auto *panel = window.findChild<LayerPanel *>();
+        QVERIFY(panel != nullptr);
+        auto *tree = panel->findChild<QTreeWidget *>();
+        QVERIFY(tree != nullptr);
+        QCOMPARE(tree->topLevelItemCount(), 1);
+        QCOMPARE(tree->topLevelItem(0)->childCount(), 0);
+
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(120, 120));
+        QVERIFY(shape != nullptr);
+        QCOMPARE(tree->topLevelItem(0)->childCount(), 1);
+        QVERIFY(tree->currentItem() != nullptr);
+        QCOMPARE(tree->currentItem()->data(0, Qt::UserRole).toString(), shape->id);
+    }
+
+    void lockedLayerPreventsEditing()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        view->addLayer();
+        const QString layerId = view->page()->activeLayerId;
+        view->setLayerLocked(layerId, true);
+        QVERIFY(view->isLayerLocked(layerId));
+
+        Cell *blocked = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                       QPointF(120, 120));
+        QVERIFY(blocked == nullptr);
+
+        view->setLayerLocked(layerId, false);
+        QVERIFY(!view->isLayerLocked(layerId));
+        Cell *created = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                       QPointF(120, 120));
+        QVERIFY(created != nullptr);
+    }
+
+    void lockedLayerCannotBeDeleted()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        view->addLayer();
+        const QString layerId = view->page()->activeLayerId;
+        view->setLayerLocked(layerId, true);
+        QCOMPARE(view->page()->layers.size(), 2);
+
+        view->removeLayer(layerId);
+        QCOMPARE(view->page()->layers.size(), 2);
+    }
+
+    void layerCanBeDeletedFromPanel()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        view->addLayer();
+        QCOMPARE(view->page()->layers.size(), 2);
+
+        auto *panel = window.findChild<LayerPanel *>();
+        QVERIFY(panel != nullptr);
+        QToolButton *remove = nullptr;
+
+        for (QToolButton *button : panel->findChildren<QToolButton *>())
+        {
+            if (button->text() == QStringLiteral("－"))
+            {
+                remove = button;
+                break;
+            }
+        }
+
+        QVERIFY(remove != nullptr);
+        QVERIFY(remove->isEnabled());
+        remove->click();
+        QCOMPARE(view->page()->layers.size(), 1);
+    }
+
+    void layerObjectsAreTopmostFirst()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        auto *panel = window.findChild<LayerPanel *>();
+        QVERIFY(panel != nullptr);
+        auto *tree = panel->findChild<QTreeWidget *>();
+        QVERIFY(tree != nullptr);
+
+        Cell *a = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                 QPointF(100, 100));
+        Cell *b = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                 QPointF(200, 100));
+        QVERIFY(a != nullptr && b != nullptr);
+
+        QTreeWidgetItem *layerItem = tree->topLevelItem(0);
+        QCOMPARE(layerItem->childCount(), 2);
+        QCOMPARE(layerItem->child(0)->data(0, Qt::UserRole).toString(), b->id);
+
+        view->selectCell(a->id);
+        view->moveObject(a->id, 1);
+        QCOMPARE(tree->topLevelItem(0)->child(0)->data(0, Qt::UserRole).toString(), a->id);
+    }
+
+    void objectsMoveWithinLayer()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *a = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                 QPointF(100, 100));
+        Cell *b = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                 QPointF(200, 100));
+        QVERIFY(a != nullptr && b != nullptr);
+
+        const int beforeA = view->page()->indexOf(a);
+        const int beforeB = view->page()->indexOf(b);
+        QVERIFY(beforeB > beforeA);
+
+        view->moveObject(b->id, -1);
+        QVERIFY(view->page()->indexOf(b) < beforeB);
+        QVERIFY(view->page()->indexOf(a) == beforeA + 1);
+    }
+
+    void layersCanBeManaged()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Page *page = view->page();
+        QVERIFY(page != nullptr);
+        QCOMPARE(page->layers.size(), 1);
+
+        view->addLayer();
+        QCOMPARE(page->layers.size(), 2);
+        const QString layerId = page->activeLayerId;
+        QVERIFY(page->layer(layerId) != nullptr);
+
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(120, 120));
+        QVERIFY(shape != nullptr);
+        QCOMPARE(shape->parentId, layerId);
+
+        view->setLayerVisible(layerId, false);
+        QVERIFY(!page->layer(layerId)->visible);
+        view->setLayerVisible(layerId, true);
+        QVERIFY(page->layer(layerId)->visible);
+
+        view->renameLayer(layerId, QStringLiteral("我的图层"));
+        QCOMPARE(page->layer(layerId)->name, QStringLiteral("我的图层"));
+
+        const QString shapeId = shape->id;
+        view->removeLayer(layerId);
+        QCOMPARE(page->layers.size(), 1);
+        QVERIFY(page->cell(shapeId) == nullptr);
     }
 
     void altEnterInsertsLineBreak()

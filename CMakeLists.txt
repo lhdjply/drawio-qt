@@ -131,6 +131,8 @@ set(DRAWIO_QT_SOURCES
     src/ui/ShapeLibraryDialog.h
     src/ui/FormatPanel.cpp
     src/ui/FormatPanel.h
+    src/ui/LayerPanel.cpp
+    src/ui/LayerPanel.h
     src/ui/OverlayEditor.cpp
     src/ui/OverlayEditor.h
     src/ui/Dialogs.cpp

@@ -18,6 +18,7 @@ namespace dq {
 class DiagramView;
 class Document;
 class FormatPanel;
+class LayerPanel;
 class ShapeToolbox;
 
 /// One editor window. Each window owns a Document, the canvas, the shape
@@ -104,6 +105,7 @@ private:
     DiagramView *m_view = nullptr;
     ShapeToolbox *m_toolbox = nullptr;
     FormatPanel *m_formatPanel = nullptr;
+    LayerPanel *m_layerPanel = nullptr;
     QTabBar *m_pageTabs = nullptr;
     QTabBar *m_fileTabs = nullptr;
     QVector<Document *> m_documents;

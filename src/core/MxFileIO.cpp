@@ -130,6 +130,30 @@ void writeCell(QXmlStreamWriter &writer, const Cell &cell)
     writer.writeEndElement();
 }
 
+QString cellLayerId(const Page &page, const Cell *cell)
+{
+    QString parentId = cell != nullptr ? cell->parentId : QString();
+
+    while (!parentId.isEmpty())
+    {
+        if (page.layer(parentId) != nullptr)
+        {
+            return parentId;
+        }
+
+        const Cell *parent = page.cell(parentId);
+
+        if (parent == nullptr)
+        {
+            break;
+        }
+
+        parentId = parent->parentId;
+    }
+
+    return {};
+}
+
 QString pageModelXml(const Page &page)
 {
     QString model;
@@ -161,8 +185,11 @@ QString pageModelXml(const Page &page)
     writer.writeAttribute(QStringLiteral("id"), QStringLiteral("0"));
     writer.writeEndElement();
 
-    // Layers are cells with parent "0". The default layer is named "1" and
-    // carries no value, exactly like draw.io saves it.
+    // draw.io writes each layer followed by its own cells, so keep that
+    // order instead of putting every layer first.
+    const QVector<Cell *> cells = page.cells();
+    QSet<QString> written;
+
     for (const Layer &layer : page.layers)
     {
         writer.writeStartElement(QStringLiteral("mxCell"));
@@ -194,17 +221,23 @@ QString pageModelXml(const Page &page)
         }
 
         writer.writeEndElement();
+
+        for (Cell *cell : cells)
+        {
+            if (cellLayerId(page, cell) == layer.id)
+            {
+                writeCell(writer, *cell);
+                written.insert(cell->id);
+            }
+        }
     }
 
-    QVector<Cell *> ordered = page.cells();
-    std::stable_sort(ordered.begin(), ordered.end(), [](Cell *a, Cell *b)
+    for (Cell *cell : cells)
     {
-        return a->depth() < b->depth();
-    });
-
-    for (Cell *cell : ordered)
-    {
-        writeCell(writer, *cell);
+        if (!written.contains(cell->id))
+        {
+            writeCell(writer, *cell);
+        }
     }
 
     writer.writeEndElement(); // root
