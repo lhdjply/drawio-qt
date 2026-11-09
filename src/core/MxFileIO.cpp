@@ -564,9 +564,7 @@ QString MxFileIO::documentToXml(const Document &document, bool compressPages)
         QString xml = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
                                      "<mxfile host=\"drawio-qt\" modified=\"")
             + QDateTime::currentDateTimeUtc().toString(Qt::ISODate)
-            + QStringLiteral("\" agent=\"drawio-qt/")
-            + QStringLiteral(DRAWIO_QT_VERSION)
-            + QStringLiteral("\" version=\"32.6.10\" type=\"device\">\n");
+            + QStringLiteral("\" type=\"device\">\n");
 
         for (const Page *page : document.pages())
         {
@@ -593,9 +591,6 @@ QString MxFileIO::documentToXml(const Document &document, bool compressPages)
     writer.writeAttribute(QStringLiteral("host"), QStringLiteral("drawio-qt"));
     writer.writeAttribute(QStringLiteral("modified"),
                           QDateTime::currentDateTimeUtc().toString(Qt::ISODate));
-    writer.writeAttribute(QStringLiteral("agent"),
-                          QStringLiteral("drawio-qt/%1").arg(QStringLiteral(DRAWIO_QT_VERSION)));
-    writer.writeAttribute(QStringLiteral("version"), QStringLiteral("32.6.10"));
     writer.writeAttribute(QStringLiteral("type"), QStringLiteral("device"));
 
     for (const Page *page : document.pages())

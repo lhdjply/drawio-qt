@@ -90,6 +90,8 @@ private slots:
         QVERIFY(xml.contains(QStringLiteral("<mxGraphModel")));
         QVERIFY(xml.contains(QStringLiteral("value=\"A\"")));
         QVERIFY(xml.contains(QStringLiteral("\n")));
+        QVERIFY(!xml.contains(QStringLiteral("agent=\"drawio-qt")));
+        QVERIFY(!xml.contains(QStringLiteral("version=\"32.6.10")));
     }
 
     void compressedRoundTrip()
