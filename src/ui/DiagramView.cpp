@@ -1135,12 +1135,37 @@ void DiagramView::paintSelectionOverlay(QPainter &painter)
                 continue;
             }
 
-            for (const QPointF &waypoint : cell->waypoints)
+            const RoutedEdge route = EdgeRouter::route(*m_page, *cell);
+
+            // Segment midpoint handles, like draw.io: drag a dot to move the
+            // whole segment. They are only affordances; hit testing accepts the
+            // entire segment.
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(accent);
+
+            for (int i = 1; i < route.points.size(); ++i)
             {
-                const QPointF center = toView(waypoint);
-                painter.setPen(QPen(accent, 1.0));
-                painter.setBrush(accent);
-                painter.drawEllipse(center, 3.5, 3.5);
+                const QPointF a = route.points.at(i - 1);
+                const QPointF b = route.points.at(i);
+
+                if (QLineF(a, b).length() < 12.0)
+                {
+                    continue;
+                }
+
+                painter.drawEllipse(toView((a + b) / 2.0), 3.0, 3.0);
+            }
+
+            // Green endpoint crosses mark the attached connection points.
+            const QColor endpoint(0x18, 0xA0, 0x5E);
+            painter.setPen(QPen(endpoint, 1.8));
+            painter.setBrush(Qt::NoBrush);
+
+            for (const QPointF &endpointPoint : {route.points.first(), route.points.last()})
+            {
+                const QPointF center = toView(endpointPoint);
+                painter.drawLine(center + QPointF(-4, -4), center + QPointF(4, 4));
+                painter.drawLine(center + QPointF(-4, 4), center + QPointF(4, -4));
             }
         }
     }
