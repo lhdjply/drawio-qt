@@ -251,9 +251,9 @@ bool Document::save(const QString &path, QString *error)
 
     QSaveFile file(path);
 
-    // .drawio keeps draw.io's compressed page encoding; .xml is written
-    // uncompressed so it stays human readable and diff friendly.
-    m_compressed = QFileInfo(path).suffix().compare(QLatin1String("xml"), Qt::CaseInsensitive) != 0;
+    // Always write plain mxGraphModel XML: draw.io reads both encodings, and
+    // uncompressed files stay human readable and diff friendly.
+    m_compressed = false;
 
     if (!file.open(QIODevice::WriteOnly))
     {

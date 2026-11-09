@@ -3,6 +3,8 @@
 #include "core/MxFileIO.h"
 #include "core/Page.h"
 
+#include <QFile>
+#include <QTemporaryDir>
 #include <QtTest>
 
 using namespace dq;
@@ -51,6 +53,24 @@ private slots:
         QCOMPARE(loadedPage->cell(a->id)->value, QStringLiteral("开始"));
         QCOMPARE(loadedPage->cell(a->id)->geometry, QRectF(10, 20, 120, 60));
         QVERIFY(loadedPage->cell(edge->id)->waypoints == QVector<QPointF>({QPointF(200, 90)}));
+    }
+
+    void savedDrawioIsUncompressed()
+    {
+        Document document;
+        Page *page = document.currentPage();
+        page->addVertex(QRectF(10, 10, 50, 30), {}, QStringLiteral("A"));
+
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("plain.drawio"));
+        QVERIFY(document.save(path));
+
+        QFile file(path);
+        QVERIFY(file.open(QIODevice::ReadOnly));
+        const QString xml = QString::fromUtf8(file.readAll());
+        QVERIFY(xml.contains(QStringLiteral("<mxGraphModel")));
+        QVERIFY(xml.contains(QStringLiteral("value=\"A\"")));
     }
 
     void compressedRoundTrip()
