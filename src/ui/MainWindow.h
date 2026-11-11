@@ -1,7 +1,9 @@
 #pragma once
 
 #include "core/Page.h"
+#include "ui/Dialogs.h"
 
+#include <QHash>
 #include <QMainWindow>
 
 class QAction;
@@ -56,6 +58,8 @@ private:
     void createToolBars();
     void createDocks();
     void createStatusBar();
+    void setupShortcuts();
+    void editShortcuts();
     void createPageTabs();
     void createFileTabs();
     int addDocumentTab(Document *document);
@@ -166,6 +170,8 @@ private:
     QAction *m_connectorAction = nullptr;
     QAction *m_selectToolAction = nullptr;
     QAction *m_panToolAction = nullptr;
+    QHash<QString, QAction *> m_shortcutActions;
+    QVector<ShortcutSetting> m_shortcuts;
 
 };
 

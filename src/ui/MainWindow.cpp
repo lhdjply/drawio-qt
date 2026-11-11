@@ -8,6 +8,8 @@
 #include "io/Exporter.h"
 #include "render/DiagramRenderer.h"
 #include "ui/Dialogs.h"
+
+#include <QSettings>
 #include "ui/DiagramView.h"
 #include "ui/FormatPanel.h"
 #include "ui/LayerPanel.h"
@@ -102,6 +104,7 @@ MainWindow::MainWindow(QWidget *parent)
     m_fileTabs->blockSignals(false);
 
     createActions();
+    setupShortcuts();
     createMenus();
     createToolBars();
     createDocks();
@@ -842,6 +845,115 @@ void MainWindow::createActions()
     connectorTool->setObjectName(QStringLiteral("connectorToolAction"));
 }
 
+void MainWindow::setupShortcuts()
+{
+    const auto add = [this](const QString &id, const QString &label, QAction *action)
+    {
+        if (action == nullptr)
+        {
+            return;
+        }
+
+        m_shortcutActions.insert(id, action);
+        m_shortcuts.append(ShortcutSetting{id, label, action->shortcut(), action->shortcut()});
+    };
+
+    add(QStringLiteral("file.new"), QStringLiteral("新建"), m_newAction);
+    add(QStringLiteral("file.newWindow"), QStringLiteral("新建窗口"), m_newWindowAction);
+    add(QStringLiteral("file.open"), QStringLiteral("打开…"), m_openAction);
+    add(QStringLiteral("file.save"), QStringLiteral("保存"), m_saveAction);
+    add(QStringLiteral("file.saveAs"), QStringLiteral("另存为…"), m_saveAsAction);
+    add(QStringLiteral("file.export"), QStringLiteral("导出…"), m_exportAction);
+    add(QStringLiteral("file.print"), QStringLiteral("打印…"), m_printAction);
+    add(QStringLiteral("file.printPreview"), QStringLiteral("打印预览…"), m_printPreviewAction);
+    add(QStringLiteral("file.pageSetup"), QStringLiteral("页面设置…"), m_pageSetupAction);
+    add(QStringLiteral("file.close"), QStringLiteral("关闭文件"), m_closeAction);
+    add(QStringLiteral("file.quit"), QStringLiteral("退出"), m_quitAction);
+
+    add(QStringLiteral("edit.undo"), QStringLiteral("撤销"), m_undoAction);
+    add(QStringLiteral("edit.redo"), QStringLiteral("重做"), m_redoAction);
+    add(QStringLiteral("edit.cut"), QStringLiteral("剪切"), m_cutAction);
+    add(QStringLiteral("edit.copy"), QStringLiteral("复制"), m_copyAction);
+    add(QStringLiteral("edit.paste"), QStringLiteral("粘贴"), m_pasteAction);
+    add(QStringLiteral("edit.delete"), QStringLiteral("删除"), m_deleteAction);
+    add(QStringLiteral("edit.duplicate"), QStringLiteral("复制副本"), m_duplicateAction);
+    add(QStringLiteral("edit.selectAll"), QStringLiteral("全选"), m_selectAllAction);
+
+    add(QStringLiteral("view.zoomIn"), QStringLiteral("放大"), m_zoomInAction);
+    add(QStringLiteral("view.zoomOut"), QStringLiteral("缩小"), m_zoomOutAction);
+    add(QStringLiteral("view.resetZoom"), QStringLiteral("实际大小"), m_resetZoomAction);
+    add(QStringLiteral("view.fit"), QStringLiteral("适应窗口"), m_fitAction);
+    add(QStringLiteral("view.grid"), QStringLiteral("显示网格"), m_gridAction);
+    add(QStringLiteral("view.guides"), QStringLiteral("对齐参考线"), m_guidesAction);
+    add(QStringLiteral("view.page"), QStringLiteral("显示页面边界"), m_pageViewAction);
+    add(QStringLiteral("view.dark"), QStringLiteral("深色模式"), m_darkAction);
+    add(QStringLiteral("view.fullScreen"), QStringLiteral("全屏"), m_fullScreenAction);
+    add(QStringLiteral("view.shapes"), QStringLiteral("形状面板"), m_toggleShapesAction);
+    add(QStringLiteral("view.format"), QStringLiteral("格式面板"), m_toggleFormatAction);
+
+    add(QStringLiteral("arrange.group"), QStringLiteral("组合"), m_groupAction);
+    add(QStringLiteral("arrange.ungroup"), QStringLiteral("取消组合"), m_ungroupAction);
+    add(QStringLiteral("arrange.front"), QStringLiteral("置于顶层"), m_frontAction);
+    add(QStringLiteral("arrange.back"), QStringLiteral("置于底层"), m_backAction);
+    add(QStringLiteral("arrange.forward"), QStringLiteral("上移一层"), m_forwardAction);
+    add(QStringLiteral("arrange.backward"), QStringLiteral("下移一层"), m_backwardAction);
+
+    add(QStringLiteral("insert.page"), QStringLiteral("添加页面"), m_addPageAction);
+    add(QStringLiteral("insert.text"), QStringLiteral("文本"), m_textAction);
+    add(QStringLiteral("insert.connector"), QStringLiteral("连线"), m_connectorAction);
+    add(QStringLiteral("tool.select"), QStringLiteral("选择工具"), m_selectToolAction);
+    add(QStringLiteral("tool.pan"), QStringLiteral("平移工具"), m_panToolAction);
+
+    QSettings settings;
+
+    for (ShortcutSetting &item : m_shortcuts)
+    {
+        const QString key = QStringLiteral("shortcuts/") + item.id;
+
+        if (!settings.contains(key))
+        {
+            continue;
+        }
+
+        QAction *action = m_shortcutActions.value(item.id);
+        const QKeySequence sequence = QKeySequence::fromString(
+            settings.value(key).toString(), QKeySequence::PortableText);
+
+        if (action != nullptr)
+        {
+            action->setShortcut(sequence);
+        }
+
+        item.sequence = sequence;
+    }
+}
+
+void MainWindow::editShortcuts()
+{
+    ShortcutDialog dialog(m_shortcuts, this);
+
+    if (dialog.exec() != QDialog::Accepted)
+    {
+        return;
+    }
+
+    m_shortcuts = dialog.settings();
+    QSettings settings;
+
+    for (const ShortcutSetting &item : m_shortcuts)
+    {
+        if (QAction *action = m_shortcutActions.value(item.id))
+        {
+            action->setShortcut(item.sequence);
+        }
+
+        settings.setValue(QStringLiteral("shortcuts/") + item.id,
+                          item.sequence.toString(QKeySequence::PortableText));
+    }
+
+    settings.sync();
+}
+
 void MainWindow::createMenus()
 {
     QMenu *fileMenu = menuBar()->addMenu(QStringLiteral("文件(&F)"));
@@ -1041,7 +1153,7 @@ void MainWindow::createMenus()
     QAction *shortcuts = helpMenu->addAction(QStringLiteral("键盘快捷键"));
     connect(shortcuts, &QAction::triggered, this, [this]()
     {
-        showShortcutsDialog(this);
+        editShortcuts();
     });
     QAction *checkUpdates = helpMenu->addAction(QStringLiteral("检查更新…"));
     connect(checkUpdates, &QAction::triggered, this, [this]()

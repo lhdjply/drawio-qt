@@ -4,6 +4,8 @@
 #include "io/Exporter.h"
 
 #include <QDialog>
+#include <QKeySequence>
+#include <QVector>
 #include <QSizeF>
 
 class QCheckBox;
@@ -12,6 +14,7 @@ class QDoubleSpinBox;
 class QLabel;
 class QLineEdit;
 class QSpinBox;
+class QKeySequenceEdit;
 
 namespace dq {
 
@@ -74,6 +77,33 @@ private:
     QCheckBox *m_grid = nullptr;
     QSpinBox *m_gridSize = nullptr;
     Page::Settings m_original;
+};
+
+struct ShortcutSetting
+{
+    QString id;
+    QString label;
+    QKeySequence sequence;
+    QKeySequence defaultSequence;
+};
+
+/// Editable shortcut table with reset and conflict checking.
+class ShortcutDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    explicit ShortcutDialog(const QVector<ShortcutSetting> &settings,
+                            QWidget *parent = nullptr);
+
+    QVector<ShortcutSetting> settings() const;
+
+private:
+    void restoreDefaults();
+    void acceptIfValid();
+
+    QVector<ShortcutSetting> m_settings;
+    QVector<QKeySequenceEdit *> m_editors;
 };
 
 void showShortcutsDialog(QWidget *parent);

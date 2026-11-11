@@ -28,6 +28,8 @@
 #include <QTabBar>
 #include <QTreeWidget>
 #include <QToolButton>
+#include <QSettings>
+#include <QKeySequenceEdit>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -595,6 +597,40 @@ private slots:
 
         view->removeLayer(layerId);
         QCOMPARE(view->page()->layers.size(), 2);
+    }
+
+    void shortcutsAreConfigurable()
+    {
+        QSettings settings;
+        settings.setValue(QStringLiteral("shortcuts/file.new"), QStringLiteral("Ctrl+Alt+N"));
+        settings.sync();
+
+        MainWindow window;
+        window.show();
+
+        bool found = false;
+
+        for (QAction *action : window.findChildren<QAction *>())
+        {
+            if (action->text() == QStringLiteral("新建"))
+            {
+                found = true;
+                QCOMPARE(action->shortcut(), QKeySequence(QStringLiteral("Ctrl+Alt+N")));
+                break;
+            }
+        }
+
+        QVERIFY(found);
+        settings.remove(QStringLiteral("shortcuts/file.new"));
+        settings.sync();
+
+        QVector<ShortcutSetting> items = {
+            {QStringLiteral("a"), QStringLiteral("功能 A"), QKeySequence(QStringLiteral("Ctrl+A")),
+             QKeySequence(QStringLiteral("Ctrl+A"))},
+            {QStringLiteral("b"), QStringLiteral("功能 B"), QKeySequence(QStringLiteral("Ctrl+B")),
+             QKeySequence(QStringLiteral("Ctrl+B"))}};
+        ShortcutDialog dialog(items);
+        QCOMPARE(dialog.findChildren<QKeySequenceEdit *>().size(), 2);
     }
 
     void layerCanBeDeletedFromPanel()
