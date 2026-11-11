@@ -1,3 +1,4 @@
+#include "app/I18n.h"
 #include "ui/DiagramView.h"
 
 #include "core/MxFileIO.h"
@@ -1423,7 +1424,7 @@ void DiagramView::mousePressEvent(QMouseEvent *event)
 
             if (edge != nullptr && waypointIndex < edge->waypoints.size())
             {
-                beginSnapshot(QStringLiteral("移动控制点"));
+                beginSnapshot(QStringLiteral("Move Control Point"));
                 m_dragMode = DragMode::Waypoint;
                 m_waypointEdgeId = edgeId;
                 m_waypointIndex = waypointIndex;
@@ -1787,7 +1788,7 @@ void DiagramView::beginSegmentDrag(Cell *edge, const RoutedEdge &route, int inde
         return;
     }
 
-    beginSnapshot(QStringLiteral("调整连线"));
+    beginSnapshot(QStringLiteral("Adjust Connector"));
     edge->waypoints = waypoints;
     m_waypointEdgeId = edge->id;
     m_dragMode = DragMode::Segment;
@@ -1817,7 +1818,7 @@ void DiagramView::beginRotate(const QPointF &scenePoint)
         return;
     }
 
-    beginSnapshot(QStringLiteral("旋转"));
+    beginSnapshot(QStringLiteral("Rotation"));
     m_dragMode = DragMode::Rotate;
     m_rotating = true;
     m_dragMoved = false;
@@ -2471,7 +2472,7 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
                                  .arg(sidesY[entrySide]);
                 }
 
-                beginSnapshot(QStringLiteral("创建连线"));
+                beginSnapshot(QStringLiteral("Create Connector"));
                 Cell *edge = m_page->addEdge(m_connectSourceId, selectableTarget->id,
                                              Style::parse(style));
 
@@ -2590,8 +2591,8 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
             if (after != m_dragBeforeXml)
             {
                 pushSnapshotCommand(m_dragBeforeXml, after, m_dragBeforeSelection, m_selection,
-                                    wasResize ? QStringLiteral("调整大小")
-                                              : QStringLiteral("移动"));
+                                    wasResize ? QStringLiteral("Resize")
+                                              : QStringLiteral("Move"));
                 notifyModified();
             }
         }
@@ -2745,7 +2746,7 @@ void DiagramView::keyPressEvent(QKeyEvent *event)
             break;
         }
 
-        beginSnapshot(QStringLiteral("移动"));
+        beginSnapshot(QStringLiteral("Move"));
         for (Cell *cell : selectedCellObjects())
         {
             if (cell->isVertex())
@@ -2956,7 +2957,7 @@ void DiagramView::deleteSelection()
         return;
     }
 
-    beginSnapshot(QStringLiteral("删除"));
+    beginSnapshot(QStringLiteral("Delete"));
     deleteSelectedInternal();
     commitSnapshot();
     m_selection.clear();
@@ -2991,7 +2992,7 @@ void DiagramView::copySelection()
     if (!m_clipboardXml.isEmpty())
     {
         QApplication::clipboard()->setText(m_clipboardXml);
-        emit statusMessage(QStringLiteral("已复制 %1 个单元格").arg(m_selection.size()));
+        emit statusMessage(I18n::text(QStringLiteral("Copied %1 cell(s)")).arg(m_selection.size()));
     }
 }
 
@@ -3019,7 +3020,7 @@ void DiagramView::paste()
 
     if (pastePageXml(xml, 10, 10, true))
     {
-        emit statusMessage(QStringLiteral("已粘贴"));
+        emit statusMessage(QStringLiteral("Pasted"));
     }
 }
 
@@ -3161,11 +3162,11 @@ bool DiagramView::pastePageXml(const QString &xml, double offsetX, double offset
 
     if (!MxFileIO::pageFromXml(source, xml, &error))
     {
-        emit statusMessage(QStringLiteral("粘贴失败：%1").arg(error));
+        emit statusMessage(I18n::text(QStringLiteral("Paste failed: %1")).arg(error));
         return false;
     }
 
-    beginSnapshot(QStringLiteral("粘贴"));
+    beginSnapshot(QStringLiteral("Paste"));
 
     QHash<QString, QString> idMap;
     QVector<Cell *> created;
@@ -3245,7 +3246,7 @@ void DiagramView::moveSelectionBy(const QPointF &delta, bool snap)
             - selectionBounds().topLeft();
     }
 
-    beginSnapshot(QStringLiteral("移动"));
+    beginSnapshot(QStringLiteral("Move"));
 
     for (Cell *cell : selectedCellObjects())
     {
@@ -3285,7 +3286,7 @@ void DiagramView::alignSelection(Align align)
 
     const QRectF bounds = selectionBounds();
 
-    beginSnapshot(QStringLiteral("对齐"));
+    beginSnapshot(QStringLiteral("Align"));
 
     for (Cell *cell : selectedCellObjects())
     {
@@ -3359,7 +3360,7 @@ void DiagramView::distributeHorizontally()
     const double last = cells.last()->absoluteRect().center().x();
     const double step = (last - first) / (cells.size() - 1);
 
-    beginSnapshot(QStringLiteral("水平分布"));
+    beginSnapshot(QStringLiteral("Distribute Horizontally"));
 
     for (int i = 1; i < cells.size() - 1; ++i)
     {
@@ -3398,7 +3399,7 @@ void DiagramView::distributeVertically()
     const double last = cells.last()->absoluteRect().center().y();
     const double step = (last - first) / (cells.size() - 1);
 
-    beginSnapshot(QStringLiteral("垂直分布"));
+    beginSnapshot(QStringLiteral("Distribute Vertically"));
 
     for (int i = 1; i < cells.size() - 1; ++i)
     {
@@ -3430,7 +3431,7 @@ void DiagramView::resizeSelection(SizeAction action)
 
     const QSizeF reference = cells.first()->absoluteRect().size();
 
-    beginSnapshot(QStringLiteral("调整大小"));
+    beginSnapshot(QStringLiteral("Resize"));
 
     for (Cell *cell : cells)
     {
@@ -3470,7 +3471,7 @@ void DiagramView::changeZOrder(ZOrder order)
         return;
     }
 
-    beginSnapshot(QStringLiteral("调整层级"));
+    beginSnapshot(QStringLiteral("Reorder"));
 
     for (const QString &id : m_selection)
     {
@@ -3531,7 +3532,7 @@ void DiagramView::groupSelection()
 
     const QRectF bounds = m_page->boundsForCells(cells);
 
-    beginSnapshot(QStringLiteral("组合"));
+    beginSnapshot(QStringLiteral("Group"));
 
     Cell *group = m_page->addVertex(bounds, Style::parse(QStringLiteral(
                                                      "group;fillColor=none;strokeColor=none;"
@@ -3596,7 +3597,7 @@ void DiagramView::ungroupSelection()
         return;
     }
 
-    beginSnapshot(QStringLiteral("取消组合"));
+    beginSnapshot(QStringLiteral("Ungroup"));
 
     for (Cell *group : groups)
     {
@@ -3786,7 +3787,7 @@ void DiagramView::commitEditing()
         cell->value = value;
         const QString after = MxFileIO::pageToXml(*m_page, false);
         pushSnapshotCommand(before, after, beforeSelection, m_selection,
-                            QStringLiteral("编辑文本"));
+                            QStringLiteral("Edit Text"));
         notifyModified();
     }
 
@@ -3829,7 +3830,7 @@ void DiagramView::setCellValue(const QString &cellId, const QString &value)
         return;
     }
 
-    beginSnapshot(QStringLiteral("编辑文本"));
+    beginSnapshot(QStringLiteral("Edit Text"));
     cell->value = value;
     commitSnapshot();
     update();
@@ -3842,7 +3843,7 @@ void DiagramView::applyStyle(const QString &key, const QString &value)
         return;
     }
 
-    beginSnapshot(QStringLiteral("修改样式"));
+    beginSnapshot(QStringLiteral("Edit Style"));
 
     for (Cell *cell : selectedCellObjects())
     {
@@ -3867,7 +3868,7 @@ void DiagramView::clearStyle(const QString &key)
         return;
     }
 
-    beginSnapshot(QStringLiteral("修改样式"));
+    beginSnapshot(QStringLiteral("Edit Style"));
 
     for (Cell *cell : selectedCellObjects())
     {
@@ -3892,7 +3893,7 @@ void DiagramView::applyGeometry(double x, double y, double width, double height)
         return;
     }
 
-    beginSnapshot(QStringLiteral("调整位置/大小"));
+    beginSnapshot(QStringLiteral("Move / Resize"));
     QRectF rect(x, y, qMax(1.0, width), qMax(1.0, height));
 
     if (cell->parent != nullptr && cell->parent->isVertex())
@@ -3923,7 +3924,7 @@ void DiagramView::setRotation(double degrees)
         return;
     }
 
-    beginSnapshot(QStringLiteral("旋转"));
+    beginSnapshot(QStringLiteral("Rotation"));
     cell->rotation = 0.0;
     cell->setStyleValue(QStringLiteral("rotation"),
                         QString::number(degrees, 'g', 12));
@@ -3985,7 +3986,7 @@ void DiagramView::setLayerLocked(const QString &layerId, bool locked)
         // Unlocking is always allowed.
     }
 
-    beginSnapshot(QStringLiteral("锁定图层"));
+    beginSnapshot(QStringLiteral("Lock Layer"));
     layer->locked = locked;
 
     if (locked)
@@ -4019,10 +4020,10 @@ void DiagramView::addLayer()
         return;
     }
 
-    beginSnapshot(QStringLiteral("新建图层"));
+    beginSnapshot(QStringLiteral("New Layer"));
     Layer layer;
     layer.id = QUuid::createUuid().toString(QUuid::WithoutBraces);
-    layer.name = QStringLiteral("图层 %1").arg(m_page->layers.size() + 1);
+    layer.name = I18n::text(QStringLiteral("Layer %1")).arg(m_page->layers.size() + 1);
     layer.visible = true;
     m_page->layers.append(layer);
     m_page->activeLayerId = layer.id;
@@ -4045,7 +4046,7 @@ void DiagramView::removeLayer(const QString &layerId)
         return;
     }
 
-    beginSnapshot(QStringLiteral("删除图层"));
+    beginSnapshot(QStringLiteral("Delete Layer"));
     const QVector<Cell *> cells = m_page->cells();
 
     for (Cell *cell : cells)
@@ -4090,7 +4091,7 @@ void DiagramView::renameLayer(const QString &layerId, const QString &name)
         return;
     }
 
-    beginSnapshot(QStringLiteral("重命名图层"));
+    beginSnapshot(QStringLiteral("Rename Layer"));
     layer->name = name;
     commitSnapshot();
     notifyModified();
@@ -4119,7 +4120,7 @@ void DiagramView::setLayerVisible(const QString &layerId, bool visible)
         return;
     }
 
-    beginSnapshot(QStringLiteral("切换图层可见性"));
+    beginSnapshot(QStringLiteral("Toggle Layer Visibility"));
     layer->visible = visible;
     commitSnapshot();
     notifyModified();
@@ -4151,7 +4152,7 @@ void DiagramView::moveLayer(const QString &layerId, int delta)
         return;
     }
 
-    beginSnapshot(QStringLiteral("调整图层顺序"));
+    beginSnapshot(QStringLiteral("Reorder Layers"));
     m_page->layers.swapItemsAt(index, target);
     commitSnapshot();
     notifyModified();
@@ -4211,7 +4212,7 @@ void DiagramView::moveObject(const QString &cellId, int delta)
         return;
     }
 
-    beginSnapshot(QStringLiteral("调整对象层级"));
+    beginSnapshot(QStringLiteral("Reorder Object"));
     m_page->moveCell(cell, target);
     commitSnapshot();
     notifyModified();
@@ -4229,11 +4230,11 @@ Cell *DiagramView::addShape(const ShapeDefinition &definition, const QPointF &sc
 
     if (isLayerLocked(m_page->activeLayerId))
     {
-        emit statusMessage(QStringLiteral("当前图层已锁定，无法添加对象"));
+        emit statusMessage(QStringLiteral("The current layer is locked; cannot add objects"));
         return nullptr;
     }
 
-    beginSnapshot(QStringLiteral("添加形状"));
+    beginSnapshot(QStringLiteral("Add Shape"));
 
     const QSizeF size = definition.size;
     QPointF topLeft = scenePos - QPointF(size.width() / 2.0, size.height() / 2.0);
@@ -4290,7 +4291,7 @@ Cell *DiagramView::addEdgeFromSelection()
         return nullptr;
     }
 
-    beginSnapshot(QStringLiteral("创建连线"));
+    beginSnapshot(QStringLiteral("Create Connector"));
     Cell *edge = m_page->addEdge(vertices.at(0)->id, vertices.at(1)->id,
                                  Style::parse(ShapeRegistry::defaultEdgeStyle()));
 

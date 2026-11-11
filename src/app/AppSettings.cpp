@@ -205,6 +205,16 @@ void AppSettings::setTheme(const QString &theme)
     m_settings->setValue(QStringLiteral("view/theme"), theme);
 }
 
+QString AppSettings::language() const
+{
+    return m_settings->value(QStringLiteral("ui/language"), QStringLiteral("en")).toString();
+}
+
+void AppSettings::setLanguage(const QString &language)
+{
+    m_settings->setValue(QStringLiteral("ui/language"), language);
+}
+
 double AppSettings::zoom() const
 {
     return m_settings->value(QStringLiteral("view/zoom"), 1.0).toDouble();

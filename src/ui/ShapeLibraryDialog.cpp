@@ -1,5 +1,7 @@
 #include "ui/ShapeLibraryDialog.h"
 
+#include "app/I18n.h"
+
 #include "app/AppSettings.h"
 #include "render/ShapeCatalog.h"
 
@@ -16,12 +18,12 @@ namespace dq {
 ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
     : QDialog(parent)
 {
-    setWindowTitle(QStringLiteral("形状库"));
+    setWindowTitle(QStringLiteral("Shape Libraries"));
     setMinimumSize(380, 520);
 
     auto *layout = new QVBoxLayout(this);
 
-    auto *hint = new QLabel(QStringLiteral("勾选要在左侧面板中显示的库："), this);
+    auto *hint = new QLabel(QStringLiteral("Select the libraries to show in the left panel:"), this);
     hint->setWordWrap(true);
     layout->addWidget(hint);
 
@@ -33,7 +35,7 @@ ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
     const QVector<ShapeCategory> categories = ShapeCatalog::instance().categories();
     bool imageHeaderAdded = false;
 
-    auto *builtinHeader = new QListWidgetItem(QStringLiteral("内置形状"), m_list);
+    auto *builtinHeader = new QListWidgetItem(I18n::text(QStringLiteral("Built-in Shapes")), m_list);
     builtinHeader->setFlags(Qt::NoItemFlags);
     QFont builtinFont = builtinHeader->font();
     builtinFont.setBold(true);
@@ -44,7 +46,7 @@ ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
         if (category.imageLibrary && !imageHeaderAdded)
         {
             imageHeaderAdded = true;
-            auto *header = new QListWidgetItem(QStringLiteral("图片库"), m_list);
+            auto *header = new QListWidgetItem(I18n::text(QStringLiteral("Image Libraries")), m_list);
             header->setFlags(Qt::NoItemFlags);
             QFont headerFont = header->font();
             headerFont.setBold(true);
@@ -54,7 +56,8 @@ ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
         m_allIds.append(category.id);
 
         auto *item = new QListWidgetItem(m_list);
-        item->setText(QStringLiteral("%1  (%2)").arg(category.name)
+        item->setText(QStringLiteral("%1  (%2)")
+                          .arg(I18n::categoryName(category.id, category.name))
                           .arg(category.shapes.size()));
         item->setData(Qt::UserRole, category.id);
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
@@ -70,16 +73,16 @@ ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
     }
 
     auto *buttonsRow = new QHBoxLayout();
-    auto *selectAllButton = new QPushButton(QStringLiteral("全选"), this);
-    auto *selectNoneButton = new QPushButton(QStringLiteral("全不选"), this);
+    auto *selectAllButton = new QPushButton(QStringLiteral("Select All"), this);
+    auto *selectNoneButton = new QPushButton(QStringLiteral("Deselect All"), this);
     buttonsRow->addWidget(selectAllButton);
     buttonsRow->addWidget(selectNoneButton);
     buttonsRow->addStretch(1);
     layout->addLayout(buttonsRow);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("确定"));
-    buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("取消"));
+    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("OK"));
+    buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("Cancel"));
     layout->addWidget(buttons);
 
     connect(selectAllButton, &QPushButton::clicked, this, [this]()

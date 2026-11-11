@@ -605,11 +605,11 @@ QString helpText(const QString &version)
     width += 4;
 
     QStringList lines;
-    lines << QStringLiteral("drawio-qt %1（draw.io 桌面版的原生 Qt6/C++ 移植）").arg(version);
+    lines << QStringLiteral("drawio-qt %1 (native Qt6/C++ port of draw.io Desktop)").arg(version);
     lines << QString();
-    lines << QStringLiteral("用法: drawio-qt [选项] [输入文件/文件夹]...");
+    lines << QStringLiteral("Usage: drawio-qt [options] [input file/folder]...");
     lines << QString();
-    lines << QStringLiteral("选项:");
+    lines << QStringLiteral("Options:");
 
     for (int i = 0; i < flagsList.size(); ++i)
     {

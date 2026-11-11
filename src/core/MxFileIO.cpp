@@ -259,7 +259,7 @@ bool parseXml(QDomDocument &document, const QString &xml, QString *error)
     {
         if (error != nullptr)
         {
-            *error = QStringLiteral("XML 解析失败（第 %1 行第 %2 列）：%3")
+            *error = QStringLiteral("XML parse error at line %1, column %2: %3")
                          .arg(result.errorLine)
                          .arg(result.errorColumn)
                          .arg(result.errorMessage);
@@ -278,7 +278,7 @@ bool parseXml(QDomDocument &document, const QString &xml, QString *error)
     {
         if (error != nullptr)
         {
-            *error = QStringLiteral("XML 解析失败（第 %1 行第 %2 列）：%3")
+            *error = QStringLiteral("XML parse error at line %1, column %2: %3")
                          .arg(line).arg(column).arg(parseError);
         }
 
@@ -372,7 +372,7 @@ bool readGraphModel(Page &page, const QDomElement &model, QString *error)
     {
         if (error != nullptr)
         {
-            *error = QStringLiteral("mxGraphModel 缺少 root 元素");
+            *error = QStringLiteral("mxGraphModel is missing the root element");
         }
         return false;
     }
@@ -413,7 +413,7 @@ bool readGraphModel(Page &page, const QDomElement &model, QString *error)
 
                 if (layer.name.isEmpty())
                 {
-                    layer.name = QStringLiteral("图层 %1").arg(parsedLayers.size() + 1);
+                    layer.name = QStringLiteral("Layer %1").arg(parsedLayers.size() + 1);
                 }
 
                 const StyleMap layerStyle =
@@ -473,7 +473,7 @@ bool parseModelText(Page &page, const QString &content, QString *error)
         {
             if (error != nullptr)
             {
-                *error = QStringLiteral("无法解压缩页面内容");
+                *error = QStringLiteral("Cannot decompress page content");
             }
             return false;
         }
@@ -498,7 +498,7 @@ bool parseModelText(Page &page, const QString &content, QString *error)
     {
         if (error != nullptr)
         {
-            *error = QStringLiteral("缺少 mxGraphModel 元素");
+            *error = QStringLiteral("Missing mxGraphModel element");
         }
         return false;
     }
@@ -629,7 +629,7 @@ bool MxFileIO::documentFromXml(Document &document, const QString &xml, QString *
 
     if (root.tagName() == QLatin1String(kGraphModelTag))
     {
-        Page *page = document.addPage(QStringLiteral("第 1 页"));
+        Page *page = document.addPage(QStringLiteral("Page 1"));
 
         if (!parseModelText(*page, xml, error))
         {
@@ -645,7 +645,7 @@ bool MxFileIO::documentFromXml(Document &document, const QString &xml, QString *
     {
         if (error != nullptr)
         {
-            *error = QStringLiteral("不是有效的 draw.io 文件（根元素为 %1）").arg(root.tagName());
+            *error = QStringLiteral("Not a valid draw.io file (root element is %1)").arg(root.tagName());
         }
         return false;
     }
@@ -659,7 +659,7 @@ bool MxFileIO::documentFromXml(Document &document, const QString &xml, QString *
         }
 
         Page *page = document.addPage(diagram.attribute(QStringLiteral("name"),
-                                                       QStringLiteral("第 %1 页")
+                                                       QStringLiteral("Page %1")
                                                            .arg(document.pageCount() + 1)));
 
         const QString pageId = diagram.attribute(QStringLiteral("id"));
@@ -691,7 +691,7 @@ bool MxFileIO::documentFromXml(Document &document, const QString &xml, QString *
 
     if (document.pageCount() == 0)
     {
-        document.addPage(QStringLiteral("第 1 页"));
+        document.addPage(QStringLiteral("Page 1"));
     }
 
     document.setCurrentIndex(0);

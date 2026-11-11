@@ -2,6 +2,7 @@
 
 #include "app/AppSettings.h"
 #include "app/UiTheme.h"
+#include "app/I18n.h"
 #include "app/UpdateChecker.h"
 #include "core/Document.h"
 #include "core/MxFileIO.h"
@@ -182,11 +183,11 @@ MainWindow::MainWindow(QWidget *parent)
         }
 
         QMessageBox box(this);
-        box.setWindowTitle(QStringLiteral("文件已更改"));
-        box.setText(QStringLiteral("文件已被其他程序修改：\n%1\n\n是否重新加载？").arg(path));
+        box.setWindowTitle(QStringLiteral("File Changed"));
+        box.setText(I18n::text(QStringLiteral("The file was changed by another program:\n%1\n\nReload?")).arg(path));
         box.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-        box.button(QMessageBox::Yes)->setText(QStringLiteral("重新加载"));
-        box.button(QMessageBox::No)->setText(QStringLiteral("保留当前内容"));
+        box.button(QMessageBox::Yes)->setText(QStringLiteral("Reload"));
+        box.button(QMessageBox::No)->setText(QStringLiteral("Keep Current Content"));
 
         if (box.exec() == QMessageBox::Yes)
         {
@@ -282,8 +283,8 @@ void MainWindow::checkForUpdates(bool manual)
         // 自动检查失败是后台的一次尝试，不打扰；手动检查必须给出可读原因
         if (manual)
         {
-            QMessageBox::warning(this, QStringLiteral("检查更新"),
-                                 QStringLiteral("无法检查更新：\n%1").arg(reason));
+            QMessageBox::warning(this, QStringLiteral("Check for Updates"),
+                                 I18n::text(QStringLiteral("Cannot check for updates:\n%1")).arg(reason));
         }
     });
     connect(checker, &UpdateChecker::upToDate, this,
@@ -292,8 +293,8 @@ void MainWindow::checkForUpdates(bool manual)
         checker->deleteLater();
         if (manual)
         {
-            QMessageBox::information(this, QStringLiteral("检查更新"),
-                                     QStringLiteral("当前已是最新版本（v%1）。").arg(current));
+            QMessageBox::information(this, QStringLiteral("Check for Updates"),
+                                     I18n::text(QStringLiteral("You are up to date (v%1).")).arg(current));
         }
     });
 
@@ -324,7 +325,7 @@ void MainWindow::createFileTabs()
     auto *addTab = new QToolButton(container);
     addTab->setObjectName(QStringLiteral("fileTabAdd"));
     addTab->setText(QStringLiteral("＋"));
-    addTab->setToolTip(QStringLiteral("新建标签页"));
+    addTab->setToolTip(QStringLiteral("New Tab"));
     addTab->setAutoRaise(true);
     addTab->setFixedSize(26, 26);
     layout->addWidget(addTab);
@@ -354,11 +355,11 @@ QString MainWindow::documentTabName(Document *document) const
 {
     if (document == nullptr)
     {
-        return QStringLiteral("未命名");
+        return QStringLiteral("Untitled");
     }
 
     const QString path = document->filePath();
-    const QString name = path.isEmpty() ? QStringLiteral("未命名")
+    const QString name = path.isEmpty() ? QStringLiteral("Untitled")
                                         : QFileInfo(path).fileName();
     return document->isModified() ? name + QLatin1Char('*') : name;
 }
@@ -366,9 +367,11 @@ QString MainWindow::documentTabName(Document *document) const
 int MainWindow::addDocumentTab(Document *document)
 {
     m_documents.append(document);
-    const int index = m_fileTabs->addTab(documentTabName(document));
+    const QString rawName = documentTabName(document);
+    const int index = m_fileTabs->addTab(I18n::text(rawName));
+    m_fileTabs->setTabData(index, rawName);
     m_fileTabs->setTabToolTip(index, document->filePath().isEmpty()
-                                      ? QStringLiteral("未命名")
+                                      ? QStringLiteral("Untitled")
                                       : document->filePath());
     m_fileTabs->setCurrentIndex(index);
     return index;
@@ -491,7 +494,7 @@ void MainWindow::createPageTabs()
 
     auto *addButton = new QToolButton(container);
     addButton->setText(QStringLiteral("＋"));
-    addButton->setToolTip(QStringLiteral("添加页面"));
+    addButton->setToolTip(QStringLiteral("Add Page"));
     addButton->setAutoRaise(true);
     layout->addWidget(addButton);
 
@@ -538,14 +541,14 @@ void MainWindow::createActions()
         return action;
     };
 
-    m_newAction = makeAction(QStringLiteral("新建"), key(QStringLiteral("Ctrl+N")),
+    m_newAction = makeAction(QStringLiteral("New"), key(QStringLiteral("Ctrl+N")),
                              iconFor(QStringLiteral("new")), [this]()
     {
         newDocument();
     });
-    m_newAction->setToolTip(QStringLiteral("新建绘图 (Ctrl+N)"));
+    m_newAction->setToolTip(QStringLiteral("New Drawing (Ctrl+N)"));
 
-    m_newWindowAction = makeAction(QStringLiteral("新建窗口"),
+    m_newWindowAction = makeAction(QStringLiteral("New Window"),
                                    key(QStringLiteral("Ctrl+Shift+N")),
                                    QIcon(), [this]()
     {
@@ -556,49 +559,49 @@ void MainWindow::createActions()
         window->newDocument();
     });
 
-    m_openAction = makeAction(QStringLiteral("打开…"), key(QStringLiteral("Ctrl+O")),
+    m_openAction = makeAction(QStringLiteral("Open…"), key(QStringLiteral("Ctrl+O")),
                               iconFor(QStringLiteral("open")), [this]()
     {
         openDialog();
     });
 
-    m_saveAction = makeAction(QStringLiteral("保存"), key(QStringLiteral("Ctrl+S")),
+    m_saveAction = makeAction(QStringLiteral("Save"), key(QStringLiteral("Ctrl+S")),
                               iconFor(QStringLiteral("save")), [this]()
     {
         save();
     });
 
-    m_saveAsAction = makeAction(QStringLiteral("另存为…"),
+    m_saveAsAction = makeAction(QStringLiteral("Save As…"),
                                 key(QStringLiteral("Ctrl+Shift+S")), QIcon(), [this]()
     {
         saveAs();
     });
 
-    m_exportAction = makeAction(QStringLiteral("导出…"), key(QStringLiteral("Ctrl+E")),
+    m_exportAction = makeAction(QStringLiteral("Export…"), key(QStringLiteral("Ctrl+E")),
                                 iconFor(QStringLiteral("export")), [this]()
     {
         openExportDialog();
     });
 
-    m_printAction = makeAction(QStringLiteral("打印…"), key(QStringLiteral("Ctrl+P")),
+    m_printAction = makeAction(QStringLiteral("Print…"), key(QStringLiteral("Ctrl+P")),
                                iconFor(QStringLiteral("print")), [this]()
     {
         printDocument();
     });
 
-    m_printPreviewAction = makeAction(QStringLiteral("打印预览…"), QKeySequence(), QIcon(),
+    m_printPreviewAction = makeAction(QStringLiteral("Print Preview…"), QKeySequence(), QIcon(),
                                       [this]()
     {
         printPreview();
     });
 
-    m_pageSetupAction = makeAction(QStringLiteral("页面设置…"), QKeySequence(), QIcon(),
+    m_pageSetupAction = makeAction(QStringLiteral("Page Setup…"), QKeySequence(), QIcon(),
                                    [this]()
     {
         pageSetup();
     });
 
-    m_closeAction = makeAction(QStringLiteral("关闭标签页"), key(QStringLiteral("Ctrl+W")),
+    m_closeAction = makeAction(QStringLiteral("Close Tab"), key(QStringLiteral("Ctrl+W")),
                                QIcon(), [this]()
     {
         if (m_fileTabs != nullptr)
@@ -607,85 +610,85 @@ void MainWindow::createActions()
         }
     });
 
-    m_quitAction = makeAction(QStringLiteral("退出"), key(QStringLiteral("Ctrl+Q")), QIcon(),
+    m_quitAction = makeAction(QStringLiteral("Quit"), key(QStringLiteral("Ctrl+Q")), QIcon(),
                               []()
     {
         QApplication::closeAllWindows();
     });
 
-    m_undoAction = m_view->undoStack()->createUndoAction(this, QStringLiteral("撤销"));
+    m_undoAction = m_view->undoStack()->createUndoAction(this, QStringLiteral("Undo"));
     m_undoAction->setShortcut(key(QStringLiteral("Ctrl+Z")));
     m_undoAction->setShortcutContext(Qt::WindowShortcut);
     m_undoAction->setIcon(iconFor(QStringLiteral("undo")));
 
-    m_redoAction = m_view->undoStack()->createRedoAction(this, QStringLiteral("重做"));
+    m_redoAction = m_view->undoStack()->createRedoAction(this, QStringLiteral("Redo"));
     m_redoAction->setShortcuts({key(QStringLiteral("Ctrl+Shift+Z")),
                                 key(QStringLiteral("Ctrl+Y"))});
     m_redoAction->setShortcutContext(Qt::WindowShortcut);
     m_redoAction->setIcon(iconFor(QStringLiteral("redo")));
 
-    m_cutAction = makeAction(QStringLiteral("剪切"), key(QStringLiteral("Ctrl+X")), QIcon(),
+    m_cutAction = makeAction(QStringLiteral("Cut"), key(QStringLiteral("Ctrl+X")), QIcon(),
                              [this]()
     {
         m_view->cutSelection();
     });
 
-    m_copyAction = makeAction(QStringLiteral("复制"), key(QStringLiteral("Ctrl+C")), QIcon(),
+    m_copyAction = makeAction(QStringLiteral("Copy"), key(QStringLiteral("Ctrl+C")), QIcon(),
                               [this]()
     {
         m_view->copySelection();
     });
 
-    m_pasteAction = makeAction(QStringLiteral("粘贴"), key(QStringLiteral("Ctrl+V")), QIcon(),
+    m_pasteAction = makeAction(QStringLiteral("Paste"), key(QStringLiteral("Ctrl+V")), QIcon(),
                                [this]()
     {
         m_view->paste();
     });
 
-    m_deleteAction = makeAction(QStringLiteral("删除"), key(QStringLiteral("Delete")),
+    m_deleteAction = makeAction(QStringLiteral("Delete"), key(QStringLiteral("Delete")),
                                 iconFor(QStringLiteral("delete")), [this]()
     {
         m_view->deleteSelection();
     });
 
-    m_duplicateAction = makeAction(QStringLiteral("复制副本"), key(QStringLiteral("Ctrl+D")),
+    m_duplicateAction = makeAction(QStringLiteral("Duplicate"), key(QStringLiteral("Ctrl+D")),
                                    QIcon(), [this]()
     {
         m_view->duplicateSelection();
     });
 
-    m_selectAllAction = makeAction(QStringLiteral("全选"), key(QStringLiteral("Ctrl+A")),
+    m_selectAllAction = makeAction(QStringLiteral("Select All"), key(QStringLiteral("Ctrl+A")),
                                    QIcon(), [this]()
     {
         m_view->selectAll();
     });
 
-    m_zoomInAction = makeAction(QStringLiteral("放大"), key(QStringLiteral("Ctrl++")),
+    m_zoomInAction = makeAction(QStringLiteral("Zoom In"), key(QStringLiteral("Ctrl++")),
                                 iconFor(QStringLiteral("zoom-in")), [this]()
     {
         m_view->zoomIn();
     });
     m_zoomInAction->setShortcuts({key(QStringLiteral("Ctrl++")), key(QStringLiteral("Ctrl+="))});
 
-    m_zoomOutAction = makeAction(QStringLiteral("缩小"), key(QStringLiteral("Ctrl+-")),
+    m_zoomOutAction = makeAction(QStringLiteral("Zoom Out"), key(QStringLiteral("Ctrl+-")),
                                  iconFor(QStringLiteral("zoom-out")), [this]()
     {
         m_view->zoomOut();
     });
 
-    m_resetZoomAction = makeAction(QStringLiteral("实际大小"), key(QStringLiteral("Ctrl+0")),
+    m_resetZoomAction = makeAction(QStringLiteral("Actual Size"), key(QStringLiteral("Ctrl+0")),
                                    QIcon(), [this]()
     {
         m_view->resetZoom();
     });
 
-    m_fitAction = makeAction(QStringLiteral("适应窗口"), key(QStringLiteral("Ctrl+Shift+H")),
+    m_fitAction = makeAction(QStringLiteral("Fit Window"), key(QStringLiteral("Ctrl+Shift+H")),
                              iconFor(QStringLiteral("fit")), [this]()
     {
         m_view->fitToWindow();
     });
 
-    m_gridAction = makeAction(QStringLiteral("显示网格"), key(QStringLiteral("Ctrl+Shift+G")),
+    m_gridAction = makeAction(QStringLiteral("Show Grid"), key(QStringLiteral("Ctrl+Shift+G")),
                               iconFor(QStringLiteral("grid")), [this]()
     {
         const bool visible = m_gridAction->isChecked();
@@ -695,7 +698,7 @@ void MainWindow::createActions()
     m_gridAction->setCheckable(true);
     m_gridAction->setChecked(true);
 
-    m_guidesAction = makeAction(QStringLiteral("对齐参考线"), QKeySequence(), QIcon(),
+    m_guidesAction = makeAction(QStringLiteral("Alignment Guides"), QKeySequence(), QIcon(),
                                 [this]()
     {
         const bool visible = m_guidesAction->isChecked();
@@ -705,7 +708,7 @@ void MainWindow::createActions()
     m_guidesAction->setCheckable(true);
     m_guidesAction->setChecked(AppSettings::instance().guidesVisible());
 
-    m_pageViewAction = makeAction(QStringLiteral("显示页面边界"), QKeySequence(), QIcon(),
+    m_pageViewAction = makeAction(QStringLiteral("Show Page Bounds"), QKeySequence(), QIcon(),
                                   [this]()
     {
         const bool visible = m_pageViewAction->isChecked();
@@ -716,13 +719,13 @@ void MainWindow::createActions()
     m_pageViewAction->setCheckable(true);
     m_pageViewAction->setChecked(true);
 
-    m_settingsAction = makeAction(QStringLiteral("设置…"), key(QStringLiteral("Ctrl+,")), QIcon(),
+    m_settingsAction = makeAction(QStringLiteral("Settings…"), key(QStringLiteral("Ctrl+,")), QIcon(),
                                   [this]()
     {
         openSettings();
     });
 
-    m_fullScreenAction = makeAction(QStringLiteral("全屏"), key(QStringLiteral("F11")), QIcon(),
+    m_fullScreenAction = makeAction(QStringLiteral("Full Screen"), key(QStringLiteral("F11")), QIcon(),
                                     [this]()
     {
         if (isFullScreen())
@@ -736,7 +739,7 @@ void MainWindow::createActions()
     });
     m_fullScreenAction->setCheckable(true);
 
-    m_toggleShapesAction = makeAction(QStringLiteral("形状面板"), QKeySequence(), QIcon(),
+    m_toggleShapesAction = makeAction(QStringLiteral("Shape Panel"), QKeySequence(), QIcon(),
                                       [this]()
     {
         if (auto *dock = findChild<QDockWidget *>(QStringLiteral("shapesDock")))
@@ -747,7 +750,7 @@ void MainWindow::createActions()
     m_toggleShapesAction->setCheckable(true);
     m_toggleShapesAction->setChecked(true);
 
-    m_toggleFormatAction = makeAction(QStringLiteral("格式面板"), QKeySequence(), QIcon(),
+    m_toggleFormatAction = makeAction(QStringLiteral("Format Panel"), QKeySequence(), QIcon(),
                                       [this]()
     {
         if (auto *dock = findChild<QDockWidget *>(QStringLiteral("formatDock")))
@@ -758,49 +761,49 @@ void MainWindow::createActions()
     m_toggleFormatAction->setCheckable(true);
     m_toggleFormatAction->setChecked(true);
 
-    m_groupAction = makeAction(QStringLiteral("组合"), key(QStringLiteral("Ctrl+G")),
+    m_groupAction = makeAction(QStringLiteral("Group"), key(QStringLiteral("Ctrl+G")),
                                iconFor(QStringLiteral("group")), [this]()
     {
         m_view->groupSelection();
     });
 
-    m_ungroupAction = makeAction(QStringLiteral("取消组合"),
+    m_ungroupAction = makeAction(QStringLiteral("Ungroup"),
                                  key(QStringLiteral("Ctrl+Shift+U")),
                                  iconFor(QStringLiteral("ungroup")), [this]()
     {
         m_view->ungroupSelection();
     });
 
-    m_frontAction = makeAction(QStringLiteral("置于顶层"),
+    m_frontAction = makeAction(QStringLiteral("Bring to Front"),
                                key(QStringLiteral("Ctrl+Shift+]")), QIcon(), [this]()
     {
         m_view->changeZOrder(DiagramView::ZOrder::Front);
     });
 
-    m_backAction = makeAction(QStringLiteral("置于底层"),
+    m_backAction = makeAction(QStringLiteral("Send to Back"),
                               key(QStringLiteral("Ctrl+Shift+[")), QIcon(), [this]()
     {
         m_view->changeZOrder(DiagramView::ZOrder::Back);
     });
 
-    m_forwardAction = makeAction(QStringLiteral("上移一层"), key(QStringLiteral("Ctrl+]")),
+    m_forwardAction = makeAction(QStringLiteral("Bring Forward"), key(QStringLiteral("Ctrl+]")),
                                  QIcon(), [this]()
     {
         m_view->changeZOrder(DiagramView::ZOrder::Forward);
     });
 
-    m_backwardAction = makeAction(QStringLiteral("下移一层"), key(QStringLiteral("Ctrl+[")),
+    m_backwardAction = makeAction(QStringLiteral("Send Backward"), key(QStringLiteral("Ctrl+[")),
                                   QIcon(), [this]()
     {
         m_view->changeZOrder(DiagramView::ZOrder::Backward);
     });
 
-    m_addPageAction = makeAction(QStringLiteral("添加页面"), QKeySequence(), QIcon(), [this]()
+    m_addPageAction = makeAction(QStringLiteral("Add Page"), QKeySequence(), QIcon(), [this]()
     {
         addPage();
     });
 
-    m_textAction = makeAction(QStringLiteral("文本"), key(QStringLiteral("Shift+T")),
+    m_textAction = makeAction(QStringLiteral("Text"), key(QStringLiteral("Shift+T")),
                               iconFor(QStringLiteral("text")), [this]()
     {
         const QPointF center = m_view->toScene(QPointF(m_view->width() / 2.0,
@@ -808,13 +811,13 @@ void MainWindow::createActions()
         m_view->addText(center);
     });
 
-    m_connectorAction = makeAction(QStringLiteral("连接线"), key(QStringLiteral("C")),
+    m_connectorAction = makeAction(QStringLiteral("Connector"), key(QStringLiteral("C")),
                                    iconFor(QStringLiteral("connector")), [this]()
     {
         m_view->addEdgeFromSelection();
     });
 
-    m_selectToolAction = makeAction(QStringLiteral("选择工具"), key(QStringLiteral("V")),
+    m_selectToolAction = makeAction(QStringLiteral("Select Tool"), key(QStringLiteral("V")),
                                     iconFor(QStringLiteral("select")), [this]()
     {
         m_view->setTool(DiagramView::Tool::Select);
@@ -822,14 +825,14 @@ void MainWindow::createActions()
     m_selectToolAction->setCheckable(true);
     m_selectToolAction->setChecked(true);
 
-    m_panToolAction = makeAction(QStringLiteral("平移工具"), key(QStringLiteral("H")),
+    m_panToolAction = makeAction(QStringLiteral("Pan Tool"), key(QStringLiteral("H")),
                                  iconFor(QStringLiteral("pan")), [this]()
     {
         m_view->setTool(DiagramView::Tool::Pan);
     });
     m_panToolAction->setCheckable(true);
 
-    auto *connectorTool = makeAction(QStringLiteral("连线工具"), key(QStringLiteral("L")),
+    auto *connectorTool = makeAction(QStringLiteral("Connector Tool"), key(QStringLiteral("L")),
                                      iconFor(QStringLiteral("connector")), [this]()
     {
         m_view->setTool(DiagramView::Tool::Connector);
@@ -857,51 +860,51 @@ void MainWindow::setupShortcuts()
         m_shortcuts.append(ShortcutSetting{id, label, action->shortcut(), action->shortcut()});
     };
 
-    add(QStringLiteral("file.new"), QStringLiteral("新建"), m_newAction);
-    add(QStringLiteral("file.newWindow"), QStringLiteral("新建窗口"), m_newWindowAction);
-    add(QStringLiteral("file.open"), QStringLiteral("打开…"), m_openAction);
-    add(QStringLiteral("file.save"), QStringLiteral("保存"), m_saveAction);
-    add(QStringLiteral("file.saveAs"), QStringLiteral("另存为…"), m_saveAsAction);
-    add(QStringLiteral("file.export"), QStringLiteral("导出…"), m_exportAction);
-    add(QStringLiteral("file.print"), QStringLiteral("打印…"), m_printAction);
-    add(QStringLiteral("file.printPreview"), QStringLiteral("打印预览…"), m_printPreviewAction);
-    add(QStringLiteral("file.pageSetup"), QStringLiteral("页面设置…"), m_pageSetupAction);
-    add(QStringLiteral("file.close"), QStringLiteral("关闭文件"), m_closeAction);
-    add(QStringLiteral("file.quit"), QStringLiteral("退出"), m_quitAction);
+    add(QStringLiteral("file.new"), QStringLiteral("New"), m_newAction);
+    add(QStringLiteral("file.newWindow"), QStringLiteral("New Window"), m_newWindowAction);
+    add(QStringLiteral("file.open"), QStringLiteral("Open…"), m_openAction);
+    add(QStringLiteral("file.save"), QStringLiteral("Save"), m_saveAction);
+    add(QStringLiteral("file.saveAs"), QStringLiteral("Save As…"), m_saveAsAction);
+    add(QStringLiteral("file.export"), QStringLiteral("Export…"), m_exportAction);
+    add(QStringLiteral("file.print"), QStringLiteral("Print…"), m_printAction);
+    add(QStringLiteral("file.printPreview"), QStringLiteral("Print Preview…"), m_printPreviewAction);
+    add(QStringLiteral("file.pageSetup"), QStringLiteral("Page Setup…"), m_pageSetupAction);
+    add(QStringLiteral("file.close"), QStringLiteral("Close File"), m_closeAction);
+    add(QStringLiteral("file.quit"), QStringLiteral("Quit"), m_quitAction);
 
-    add(QStringLiteral("edit.undo"), QStringLiteral("撤销"), m_undoAction);
-    add(QStringLiteral("edit.redo"), QStringLiteral("重做"), m_redoAction);
-    add(QStringLiteral("edit.cut"), QStringLiteral("剪切"), m_cutAction);
-    add(QStringLiteral("edit.copy"), QStringLiteral("复制"), m_copyAction);
-    add(QStringLiteral("edit.paste"), QStringLiteral("粘贴"), m_pasteAction);
-    add(QStringLiteral("edit.delete"), QStringLiteral("删除"), m_deleteAction);
-    add(QStringLiteral("edit.duplicate"), QStringLiteral("复制副本"), m_duplicateAction);
-    add(QStringLiteral("edit.selectAll"), QStringLiteral("全选"), m_selectAllAction);
+    add(QStringLiteral("edit.undo"), QStringLiteral("Undo"), m_undoAction);
+    add(QStringLiteral("edit.redo"), QStringLiteral("Redo"), m_redoAction);
+    add(QStringLiteral("edit.cut"), QStringLiteral("Cut"), m_cutAction);
+    add(QStringLiteral("edit.copy"), QStringLiteral("Copy"), m_copyAction);
+    add(QStringLiteral("edit.paste"), QStringLiteral("Paste"), m_pasteAction);
+    add(QStringLiteral("edit.delete"), QStringLiteral("Delete"), m_deleteAction);
+    add(QStringLiteral("edit.duplicate"), QStringLiteral("Duplicate"), m_duplicateAction);
+    add(QStringLiteral("edit.selectAll"), QStringLiteral("Select All"), m_selectAllAction);
 
-    add(QStringLiteral("view.zoomIn"), QStringLiteral("放大"), m_zoomInAction);
-    add(QStringLiteral("view.zoomOut"), QStringLiteral("缩小"), m_zoomOutAction);
-    add(QStringLiteral("view.resetZoom"), QStringLiteral("实际大小"), m_resetZoomAction);
-    add(QStringLiteral("view.fit"), QStringLiteral("适应窗口"), m_fitAction);
-    add(QStringLiteral("view.grid"), QStringLiteral("显示网格"), m_gridAction);
-    add(QStringLiteral("view.guides"), QStringLiteral("对齐参考线"), m_guidesAction);
-    add(QStringLiteral("view.page"), QStringLiteral("显示页面边界"), m_pageViewAction);
-    add(QStringLiteral("view.fullScreen"), QStringLiteral("全屏"), m_fullScreenAction);
-    add(QStringLiteral("view.shapes"), QStringLiteral("形状面板"), m_toggleShapesAction);
-    add(QStringLiteral("view.format"), QStringLiteral("格式面板"), m_toggleFormatAction);
+    add(QStringLiteral("view.zoomIn"), QStringLiteral("Zoom In"), m_zoomInAction);
+    add(QStringLiteral("view.zoomOut"), QStringLiteral("Zoom Out"), m_zoomOutAction);
+    add(QStringLiteral("view.resetZoom"), QStringLiteral("Actual Size"), m_resetZoomAction);
+    add(QStringLiteral("view.fit"), QStringLiteral("Fit Window"), m_fitAction);
+    add(QStringLiteral("view.grid"), QStringLiteral("Show Grid"), m_gridAction);
+    add(QStringLiteral("view.guides"), QStringLiteral("Alignment Guides"), m_guidesAction);
+    add(QStringLiteral("view.page"), QStringLiteral("Show Page Bounds"), m_pageViewAction);
+    add(QStringLiteral("view.fullScreen"), QStringLiteral("Full Screen"), m_fullScreenAction);
+    add(QStringLiteral("view.shapes"), QStringLiteral("Shape Panel"), m_toggleShapesAction);
+    add(QStringLiteral("view.format"), QStringLiteral("Format Panel"), m_toggleFormatAction);
 
-    add(QStringLiteral("arrange.group"), QStringLiteral("组合"), m_groupAction);
-    add(QStringLiteral("arrange.ungroup"), QStringLiteral("取消组合"), m_ungroupAction);
-    add(QStringLiteral("arrange.front"), QStringLiteral("置于顶层"), m_frontAction);
-    add(QStringLiteral("arrange.back"), QStringLiteral("置于底层"), m_backAction);
-    add(QStringLiteral("arrange.forward"), QStringLiteral("上移一层"), m_forwardAction);
-    add(QStringLiteral("arrange.backward"), QStringLiteral("下移一层"), m_backwardAction);
+    add(QStringLiteral("arrange.group"), QStringLiteral("Group"), m_groupAction);
+    add(QStringLiteral("arrange.ungroup"), QStringLiteral("Ungroup"), m_ungroupAction);
+    add(QStringLiteral("arrange.front"), QStringLiteral("Bring to Front"), m_frontAction);
+    add(QStringLiteral("arrange.back"), QStringLiteral("Send to Back"), m_backAction);
+    add(QStringLiteral("arrange.forward"), QStringLiteral("Bring Forward"), m_forwardAction);
+    add(QStringLiteral("arrange.backward"), QStringLiteral("Send Backward"), m_backwardAction);
 
-    add(QStringLiteral("insert.page"), QStringLiteral("添加页面"), m_addPageAction);
-    add(QStringLiteral("insert.text"), QStringLiteral("文本"), m_textAction);
-    add(QStringLiteral("insert.connector"), QStringLiteral("连线"), m_connectorAction);
-    add(QStringLiteral("tool.select"), QStringLiteral("选择工具"), m_selectToolAction);
-    add(QStringLiteral("tool.pan"), QStringLiteral("平移工具"), m_panToolAction);
-    add(QStringLiteral("app.settings"), QStringLiteral("设置…"), m_settingsAction);
+    add(QStringLiteral("insert.page"), QStringLiteral("Add Page"), m_addPageAction);
+    add(QStringLiteral("insert.text"), QStringLiteral("Text"), m_textAction);
+    add(QStringLiteral("insert.connector"), QStringLiteral("Connector"), m_connectorAction);
+    add(QStringLiteral("tool.select"), QStringLiteral("Select Tool"), m_selectToolAction);
+    add(QStringLiteral("tool.pan"), QStringLiteral("Pan Tool"), m_panToolAction);
+    add(QStringLiteral("app.settings"), QStringLiteral("Settings…"), m_settingsAction);
 
     QSettings settings;
 
@@ -955,7 +958,8 @@ void MainWindow::editShortcuts()
 
 void MainWindow::openSettings()
 {
-    SettingsDialog dialog(m_shortcuts, AppSettings::instance().theme(), this);
+    SettingsDialog dialog(m_shortcuts, AppSettings::instance().theme(),
+                          AppSettings::instance().language(), this);
 
     if (dialog.exec() != QDialog::Accepted)
     {
@@ -963,6 +967,34 @@ void MainWindow::openSettings()
     }
 
     applyTheme(dialog.theme());
+
+    const QString language = dialog.language();
+    AppSettings::instance().setLanguage(language);
+
+    if (language == QLatin1String("en"))
+    {
+        I18n::setLanguage(I18n::Language::English);
+    }
+    else if (language == QLatin1String("zh"))
+    {
+        I18n::setLanguage(I18n::Language::Chinese);
+    }
+    else
+    {
+        I18n::setLanguage(QLocale::system().language() == QLocale::English
+                              ? I18n::Language::English : I18n::Language::Chinese);
+    }
+
+    if (m_toolbox != nullptr)
+    {
+        m_toolbox->reload();
+    }
+
+    if (m_layerPanel != nullptr)
+    {
+        m_layerPanel->refresh();
+    }
+
     m_shortcuts = dialog.shortcutSettings();
 
     QSettings settings;
@@ -983,12 +1015,12 @@ void MainWindow::openSettings()
 
 void MainWindow::createMenus()
 {
-    QMenu *fileMenu = menuBar()->addMenu(QStringLiteral("文件(&F)"));
+    QMenu *fileMenu = menuBar()->addMenu(QStringLiteral("File"));
     fileMenu->addAction(m_newAction);
     fileMenu->addAction(m_newWindowAction);
     fileMenu->addAction(m_openAction);
 
-    m_recentMenu = fileMenu->addMenu(QStringLiteral("打开最近的文件"));
+    m_recentMenu = fileMenu->addMenu(QStringLiteral("Open Recent"));
     refreshRecentMenu();
 
     fileMenu->addSeparator();
@@ -996,14 +1028,14 @@ void MainWindow::createMenus()
     fileMenu->addAction(m_saveAsAction);
     fileMenu->addSeparator();
 
-    QMenu *exportMenu = fileMenu->addMenu(QStringLiteral("导出"));
+    QMenu *exportMenu = fileMenu->addMenu(QStringLiteral("Export"));
     const QVector<QPair<QString, QString>> formats = {
-        {QStringLiteral("PNG 图像…"), QStringLiteral("png")},
-        {QStringLiteral("SVG 矢量图…"), QStringLiteral("svg")},
-        {QStringLiteral("PDF 文档…"), QStringLiteral("pdf")},
-        {QStringLiteral("JPEG 图像…"), QStringLiteral("jpg")},
+        {QStringLiteral("PNG Image…"), QStringLiteral("png")},
+        {QStringLiteral("SVG Vector Image…"), QStringLiteral("svg")},
+        {QStringLiteral("PDF Document…"), QStringLiteral("pdf")},
+        {QStringLiteral("JPEG Image…"), QStringLiteral("jpg")},
         {QStringLiteral("draw.io XML…"), QStringLiteral("xml")},
-        {QStringLiteral("HTML 查看器…"), QStringLiteral("html")},
+        {QStringLiteral("HTML Viewer…"), QStringLiteral("html")},
     };
 
     for (const auto &entry : formats)
@@ -1026,7 +1058,7 @@ void MainWindow::createMenus()
     fileMenu->addAction(m_closeAction);
     fileMenu->addAction(m_quitAction);
 
-    QMenu *editMenu = menuBar()->addMenu(QStringLiteral("编辑(&E)"));
+    QMenu *editMenu = menuBar()->addMenu(QStringLiteral("Edit"));
     editMenu->addAction(m_undoAction);
     editMenu->addAction(m_redoAction);
     editMenu->addSeparator();
@@ -1043,7 +1075,7 @@ void MainWindow::createMenus()
     editMenu->addSeparator();
     editMenu->addAction(m_settingsAction);
 
-    QMenu *viewMenu = menuBar()->addMenu(QStringLiteral("视图(&V)"));
+    QMenu *viewMenu = menuBar()->addMenu(QStringLiteral("View"));
     viewMenu->setObjectName(QStringLiteral("viewMenu"));
     viewMenu->addAction(m_zoomInAction);
     viewMenu->addAction(m_zoomOutAction);
@@ -1059,9 +1091,9 @@ void MainWindow::createMenus()
     viewMenu->addSeparator();
     viewMenu->addAction(m_fullScreenAction);
 
-    QMenu *insertMenu = menuBar()->addMenu(QStringLiteral("插入(&I)"));
+    QMenu *insertMenu = menuBar()->addMenu(QStringLiteral("Insert"));
 
-    QMenu *shapesMenu = insertMenu->addMenu(QStringLiteral("形状"));
+    QMenu *shapesMenu = insertMenu->addMenu(QStringLiteral("Shape"));
     for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
     {
         QAction *action = shapesMenu->addAction(definition.name);
@@ -1077,7 +1109,7 @@ void MainWindow::createMenus()
     insertMenu->addSeparator();
     insertMenu->addAction(m_connectorAction);
 
-    QAction *libraryAction = insertMenu->addAction(QStringLiteral("选择形状库…"));
+    QAction *libraryAction = insertMenu->addAction(QStringLiteral("Choose Shape Libraries…"));
     connect(libraryAction, &QAction::triggered, this, [this]()
     {
         ShapeLibraryDialog dialog(this);
@@ -1093,23 +1125,23 @@ void MainWindow::createMenus()
         }
     });
 
-    QAction *imageAction = insertMenu->addAction(QStringLiteral("图片…"));
+    QAction *imageAction = insertMenu->addAction(QStringLiteral("Image…"));
     connect(imageAction, &QAction::triggered, this, &MainWindow::insertImage);
 
     insertMenu->addSeparator();
     insertMenu->addAction(m_addPageAction);
 
 
-    QMenu *arrangeMenu = menuBar()->addMenu(QStringLiteral("排列(&A)"));
+    QMenu *arrangeMenu = menuBar()->addMenu(QStringLiteral("Arrange"));
 
-    QMenu *alignMenu = arrangeMenu->addMenu(QStringLiteral("对齐"));
+    QMenu *alignMenu = arrangeMenu->addMenu(QStringLiteral("Align"));
     const QVector<QPair<QString, DiagramView::Align>> alignEntries = {
-        {QStringLiteral("左对齐"), DiagramView::Align::Left},
-        {QStringLiteral("水平居中"), DiagramView::Align::CenterHorizontal},
-        {QStringLiteral("右对齐"), DiagramView::Align::Right},
-        {QStringLiteral("上对齐"), DiagramView::Align::Top},
-        {QStringLiteral("垂直居中"), DiagramView::Align::CenterVertical},
-        {QStringLiteral("下对齐"), DiagramView::Align::Bottom},
+        {QStringLiteral("Align Left"), DiagramView::Align::Left},
+        {QStringLiteral("Center Horizontally"), DiagramView::Align::CenterHorizontal},
+        {QStringLiteral("Align Right"), DiagramView::Align::Right},
+        {QStringLiteral("Align Top"), DiagramView::Align::Top},
+        {QStringLiteral("Center Vertically"), DiagramView::Align::CenterVertical},
+        {QStringLiteral("Align Bottom"), DiagramView::Align::Bottom},
     };
 
     for (int i = 0; i < alignEntries.size(); ++i)
@@ -1128,16 +1160,16 @@ void MainWindow::createMenus()
         m_arrangeSelectionActions.append(action);
     }
 
-    QMenu *layoutMenu = arrangeMenu->addMenu(QStringLiteral("布局"));
+    QMenu *layoutMenu = arrangeMenu->addMenu(QStringLiteral("Layout"));
 
-    QAction *distributeH = layoutMenu->addAction(QStringLiteral("水平分布"));
+    QAction *distributeH = layoutMenu->addAction(QStringLiteral("Distribute Horizontally"));
     connect(distributeH, &QAction::triggered, this, [this]()
     {
         m_view->distributeHorizontally();
     });
     m_arrangeSelectionActions.append(distributeH);
 
-    QAction *distributeV = layoutMenu->addAction(QStringLiteral("垂直分布"));
+    QAction *distributeV = layoutMenu->addAction(QStringLiteral("Distribute Vertically"));
     connect(distributeV, &QAction::triggered, this, [this]()
     {
         m_view->distributeVertically();
@@ -1146,21 +1178,21 @@ void MainWindow::createMenus()
 
     layoutMenu->addSeparator();
 
-    QAction *sameWidth = layoutMenu->addAction(QStringLiteral("相同宽度"));
+    QAction *sameWidth = layoutMenu->addAction(QStringLiteral("Same Width"));
     connect(sameWidth, &QAction::triggered, this, [this]()
     {
         m_view->resizeSelection(DiagramView::SizeAction::SameWidth);
     });
     m_arrangeSelectionActions.append(sameWidth);
 
-    QAction *sameHeight = layoutMenu->addAction(QStringLiteral("相同高度"));
+    QAction *sameHeight = layoutMenu->addAction(QStringLiteral("Same Height"));
     connect(sameHeight, &QAction::triggered, this, [this]()
     {
         m_view->resizeSelection(DiagramView::SizeAction::SameHeight);
     });
     m_arrangeSelectionActions.append(sameHeight);
 
-    QAction *sameSize = layoutMenu->addAction(QStringLiteral("相同大小"));
+    QAction *sameSize = layoutMenu->addAction(QStringLiteral("Same Size"));
     connect(sameSize, &QAction::triggered, this, [this]()
     {
         m_view->resizeSelection(DiagramView::SizeAction::SameSize);
@@ -1177,13 +1209,13 @@ void MainWindow::createMenus()
     arrangeMenu->addAction(m_forwardAction);
     arrangeMenu->addAction(m_backwardAction);
 
-    QMenu *helpMenu = menuBar()->addMenu(QStringLiteral("帮助(&H)"));
-    QAction *checkUpdates = helpMenu->addAction(QStringLiteral("检查更新…"));
+    QMenu *helpMenu = menuBar()->addMenu(QStringLiteral("Help"));
+    QAction *checkUpdates = helpMenu->addAction(QStringLiteral("Check for Updates…"));
     connect(checkUpdates, &QAction::triggered, this, [this]()
     {
         checkForUpdates(true);
     });
-    QAction *about = helpMenu->addAction(QStringLiteral("关于 drawio-qt"));
+    QAction *about = helpMenu->addAction(QStringLiteral("About drawio-qt"));
     connect(about, &QAction::triggered, this, [this]()
     {
         showAboutDialog(this);
@@ -1192,7 +1224,7 @@ void MainWindow::createMenus()
 
 void MainWindow::createToolBars()
 {
-    auto *mainToolBar = addToolBar(QStringLiteral("主工具栏"));
+    auto *mainToolBar = addToolBar(QStringLiteral("Main Toolbar"));
     mainToolBar->setObjectName(QStringLiteral("mainToolBar"));
     mainToolBar->setMovable(false);
     mainToolBar->setIconSize(QSize(20, 20));
@@ -1213,7 +1245,7 @@ void MainWindow::createToolBars()
     mainToolBar->addAction(m_printAction);
     mainToolBar->addAction(m_exportAction);
 
-    auto *toolBar = addToolBar(QStringLiteral("工具"));
+    auto *toolBar = addToolBar(QStringLiteral("Tools"));
     toolBar->setObjectName(QStringLiteral("toolsToolBar"));
     toolBar->setMovable(false);
     toolBar->setIconSize(QSize(20, 20));
@@ -1230,7 +1262,7 @@ void MainWindow::createDocks()
 {
     m_toolbox = new ShapeToolbox(this);
 
-    auto *shapesDock = new QDockWidget(QStringLiteral("形状"), this);
+    auto *shapesDock = new QDockWidget(QStringLiteral("Shape"), this);
     shapesDock->setObjectName(QStringLiteral("shapesDock"));
     shapesDock->setWidget(m_toolbox);
     shapesDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
@@ -1238,7 +1270,7 @@ void MainWindow::createDocks()
 
     m_formatPanel = new FormatPanel(this);
 
-    auto *formatDock = new QDockWidget(QStringLiteral("格式"), this);
+    auto *formatDock = new QDockWidget(QStringLiteral("Format"), this);
     formatDock->setObjectName(QStringLiteral("formatDock"));
     formatDock->setWidget(m_formatPanel);
     formatDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
@@ -1250,7 +1282,7 @@ void MainWindow::createDocks()
 
     m_layerPanel = new LayerPanel(this);
 
-    auto *layerDock = new QDockWidget(QStringLiteral("图层"), this);
+    auto *layerDock = new QDockWidget(QStringLiteral("Layers"), this);
     layerDock->setObjectName(QStringLiteral("layerDock"));
     layerDock->setWidget(m_layerPanel);
     layerDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
@@ -1293,21 +1325,31 @@ void MainWindow::createStatusBar()
     statusBar()->addPermanentWidget(m_selectionLabel);
     statusBar()->addPermanentWidget(m_positionLabel);
     statusBar()->addPermanentWidget(m_zoomLabel);
-    statusBar()->showMessage(QStringLiteral("就绪"));
+    statusBar()->showMessage(I18n::text(QStringLiteral("Ready")));
 }
 
 // --- state ---------------------------------------------------------------
 
 void MainWindow::updateTitle()
 {
-    setWindowTitle(m_document->title());
+    QString title = m_document->title();
+
+    if (m_document->filePath().isEmpty())
+    {
+        const QString base = I18n::text(QStringLiteral("Untitled Drawing"));
+        title = QStringLiteral("%1 - drawio-qt").arg(
+            m_document->isModified() ? QStringLiteral("*") + base : base);
+    }
+
+    setWindowTitle(title);
 
     if (m_fileTabs != nullptr && m_fileTabs->currentIndex() >= 0)
     {
         const int index = m_fileTabs->currentIndex();
-        m_fileTabs->setTabText(index, documentTabName(m_document));
+        m_fileTabs->setTabText(index, I18n::text(documentTabName(m_document)));
+        m_fileTabs->setTabData(index, documentTabName(m_document));
         m_fileTabs->setTabToolTip(index, m_document->filePath().isEmpty()
-                                         ? QStringLiteral("未命名")
+                                         ? QStringLiteral("Untitled")
                                          : m_document->filePath());
     }
 }
@@ -1384,7 +1426,10 @@ void MainWindow::updatePageTabs()
     for (int i = 0; i < m_document->pageCount(); ++i)
     {
         const Page *page = m_document->page(i);
-        m_pageTabs->addTab(page != nullptr ? page->name : QStringLiteral("页面 %1").arg(i + 1));
+        const QString rawName = page != nullptr ? page->name
+                                                : QStringLiteral("Page %1").arg(i + 1);
+        m_pageTabs->addTab(I18n::text(rawName));
+        m_pageTabs->setTabData(i, rawName);
     }
 
     m_pageTabs->setCurrentIndex(m_document->currentIndex());
@@ -1401,7 +1446,7 @@ void MainWindow::updateStatus()
 
     const int count = m_view->selection().size();
     m_selectionLabel->setText(count == 0 ? QString()
-                                        : QStringLiteral("已选择 %1 个对象").arg(count));
+                                        : I18n::text(QStringLiteral("%1 object(s) selected")).arg(count));
 
     if (m_document->currentPage() != nullptr)
     {
@@ -1432,7 +1477,7 @@ bool MainWindow::saveTo(const QString &path)
     if (!m_document->save(path, &error))
     {
         watchCurrentFile(true);
-        QMessageBox::critical(this, QStringLiteral("保存失败"), error);
+        QMessageBox::critical(this, QStringLiteral("Save Failed"), error);
         return false;
     }
 
@@ -1444,21 +1489,21 @@ bool MainWindow::saveTo(const QString &path)
     watchCurrentFile(true);
     updateTitle();
     updateActions();
-    showStatusMessage(QStringLiteral("已保存：%1").arg(path));
+    showStatusMessage(I18n::text(QStringLiteral("Saved: %1")).arg(path));
     return true;
 }
 
 void MainWindow::saveAs()
 {
     QString path = QFileDialog::getSaveFileName(
-        this, QStringLiteral("另存为"),
+        this, QStringLiteral("Save As"),
         m_document->filePath().isEmpty()
             ? (m_document->suggestedSavePath().isEmpty()
                    ? AppSettings::instance().lastSaveDir() + QLatin1Char('/')
-                         + QStringLiteral("未命名绘图.drawio")
+                         + QStringLiteral("Untitled.drawio")
                    : m_document->suggestedSavePath())
             : m_document->filePath(),
-        QStringLiteral("draw.io 文件 (*.drawio);;XML 文件 (*.xml)"));
+        QStringLiteral("draw.io Files (*.drawio);;XML Files (*.xml)"));
 
     if (path.isEmpty())
     {
@@ -1476,10 +1521,10 @@ void MainWindow::saveAs()
 void MainWindow::openDialog()
 {
     const QStringList paths = QFileDialog::getOpenFileNames(
-        this, QStringLiteral("打开"),
+        this, QStringLiteral("Open"),
         AppSettings::instance().lastOpenDir(),
-        QStringLiteral("draw.io 文件 (*.drawio *.dio *.xml *.svg *.png *.pdf);;"
-                       "所有文件 (*)"));
+        QStringLiteral("draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;"
+                       "All Files (*)"));
 
     if (!paths.isEmpty())
     {
@@ -1558,7 +1603,7 @@ bool MainWindow::openFile(const QString &path)
 
     if (!m_document->load(path, &error))
     {
-        QMessageBox::critical(this, QStringLiteral("打开失败"),
+        QMessageBox::critical(this, QStringLiteral("Open Failed"),
                               QStringLiteral("%1\n\n%2").arg(path, error));
         return false;
     }
@@ -1577,7 +1622,7 @@ bool MainWindow::openFile(const QString &path)
     updateActions();
     watchCurrentFile(true);
     checkDraftRecovery();
-    showStatusMessage(QStringLiteral("已打开：%1").arg(path));
+    showStatusMessage(I18n::text(QStringLiteral("Opened: %1")).arg(path));
     return true;
 }
 
@@ -1587,8 +1632,8 @@ void MainWindow::openRecent(const QString &path)
     {
         AppSettings::instance().removeRecentFile(path);
         refreshRecentMenu();
-        QMessageBox::information(this, QStringLiteral("文件不存在"),
-                                 QStringLiteral("找不到文件：\n%1").arg(path));
+        QMessageBox::information(this, QStringLiteral("File Not Found"),
+                                 I18n::text(QStringLiteral("File not found:\n%1")).arg(path));
         return;
     }
 
@@ -1607,7 +1652,7 @@ void MainWindow::refreshRecentMenu()
 
     if (files.isEmpty())
     {
-        QAction *empty = m_recentMenu->addAction(QStringLiteral("（无）"));
+        QAction *empty = m_recentMenu->addAction(QStringLiteral("(None)"));
         empty->setEnabled(false);
         return;
     }
@@ -1623,7 +1668,7 @@ void MainWindow::refreshRecentMenu()
     }
 
     m_recentMenu->addSeparator();
-    QAction *clear = m_recentMenu->addAction(QStringLiteral("清除列表"));
+    QAction *clear = m_recentMenu->addAction(QStringLiteral("Clear List"));
     connect(clear, &QAction::triggered, this, [this]()
     {
         AppSettings::instance().clearRecentFiles();
@@ -1647,7 +1692,7 @@ void MainWindow::newDocument()
     updatePageTabs();
     updateActions();
     watchCurrentFile(false);
-    showStatusMessage(QStringLiteral("新建绘图"));
+    showStatusMessage(QStringLiteral("New Drawing"));
 }
 
 // --- export / print ------------------------------------------------------
@@ -1684,7 +1729,7 @@ void MainWindow::openExportDialog(const QString &presetFormat)
 
     if (!result.ok)
     {
-        QMessageBox::critical(this, QStringLiteral("导出失败"), result.error);
+        QMessageBox::critical(this, QStringLiteral("Export Failed"), result.error);
         return;
     }
 
@@ -1692,15 +1737,15 @@ void MainWindow::openExportDialog(const QString &presetFormat)
 
     if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate))
     {
-        QMessageBox::critical(this, QStringLiteral("导出失败"),
-                              QStringLiteral("无法写入：%1\n%2").arg(path, file.errorString()));
+        QMessageBox::critical(this, QStringLiteral("Export Failed"),
+                              I18n::text(QStringLiteral("Cannot write: %1\n%2")).arg(path, file.errorString()));
         return;
     }
 
     if (file.write(result.data) != result.data.size())
     {
-        QMessageBox::critical(this, QStringLiteral("导出失败"),
-                              QStringLiteral("写入文件失败：%1").arg(path));
+        QMessageBox::critical(this, QStringLiteral("Export Failed"),
+                              I18n::text(QStringLiteral("Failed to write file: %1")).arg(path));
         return;
     }
 
@@ -1708,14 +1753,14 @@ void MainWindow::openExportDialog(const QString &presetFormat)
 
     AppSettings::instance().setLastExportDir(QFileInfo(path).absolutePath());
     AppSettings::instance().sync();
-    showStatusMessage(QStringLiteral("已导出：%1").arg(path));
+    showStatusMessage(I18n::text(QStringLiteral("Exported: %1")).arg(path));
 }
 
 void MainWindow::insertImage()
 {
     const QString path = QFileDialog::getOpenFileName(
-        this, QStringLiteral("插入图片"), AppSettings::instance().lastOpenDir(),
-        QStringLiteral("图片 (*.png *.jpg *.jpeg *.svg *.gif *.webp);;所有文件 (*)"));
+        this, QStringLiteral("Insert Image"), AppSettings::instance().lastOpenDir(),
+        QStringLiteral("Images (*.png *.jpg *.jpeg *.svg *.gif *.webp);;All Files (*)"));
 
     if (path.isEmpty())
     {
@@ -1726,8 +1771,8 @@ void MainWindow::insertImage()
 
     if (image.isNull())
     {
-        QMessageBox::warning(this, QStringLiteral("插入图片"),
-                             QStringLiteral("无法读取图片：%1").arg(path));
+        QMessageBox::warning(this, QStringLiteral("Insert Image"),
+                             I18n::text(QStringLiteral("Cannot read image: %1")).arg(path));
         return;
     }
 
@@ -1776,7 +1821,7 @@ void MainWindow::insertImage()
         return;
     }
 
-    m_view->beginSnapshot(QStringLiteral("插入图片"));
+    m_view->beginSnapshot(QStringLiteral("Insert Image"));
     page->addVertex(QRectF(center - QPointF(size.width() / 2.0, size.height() / 2.0), size),
                     style);
     m_view->commitSnapshot();
@@ -1799,7 +1844,7 @@ void MainWindow::pageSetup()
         return;
     }
 
-    m_view->beginSnapshot(QStringLiteral("页面设置"));
+    m_view->beginSnapshot(QStringLiteral("Page Setup"));
     page->settings = dialog.settings();
     m_view->commitSnapshot();
     m_view->update();
@@ -1824,7 +1869,7 @@ void MainWindow::printDocument()
     printer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout::Millimeter);
 
     QPrintDialog dialog(&printer, this);
-    dialog.setWindowTitle(QStringLiteral("打印"));
+    dialog.setWindowTitle(QStringLiteral("Print"));
 
     if (dialog.exec() != QDialog::Accepted)
     {
@@ -1852,7 +1897,7 @@ void MainWindow::printPreview()
     printer.setPageMargins(QMarginsF(0, 0, 0, 0), QPageLayout::Millimeter);
 
     QPrintPreviewDialog preview(&printer, this);
-    preview.setWindowTitle(QStringLiteral("打印预览"));
+    preview.setWindowTitle(QStringLiteral("Print Preview"));
     connect(&preview, &QPrintPreviewDialog::paintRequested, this,
             [this](QPrinter *target)
     {
@@ -1944,8 +1989,8 @@ void MainWindow::removePage(int index)
 {
     if (m_document->pageCount() <= 1)
     {
-        QMessageBox::information(this, QStringLiteral("删除页面"),
-                                 QStringLiteral("文档至少需要保留一个页面。"));
+        QMessageBox::information(this, QStringLiteral("Delete Page"),
+                                 QStringLiteral("A document must keep at least one page."));
         return;
     }
 
@@ -1957,11 +2002,11 @@ void MainWindow::removePage(int index)
     }
 
     QMessageBox box(this);
-    box.setWindowTitle(QStringLiteral("删除页面"));
-    box.setText(QStringLiteral("确定要删除页面“%1”吗？").arg(page->name));
+    box.setWindowTitle(QStringLiteral("Delete Page"));
+    box.setText(I18n::text(QStringLiteral("Delete page “%1”?")).arg(page->name));
     box.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    box.button(QMessageBox::Yes)->setText(QStringLiteral("删除"));
-    box.button(QMessageBox::No)->setText(QStringLiteral("取消"));
+    box.button(QMessageBox::Yes)->setText(QStringLiteral("Delete"));
+    box.button(QMessageBox::No)->setText(QStringLiteral("Cancel"));
 
     if (box.exec() != QMessageBox::Yes)
     {
@@ -1984,8 +2029,8 @@ void MainWindow::renamePage(int index)
     }
 
     bool ok = false;
-    const QString name = QInputDialog::getText(this, QStringLiteral("重命名页面"),
-                                               QStringLiteral("页面名称："), QLineEdit::Normal,
+    const QString name = QInputDialog::getText(this, QStringLiteral("Rename Page"),
+                                               QStringLiteral("Page name:"), QLineEdit::Normal,
                                                page->name, &ok);
 
     if (ok && !name.trimmed().isEmpty())
@@ -2176,11 +2221,11 @@ void MainWindow::checkDraftRecovery()
     }
 
     QMessageBox box(this);
-    box.setWindowTitle(QStringLiteral("发现自动保存"));
-    box.setText(QStringLiteral("发现该文件上次会话的自动保存内容，是否恢复？"));
+    box.setWindowTitle(QStringLiteral("Autosave Found"));
+    box.setText(QStringLiteral("An autosave from the previous session was found. Recover it?"));
     box.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    box.button(QMessageBox::Yes)->setText(QStringLiteral("恢复"));
-    box.button(QMessageBox::No)->setText(QStringLiteral("忽略"));
+    box.button(QMessageBox::Yes)->setText(QStringLiteral("Restore"));
+    box.button(QMessageBox::No)->setText(QStringLiteral("Ignore"));
 
     if (box.exec() != QMessageBox::Yes)
     {
@@ -2208,7 +2253,7 @@ void MainWindow::checkDraftRecovery()
         m_view->fitToWindow();
         updateTitle();
         updatePageTabs();
-        showStatusMessage(QStringLiteral("已恢复自动保存内容"));
+        showStatusMessage(QStringLiteral("Recovered autosaved content"));
     }
 }
 
@@ -2248,13 +2293,13 @@ void MainWindow::showCanvasContextMenu(const QPoint &globalPos, const QString &c
         menu.addAction(m_deleteAction);
         menu.addSeparator();
 
-        QAction *edit = menu.addAction(QStringLiteral("编辑文本"));
+        QAction *edit = menu.addAction(QStringLiteral("Edit Text"));
         connect(edit, &QAction::triggered, this, [this]()
         {
             m_view->startEditingSelection();
         });
 
-        QAction *connectAction = menu.addAction(QStringLiteral("连接所选形状"));
+        QAction *connectAction = menu.addAction(QStringLiteral("Connect Selected Shapes"));
         connectAction->setEnabled(m_view->selection().size() >= 2);
         connect(connectAction, &QAction::triggered, this, [this]()
         {
@@ -2293,13 +2338,13 @@ bool MainWindow::maybeSave()
 
     QMessageBox box(this);
     box.setIcon(QMessageBox::Question);
-    box.setWindowTitle(QStringLiteral("未保存的更改"));
-    box.setText(QStringLiteral("文档“%1”有未保存的更改，是否保存？")
+    box.setWindowTitle(QStringLiteral("Unsaved Changes"));
+    box.setText(I18n::text(QStringLiteral("Document “%1” has unsaved changes. Save it?"))
                     .arg(m_document->displayName()));
     box.setStandardButtons(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
-    box.button(QMessageBox::Save)->setText(QStringLiteral("保存"));
-    box.button(QMessageBox::Discard)->setText(QStringLiteral("不保存"));
-    box.button(QMessageBox::Cancel)->setText(QStringLiteral("取消"));
+    box.button(QMessageBox::Save)->setText(QStringLiteral("Save"));
+    box.button(QMessageBox::Discard)->setText(QStringLiteral("Don't Save"));
+    box.button(QMessageBox::Cancel)->setText(QStringLiteral("Cancel"));
     box.setDefaultButton(QMessageBox::Save);
 
     const int result = box.exec();

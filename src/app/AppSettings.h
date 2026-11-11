@@ -56,6 +56,9 @@ public:
     QString theme() const;
     void setTheme(const QString &theme);
 
+    QString language() const;
+    void setLanguage(const QString &language);
+
     double zoom() const;
     void setZoom(double zoom);
 

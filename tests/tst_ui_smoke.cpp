@@ -12,6 +12,7 @@
 #include "ui/MainWindow.h"
 #include "ui/LayerPanel.h"
 #include "ui/Dialogs.h"
+#include "app/I18n.h"
 
 #include <QApplication>
 #include <QComboBox>
@@ -229,7 +230,7 @@ private slots:
 
         for (QAction *action : window.menuBar()->actions())
         {
-            if (action->text().startsWith(QStringLiteral("排列")))
+            if (action->text().startsWith(QStringLiteral("Arrange")))
             {
                 arrangeMenu = action->menu();
                 break;
@@ -248,11 +249,11 @@ private slots:
                 continue;
             }
 
-            if (action->text() == QStringLiteral("对齐"))
+            if (action->text() == QStringLiteral("Align"))
             {
                 alignMenu = action->menu();
             }
-            else if (action->text() == QStringLiteral("布局"))
+            else if (action->text() == QStringLiteral("Layout"))
             {
                 layoutMenu = action->menu();
             }
@@ -270,8 +271,8 @@ private slots:
             arrangeTexts.append(action->text());
         }
 
-        QVERIFY(arrangeTexts.contains(QStringLiteral("组合")));
-        QVERIFY(arrangeTexts.contains(QStringLiteral("取消组合")));
+        QVERIFY(arrangeTexts.contains(QStringLiteral("Group")));
+        QVERIFY(arrangeTexts.contains(QStringLiteral("Ungroup")));
 
         // The right hand format panel no longer contains an arrange section.
         auto *panel = window.findChild<FormatPanel *>();
@@ -614,7 +615,7 @@ private slots:
 
         for (QAction *action : window.findChildren<QAction *>())
         {
-            if (action->text() == QStringLiteral("新建"))
+            if (action->text() == QStringLiteral("New"))
             {
                 found = true;
                 QCOMPARE(action->shortcut(), QKeySequence(QStringLiteral("Ctrl+Alt+N")));
@@ -640,10 +641,102 @@ private slots:
         QVector<ShortcutSetting> items = {
             {QStringLiteral("a"), QStringLiteral("功能 A"), QKeySequence(QStringLiteral("Ctrl+A")),
              QKeySequence(QStringLiteral("Ctrl+A"))}};
-        SettingsDialog dialog(items, QStringLiteral("dark"));
+        SettingsDialog dialog(items, QStringLiteral("dark"), QStringLiteral("zh"));
         QCOMPARE(dialog.theme(), QStringLiteral("dark"));
         QCOMPARE(dialog.findChildren<QTabWidget *>().size(), 1);
         QCOMPARE(dialog.findChildren<QKeySequenceEdit *>().size(), 1);
+    }
+
+    void englishTranslationAppliesToMenus()
+    {
+        MainWindow window;
+        window.show();
+
+        dq::I18n::setLanguage(dq::I18n::Language::English);
+        dq::I18n::retranslate(&window);
+
+        bool foundNew = false;
+
+        for (QAction *action : window.findChildren<QAction *>())
+        {
+            if (action->text() == QStringLiteral("New"))
+            {
+                foundNew = true;
+                break;
+            }
+        }
+
+        QVERIFY(foundNew);
+
+        dq::I18n::setLanguage(dq::I18n::Language::Chinese);
+        QCOMPARE(dq::I18n::text(QStringLiteral("New")), QStringLiteral("新建"));
+        dq::I18n::retranslate(&window);
+
+        bool foundChinese = false;
+
+        for (QAction *action : window.findChildren<QAction *>())
+        {
+            if (action->text() == QStringLiteral("新建"))
+            {
+                foundChinese = true;
+                break;
+            }
+        }
+
+        QVERIFY(foundChinese);
+
+        bool pageTabTranslated = false;
+
+        for (QTabBar *tabBar : window.findChildren<QTabBar *>())
+        {
+            for (int i = 0; i < tabBar->count(); ++i)
+            {
+                if (tabBar->tabText(i) == QStringLiteral("第 1 页"))
+                {
+                    pageTabTranslated = true;
+                }
+            }
+        }
+
+        QVERIFY(pageTabTranslated);
+
+        window.document()->addPage();
+
+        bool secondPageTranslated = false;
+
+        for (QTabBar *tabBar : window.findChildren<QTabBar *>())
+        {
+            for (int i = 0; i < tabBar->count(); ++i)
+            {
+                if (tabBar->tabText(i) == QStringLiteral("第 2 页"))
+                {
+                    secondPageTranslated = true;
+                }
+            }
+        }
+
+        QVERIFY(secondPageTranslated);
+
+        QStringList menuTexts;
+        for (QAction *action : window.menuBar()->actions())
+        {
+            menuTexts.append(action->text());
+        }
+        QVERIFY(menuTexts.contains(QStringLiteral("编辑")));
+        QVERIFY(menuTexts.contains(QStringLiteral("文件")));
+
+        dq::I18n::setLanguage(dq::I18n::Language::English);
+        dq::I18n::retranslate(&window);
+
+        menuTexts.clear();
+
+        for (QAction *action : window.menuBar()->actions())
+        {
+            menuTexts.append(action->text());
+        }
+
+        QVERIFY(menuTexts.contains(QStringLiteral("File")));
+        QVERIFY(menuTexts.contains(QStringLiteral("Edit")));
     }
 
     void layerCanBeDeletedFromPanel()

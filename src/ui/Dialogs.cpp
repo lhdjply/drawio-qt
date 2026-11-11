@@ -1,5 +1,7 @@
 #include "ui/Dialogs.h"
 
+#include "app/I18n.h"
+
 #include "app/AppSettings.h"
 #include "core/Document.h"
 
@@ -34,22 +36,22 @@ QString formatLabel(const QString &format)
 {
     if (format == QLatin1String("png"))
     {
-        return QStringLiteral("PNG 图像 (*.png)");
+        return QStringLiteral("PNG Image (*.png)");
     }
 
     if (format == QLatin1String("jpg"))
     {
-        return QStringLiteral("JPEG 图像 (*.jpg)");
+        return QStringLiteral("JPEG Image (*.jpg)");
     }
 
     if (format == QLatin1String("svg"))
     {
-        return QStringLiteral("SVG 矢量图 (*.svg)");
+        return QStringLiteral("SVG Vector Image (*.svg)");
     }
 
     if (format == QLatin1String("pdf"))
     {
-        return QStringLiteral("PDF 文档 (*.pdf)");
+        return QStringLiteral("PDF Document (*.pdf)");
     }
 
     if (format == QLatin1String("xml"))
@@ -57,7 +59,7 @@ QString formatLabel(const QString &format)
         return QStringLiteral("draw.io XML (*.drawio *.xml)");
     }
 
-    return QStringLiteral("HTML 查看器 (*.html)");
+    return QStringLiteral("HTML Viewer (*.html)");
 }
 
 } // namespace
@@ -86,66 +88,66 @@ ExportDialog::ExportDialog(const Document *document, QWidget *parent)
     : QDialog(parent)
     , m_document(document)
 {
-    setWindowTitle(QStringLiteral("导出"));
+    setWindowTitle(QStringLiteral("Export"));
     setMinimumWidth(520);
 
     auto *layout = new QVBoxLayout(this);
 
     auto *form = new QFormLayout();
     m_format = new QComboBox(this);
-    m_format->addItem(QStringLiteral("PNG 图像"), QStringLiteral("png"));
-    m_format->addItem(QStringLiteral("SVG 矢量图"), QStringLiteral("svg"));
-    m_format->addItem(QStringLiteral("PDF 文档"), QStringLiteral("pdf"));
-    m_format->addItem(QStringLiteral("JPEG 图像"), QStringLiteral("jpg"));
+    m_format->addItem(QStringLiteral("PNG Image"), QStringLiteral("png"));
+    m_format->addItem(QStringLiteral("SVG Vector Image"), QStringLiteral("svg"));
+    m_format->addItem(QStringLiteral("PDF Document"), QStringLiteral("pdf"));
+    m_format->addItem(QStringLiteral("JPEG Image"), QStringLiteral("jpg"));
     m_format->addItem(QStringLiteral("draw.io XML"), QStringLiteral("xml"));
-    m_format->addItem(QStringLiteral("HTML 查看器"), QStringLiteral("html"));
-    form->addRow(QStringLiteral("格式："), m_format);
+    m_format->addItem(QStringLiteral("HTML Viewer"), QStringLiteral("html"));
+    form->addRow(QStringLiteral("Format:"), m_format);
 
     auto *pathRow = new QHBoxLayout();
     m_path = new QLineEdit(this);
-    auto *browseButton = new QPushButton(QStringLiteral("浏览…"), this);
+    auto *browseButton = new QPushButton(QStringLiteral("Browse…"), this);
     pathRow->addWidget(m_path, 1);
     pathRow->addWidget(browseButton);
-    form->addRow(QStringLiteral("保存到："), pathRow);
+    form->addRow(QStringLiteral("Save to:"), pathRow);
 
     m_scale = new QDoubleSpinBox(this);
     m_scale->setRange(0.1, 20.0);
     m_scale->setSingleStep(0.1);
     m_scale->setValue(1.0);
     m_scale->setSuffix(QStringLiteral(" x"));
-    form->addRow(QStringLiteral("缩放："), m_scale);
+    form->addRow(QStringLiteral("Zoom:"), m_scale);
 
     m_border = new QSpinBox(this);
     m_border->setRange(0, 200);
     m_border->setValue(0);
     m_border->setSuffix(QStringLiteral(" px"));
-    form->addRow(QStringLiteral("边距："), m_border);
+    form->addRow(QStringLiteral("Margin:"), m_border);
 
     m_width = new QSpinBox(this);
     m_width->setRange(0, 20000);
-    m_width->setSpecialValueText(QStringLiteral("自动"));
-    form->addRow(QStringLiteral("目标宽度："), m_width);
+    m_width->setSpecialValueText(QStringLiteral("Auto"));
+    form->addRow(QStringLiteral("Target Width:"), m_width);
 
     m_height = new QSpinBox(this);
     m_height->setRange(0, 20000);
-    m_height->setSpecialValueText(QStringLiteral("自动"));
-    form->addRow(QStringLiteral("目标高度："), m_height);
+    m_height->setSpecialValueText(QStringLiteral("Auto"));
+    form->addRow(QStringLiteral("Target Height:"), m_height);
 
     m_quality = new QSpinBox(this);
     m_quality->setRange(1, 100);
     m_quality->setValue(90);
-    form->addRow(QStringLiteral("JPEG 质量："), m_quality);
+    form->addRow(QStringLiteral("JPEG Quality:"), m_quality);
 
-    m_transparent = new QCheckBox(QStringLiteral("透明背景（PNG/SVG）"), this);
+    m_transparent = new QCheckBox(QStringLiteral("Transparent background (PNG/SVG)"), this);
     form->addRow(QString(), m_transparent);
 
-    m_embed = new QCheckBox(QStringLiteral("嵌入图数据（可用 draw.io 重新打开）"), this);
+    m_embed = new QCheckBox(QStringLiteral("Embed diagram data (reopen with draw.io)"), this);
     form->addRow(QString(), m_embed);
 
-    m_allPages = new QCheckBox(QStringLiteral("导出全部页面"), this);
+    m_allPages = new QCheckBox(QStringLiteral("Export All Pages"), this);
     form->addRow(QString(), m_allPages);
 
-    m_pageView = new QCheckBox(QStringLiteral("按页面尺寸导出（而不是裁剪到图形）"), this);
+    m_pageView = new QCheckBox(QStringLiteral("Export at page size instead of cropping to the drawing"), this);
     form->addRow(QString(), m_pageView);
 
     layout->addLayout(form);
@@ -156,8 +158,8 @@ ExportDialog::ExportDialog(const Document *document, QWidget *parent)
     layout->addWidget(m_hint);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("导出"));
-    buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("取消"));
+    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("Export"));
+    buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("Cancel"));
     layout->addWidget(buttons);
 
     connect(buttons, &QDialogButtonBox::accepted, this, [this]()
@@ -234,15 +236,15 @@ void ExportDialog::updateFormatUi()
 
     if (format == QLatin1String("xml"))
     {
-        m_hint->setText(QStringLiteral("XML 导出保留完整页面的 mxGraphModel，可直接用 draw.io 打开。"));
+        m_hint->setText(QStringLiteral("The XML export keeps the full-page mxGraphModel and opens directly in draw.io."));
     }
     else if (format == QLatin1String("html"))
     {
-        m_hint->setText(QStringLiteral("HTML 导出生成一个通过 diagrams.net 查看器渲染的独立网页。"));
+        m_hint->setText(QStringLiteral("The HTML export creates a standalone page rendered by the diagrams.net viewer."));
     }
     else if (m_embed->isChecked())
     {
-        m_hint->setText(QStringLiteral("图数据将写入文件，可再次用 drawio-qt 或 draw.io 打开以继续编辑。"));
+        m_hint->setText(QStringLiteral("Diagram data is embedded and can be reopened in drawio-qt or draw.io."));
     }
     else
     {
@@ -264,7 +266,7 @@ void ExportDialog::updateDefaultPath()
     if (base.isEmpty())
     {
         base = AppSettings::instance().lastExportDir() + QLatin1Char('/')
-            + QStringLiteral("未命名绘图");
+            + QStringLiteral("Untitled Drawing");
     }
     else
     {
@@ -279,7 +281,7 @@ void ExportDialog::browse()
 {
     const QString format = selectedFormat();
     QString path = QFileDialog::getSaveFileName(
-        this, QStringLiteral("导出"), m_path->text().isEmpty()
+        this, QStringLiteral("Export"), m_path->text().isEmpty()
             ? AppSettings::instance().lastExportDir() : m_path->text(),
         exportFilterForFormat(format));
 
@@ -335,7 +337,7 @@ PageSetupDialog::PageSetupDialog(const Page &page, QWidget *parent)
     : QDialog(parent)
     , m_original(page.settings)
 {
-    setWindowTitle(QStringLiteral("页面设置"));
+    setWindowTitle(QStringLiteral("Page Setup"));
     setMinimumWidth(420);
 
     auto *layout = new QVBoxLayout(this);
@@ -347,44 +349,44 @@ PageSetupDialog::PageSetupDialog(const Page &page, QWidget *parent)
     m_preset->addItem(QStringLiteral("A5 (148 × 210 mm)"), QSizeF(583, 827));
     m_preset->addItem(QStringLiteral("Letter (216 × 279 mm)"), QSizeF(850, 1100));
     m_preset->addItem(QStringLiteral("Legal (216 × 356 mm)"), QSizeF(850, 1400));
-    m_preset->addItem(QStringLiteral("自定义"), QSizeF());
-    form->addRow(QStringLiteral("纸张："), m_preset);
+    m_preset->addItem(QStringLiteral("Custom"), QSizeF());
+    form->addRow(QStringLiteral("Paper:"), m_preset);
 
     m_orientation = new QComboBox(this);
-    m_orientation->addItem(QStringLiteral("纵向"), 0);
-    m_orientation->addItem(QStringLiteral("横向"), 1);
-    form->addRow(QStringLiteral("方向："), m_orientation);
+    m_orientation->addItem(QStringLiteral("Portrait"), 0);
+    m_orientation->addItem(QStringLiteral("Landscape"), 1);
+    form->addRow(QStringLiteral("Direction:"), m_orientation);
 
     m_width = new QDoubleSpinBox(this);
     m_width->setRange(50, 20000);
     m_width->setDecimals(0);
     m_width->setSuffix(QStringLiteral(" px"));
-    form->addRow(QStringLiteral("宽度："), m_width);
+    form->addRow(QStringLiteral("Width:"), m_width);
 
     m_height = new QDoubleSpinBox(this);
     m_height->setRange(50, 20000);
     m_height->setDecimals(0);
     m_height->setSuffix(QStringLiteral(" px"));
-    form->addRow(QStringLiteral("高度："), m_height);
+    form->addRow(QStringLiteral("Height:"), m_height);
 
-    m_showPage = new QCheckBox(QStringLiteral("显示页面边界"), this);
+    m_showPage = new QCheckBox(QStringLiteral("Show Page Bounds"), this);
     m_showPage->setChecked(m_original.page);
     form->addRow(QString(), m_showPage);
 
-    m_grid = new QCheckBox(QStringLiteral("显示网格"), this);
+    m_grid = new QCheckBox(QStringLiteral("Show Grid"), this);
     m_grid->setChecked(m_original.grid);
     form->addRow(QString(), m_grid);
 
     m_gridSize = new QSpinBox(this);
     m_gridSize->setRange(1, 200);
     m_gridSize->setValue(m_original.gridSize);
-    form->addRow(QStringLiteral("网格大小："), m_gridSize);
+    form->addRow(QStringLiteral("Grid Size:"), m_gridSize);
 
     layout->addLayout(form);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("确定"));
-    buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("取消"));
+    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("OK"));
+    buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("Cancel"));
     layout->addWidget(buttons);
 
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
@@ -473,12 +475,12 @@ Page::Settings PageSetupDialog::settings() const
 ShortcutDialog::ShortcutDialog(const QVector<ShortcutSetting> &settings, QWidget *parent)
     : QDialog(parent), m_settings(settings)
 {
-    setWindowTitle(QStringLiteral("键盘快捷键"));
+    setWindowTitle(QStringLiteral("Keyboard Shortcuts"));
     resize(520, 620);
 
     auto *layout = new QVBoxLayout(this);
     auto *table = new QTableWidget(m_settings.size(), 2, this);
-    table->setHorizontalHeaderLabels({QStringLiteral("功能"), QStringLiteral("快捷键")});
+    table->setHorizontalHeaderLabels({QStringLiteral("Action"), QStringLiteral("Shortcut")});
     table->horizontalHeader()->setStretchLastSection(true);
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     table->verticalHeader()->setVisible(false);
@@ -497,9 +499,9 @@ ShortcutDialog::ShortcutDialog(const QVector<ShortcutSetting> &settings, QWidget
     layout->addWidget(table, 1);
 
     auto *buttons = new QHBoxLayout();
-    auto *reset = new QPushButton(QStringLiteral("恢复默认"), this);
-    auto *cancel = new QPushButton(QStringLiteral("取消"), this);
-    auto *ok = new QPushButton(QStringLiteral("确定"), this);
+    auto *reset = new QPushButton(QStringLiteral("Restore Defaults"), this);
+    auto *cancel = new QPushButton(QStringLiteral("Cancel"), this);
+    auto *ok = new QPushButton(QStringLiteral("OK"), this);
     ok->setDefault(true);
     buttons->addStretch(1);
     buttons->addWidget(cancel);
@@ -547,8 +549,8 @@ void ShortcutDialog::acceptIfValid()
 
         if (used.contains(text))
         {
-            QMessageBox::warning(this, QStringLiteral("快捷键冲突"),
-                                 QStringLiteral("“%1”和“%2”都使用了 %3")
+            QMessageBox::warning(this, QStringLiteral("Shortcut Conflict"),
+                                 I18n::text(QStringLiteral("“%1” and “%2” both use %3"))
                                      .arg(used.value(text), item.label, text));
             return;
         }
@@ -561,10 +563,11 @@ void ShortcutDialog::acceptIfValid()
 }
 
 SettingsDialog::SettingsDialog(const QVector<ShortcutSetting> &shortcuts,
-                               const QString &theme, QWidget *parent)
+                               const QString &theme, const QString &language,
+                               QWidget *parent)
     : QDialog(parent), m_shortcuts(shortcuts)
 {
-    setWindowTitle(QStringLiteral("设置"));
+    setWindowTitle(QStringLiteral("Settings"));
     resize(620, 680);
 
     auto *layout = new QVBoxLayout(this);
@@ -573,20 +576,29 @@ SettingsDialog::SettingsDialog(const QVector<ShortcutSetting> &shortcuts,
     auto *general = new QWidget(tabs);
     auto *form = new QFormLayout(general);
     m_theme = new QComboBox(general);
-    m_theme->addItem(QStringLiteral("浅色"), QStringLiteral("light"));
-    m_theme->addItem(QStringLiteral("深色"), QStringLiteral("dark"));
-    m_theme->addItem(QStringLiteral("跟随系统"), QStringLiteral("system"));
+    m_theme->addItem(QStringLiteral("Light"), QStringLiteral("light"));
+    m_theme->addItem(QStringLiteral("Dark"), QStringLiteral("dark"));
+    m_theme->addItem(QStringLiteral("Follow System"), QStringLiteral("system"));
 
     const int themeIndex = m_theme->findData(theme);
     m_theme->setCurrentIndex(themeIndex >= 0 ? themeIndex : 2);
-    form->addRow(QStringLiteral("外观"), m_theme);
-    form->addRow(QString(), new QLabel(QStringLiteral("快捷键可在“快捷键”页逐项修改。"), general));
-    tabs->addTab(general, QStringLiteral("常规"));
+    form->addRow(QStringLiteral("Appearance"), m_theme);
+
+    m_language = new QComboBox(general);
+    m_language->addItem(QStringLiteral("Simplified Chinese"), QStringLiteral("zh"));
+    m_language->addItem(QStringLiteral("English"), QStringLiteral("en"));
+    m_language->addItem(QStringLiteral("Follow System"), QStringLiteral("system"));
+
+    const int languageIndex = m_language->findData(language);
+    m_language->setCurrentIndex(languageIndex >= 0 ? languageIndex : 2);
+    form->addRow(QStringLiteral("Language"), m_language);
+    form->addRow(QString(), new QLabel(QStringLiteral("Shortcuts can be edited on the Shortcuts tab."), general));
+    tabs->addTab(general, QStringLiteral("General"));
 
     auto *shortcutPage = new QWidget(tabs);
     auto *shortcutLayout = new QVBoxLayout(shortcutPage);
     auto *table = new QTableWidget(m_shortcuts.size(), 2, shortcutPage);
-    table->setHorizontalHeaderLabels({QStringLiteral("功能"), QStringLiteral("快捷键")});
+    table->setHorizontalHeaderLabels({QStringLiteral("Action"), QStringLiteral("Shortcut")});
     table->horizontalHeader()->setStretchLastSection(true);
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     table->verticalHeader()->setVisible(false);
@@ -604,18 +616,18 @@ SettingsDialog::SettingsDialog(const QVector<ShortcutSetting> &shortcuts,
 
     shortcutLayout->addWidget(table, 1);
 
-    auto *reset = new QPushButton(QStringLiteral("恢复默认快捷键"), shortcutPage);
+    auto *reset = new QPushButton(QStringLiteral("Restore Default Shortcuts"), shortcutPage);
     auto *resetRow = new QHBoxLayout();
     resetRow->addWidget(reset);
     resetRow->addStretch(1);
     shortcutLayout->addLayout(resetRow);
 
-    tabs->addTab(shortcutPage, QStringLiteral("快捷键"));
+    tabs->addTab(shortcutPage, QStringLiteral("Shortcut"));
     layout->addWidget(tabs, 1);
 
     auto *buttons = new QHBoxLayout();
-    auto *cancel = new QPushButton(QStringLiteral("取消"), this);
-    auto *ok = new QPushButton(QStringLiteral("确定"), this);
+    auto *cancel = new QPushButton(QStringLiteral("Cancel"), this);
+    auto *ok = new QPushButton(QStringLiteral("OK"), this);
     ok->setDefault(true);
     buttons->addStretch(1);
     buttons->addWidget(cancel);
@@ -644,6 +656,11 @@ QString SettingsDialog::theme() const
     return m_theme != nullptr ? m_theme->currentData().toString() : QStringLiteral("system");
 }
 
+QString SettingsDialog::language() const
+{
+    return m_language != nullptr ? m_language->currentData().toString() : QStringLiteral("system");
+}
+
 void SettingsDialog::restoreDefaults()
 {
     for (int i = 0; i < m_shortcuts.size() && i < m_editors.size(); ++i)
@@ -668,8 +685,8 @@ void SettingsDialog::acceptIfValid()
 
         if (used.contains(text))
         {
-            QMessageBox::warning(this, QStringLiteral("快捷键冲突"),
-                                 QStringLiteral("“%1”和“%2”都使用了 %3")
+            QMessageBox::warning(this, QStringLiteral("Shortcut Conflict"),
+                                 I18n::text(QStringLiteral("“%1” and “%2” both use %3"))
                                      .arg(used.value(text), item.label, text));
             return;
         }
@@ -681,52 +698,14 @@ void SettingsDialog::acceptIfValid()
     accept();
 }
 
-void showShortcutsDialog(QWidget *parent)
-{
-    const QString html = QStringLiteral(
-        "<h3>键盘快捷键</h3>"
-        "<table cellspacing='6'>"
-        "<tr><td>Ctrl + N</td><td>新建</td></tr>"
-        "<tr><td>Ctrl + O</td><td>打开</td></tr>"
-        "<tr><td>Ctrl + S</td><td>保存</td></tr>"
-        "<tr><td>Ctrl + Shift + S</td><td>另存为</td></tr>"
-        "<tr><td>Ctrl + Z / Ctrl + Shift + Z</td><td>撤销 / 重做</td></tr>"
-        "<tr><td>Ctrl + C / X / V / D</td><td>复制 / 剪切 / 粘贴 / 复制副本</td></tr>"
-        "<tr><td>Delete</td><td>删除所选</td></tr>"
-        "<tr><td>Enter / F2</td><td>编辑标签</td></tr>"
-        "<tr><td>Ctrl + 拖动</td><td>从形状拉出连接线</td></tr>"
-        "<tr><td>Shift + 单击</td><td>加选 / 减选</td></tr>"
-        "<tr><td>拖动空白处</td><td>框选</td></tr>"
-        "<tr><td>Ctrl + 滚轮</td><td>缩放</td></tr>"
-        "<tr><td>中键拖动 / 空格 + 拖动</td><td>平移画布</td></tr>"
-        "<tr><td>Ctrl + G / Ctrl + Shift + U</td><td>组合 / 取消组合</td></tr>"
-        "<tr><td>方向键 / Shift + 方向键</td><td>移动所选（1px / 10px）</td></tr>"
-        "<tr><td>Alt + 拖动</td><td>临时关闭对齐参考线与网格吸附</td></tr>"
-        "<tr><td>F11</td><td>全屏</td></tr>"
-        "</table>");
-
-    QMessageBox box(parent);
-    box.setWindowTitle(QStringLiteral("快捷键"));
-    box.setTextFormat(Qt::RichText);
-    box.setText(html);
-    box.exec();
-}
-
 void showAboutDialog(QWidget *parent)
 {
-    const QString html = QStringLiteral(
-        "<h3>drawio-qt %1</h3>"
-        "<p>draw.io 桌面版（Electron）的原生 Qt6 / C++ 移植版本。</p>"
-        "<p>使用 Qt Widgets 自行实现图形编辑器：mxGraph 数据模型、形状库、"
-        "正交连线路由、撤销重做、PNG/SVG/PDF/HTML/XML 导出与打印。</p>"
-        "<p>文件格式与 draw.io 兼容，可直接打开和保存 <code>.drawio</code> 文件。</p>"
-        "<p>本程序基于上游 draw.io 桌面版的项目结构重新实现，"
-        "遵循 GNU General Public License v3.0。</p>"
-        "<p>版本：%1　Qt：%2</p>")
-        .arg(QStringLiteral(DRAWIO_QT_VERSION), QString::fromLatin1(qVersion()));
+    const QString html = QStringLiteral("<h3>drawio-qt %1</h3>")
+        + I18n::text(QStringLiteral("about.body"))
+              .arg(QStringLiteral(DRAWIO_QT_VERSION), QString::fromLatin1(qVersion()));
 
     QMessageBox box(parent);
-    box.setWindowTitle(QStringLiteral("关于 drawio-qt"));
+    box.setWindowTitle(QStringLiteral("About drawio-qt"));
     box.setTextFormat(Qt::RichText);
     box.setText(html);
     box.exec();

@@ -2,6 +2,7 @@
 #include "app/CliExport.h"
 #include "app/UiTheme.h"
 #include "ui/DiagramView.h"
+#include "app/I18n.h"
 #include "ui/MainWindow.h"
 
 #include <QApplication>
@@ -56,6 +57,7 @@ int main(int argc, char *argv[])
     }
 
     QApplication app(argc, argv);
+    dq::I18n::initialize();
     QApplication::setApplicationDisplayName(QStringLiteral("drawio-qt"));
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/app.png")));
 
@@ -66,12 +68,12 @@ int main(int argc, char *argv[])
     {
         if (!parsed.options.layout.isEmpty())
         {
-            err << QStringLiteral("警告：当前版本尚未实现 --layout，已忽略。\n");
+            err << QStringLiteral("Warning: --layout is not implemented yet; ignoring.\n");
         }
 
         if (parsed.options.normalize)
         {
-            err << QStringLiteral("警告：当前版本尚未实现 --normalize，已忽略。\n");
+            err << QStringLiteral("Warning: --normalize is not implemented yet; ignoring.\n");
         }
 
         return dq::CliExport::run(parsed.options);

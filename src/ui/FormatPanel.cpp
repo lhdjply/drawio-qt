@@ -57,14 +57,14 @@ public:
         setStyleSheet(QStringLiteral(
             "QToolButton { padding-left: 22px; text-align: left; }"));
         setText(QStringLiteral("…"));
-        setToolTip(QStringLiteral("单击选择颜色，右键清除"));
+        setToolTip(QStringLiteral("Click to choose a color, right-click to clear"));
         setContextMenuPolicy(Qt::CustomContextMenu);
 
         connect(this, &QToolButton::clicked, this, [this]()
         {
             const QColor initial = m_color.isValid() ? m_color : Qt::white;
             const QColor chosen = QColorDialog::getColor(initial, this,
-                                                         QStringLiteral("选择颜色"),
+                                                         QStringLiteral("Choose Color"),
                                                          QColorDialog::ShowAlphaChannel);
 
             if (chosen.isValid())
@@ -79,8 +79,8 @@ public:
         connect(this, &QWidget::customContextMenuRequested, this, [this](const QPoint &pos)
         {
             QMenu menu(this);
-            QAction *none = menu.addAction(QStringLiteral("无颜色"));
-            QAction *defaultColor = menu.addAction(QStringLiteral("恢复默认"));
+            QAction *none = menu.addAction(QStringLiteral("No Color"));
+            QAction *defaultColor = menu.addAction(QStringLiteral("Restore Defaults"));
             QAction *chosen = menu.exec(mapToGlobal(pos));
 
             if (chosen == none)
@@ -105,12 +105,12 @@ public:
         if (value.isEmpty())
         {
             m_color = QColor();
-            setText(QStringLiteral("默认"));
+            setText(QStringLiteral("Default"));
         }
         else if (value == kNoneValue)
         {
             m_color = QColor();
-            setText(QStringLiteral("无"));
+            setText(QStringLiteral("None"));
         }
         else
         {
@@ -276,14 +276,14 @@ void FormatPanel::buildUi()
     layout->setSpacing(8);
     scroll->setWidget(content);
 
-    m_hint = new QLabel(QStringLiteral("在画布中选择图形\n以编辑其样式与文本"), content);
+    m_hint = new QLabel(QStringLiteral("Select a shape on the canvas\nto edit its style and text"), content);
     m_hint->setAlignment(Qt::AlignCenter);
     m_hint->setWordWrap(true);
     m_hint->setMinimumHeight(120);
     layout->addWidget(m_hint);
 
     // --- geometry ---------------------------------------------------------
-    auto *geometryGroup = new QGroupBox(QStringLiteral("位置与大小"), content);
+    auto *geometryGroup = new QGroupBox(QStringLiteral("Position and Size"), content);
     geometryGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     auto *geometryGrid = new QGridLayout(geometryGroup);
     geometryGrid->setHorizontalSpacing(6);
@@ -312,11 +312,11 @@ void FormatPanel::buildUi()
     geometryGrid->addWidget(m_x, 0, 1);
     geometryGrid->addWidget(new QLabel(QStringLiteral("Y"), geometryGroup), 0, 2);
     geometryGrid->addWidget(m_y, 0, 3);
-    geometryGrid->addWidget(new QLabel(QStringLiteral("宽"), geometryGroup), 1, 0);
+    geometryGrid->addWidget(new QLabel(QStringLiteral("W"), geometryGroup), 1, 0);
     geometryGrid->addWidget(m_w, 1, 1);
-    geometryGrid->addWidget(new QLabel(QStringLiteral("高"), geometryGroup), 1, 2);
+    geometryGrid->addWidget(new QLabel(QStringLiteral("H"), geometryGroup), 1, 2);
     geometryGrid->addWidget(m_h, 1, 3);
-    geometryGrid->addWidget(new QLabel(QStringLiteral("角度"), geometryGroup), 2, 0);
+    geometryGrid->addWidget(new QLabel(QStringLiteral("Angle"), geometryGroup), 2, 0);
     geometryGrid->addWidget(m_rotation, 2, 1, 1, 3);
 
     layout->addWidget(geometryGroup);
@@ -358,7 +358,7 @@ void FormatPanel::buildUi()
     });
 
     // --- style ------------------------------------------------------------
-    auto *styleGroup = new QGroupBox(QStringLiteral("样式"), content);
+    auto *styleGroup = new QGroupBox(QStringLiteral("Style"), content);
     styleGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     auto *styleForm = new QFormLayout(styleGroup);
     styleForm->setSpacing(4);
@@ -366,25 +366,25 @@ void FormatPanel::buildUi()
     m_fill = new ColorButton(styleGroup);
     m_stroke = new ColorButton(styleGroup);
     m_fontColor = new ColorButton(styleGroup);
-    styleForm->addRow(QStringLiteral("填充"), m_fill);
-    styleForm->addRow(QStringLiteral("边框"), m_stroke);
+    styleForm->addRow(QStringLiteral("Fill"), m_fill);
+    styleForm->addRow(QStringLiteral("Border"), m_stroke);
 
     m_strokeWidth = new QSpinBox(styleGroup);
     m_strokeWidth->setRange(0, 40);
     m_strokeWidth->setSuffix(QStringLiteral(" px"));
     m_strokeWidth->setMinimumWidth(64);
-    styleForm->addRow(QStringLiteral("线宽"), m_strokeWidth);
+    styleForm->addRow(QStringLiteral("Line Width"), m_strokeWidth);
 
     m_opacity = new QSpinBox(styleGroup);
     m_opacity->setRange(0, 100);
     m_opacity->setSuffix(QStringLiteral(" %"));
     m_opacity->setMinimumWidth(64);
-    styleForm->addRow(QStringLiteral("不透明度"), m_opacity);
+    styleForm->addRow(QStringLiteral("Opacity"), m_opacity);
 
     auto *flagRow = new QHBoxLayout();
-    m_dashed = new QCheckBox(QStringLiteral("虚线"), styleGroup);
-    m_rounded = new QCheckBox(QStringLiteral("圆角"), styleGroup);
-    m_shadow = new QCheckBox(QStringLiteral("阴影"), styleGroup);
+    m_dashed = new QCheckBox(QStringLiteral("Dashed"), styleGroup);
+    m_rounded = new QCheckBox(QStringLiteral("Rounded"), styleGroup);
+    m_shadow = new QCheckBox(QStringLiteral("Shadow"), styleGroup);
     flagRow->addWidget(m_dashed);
     flagRow->addWidget(m_rounded);
     flagRow->addWidget(m_shadow);
@@ -442,7 +442,7 @@ void FormatPanel::buildUi()
     });
 
     // --- text -------------------------------------------------------------
-    auto *textGroup = new QGroupBox(QStringLiteral("文本"), content);
+    auto *textGroup = new QGroupBox(QStringLiteral("Text"), content);
     textGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     auto *textForm = new QFormLayout(textGroup);
     textForm->setSpacing(4);
@@ -451,25 +451,25 @@ void FormatPanel::buildUi()
     m_fontSize->setRange(4, 200);
     m_fontSize->setSuffix(QStringLiteral(" px"));
     m_fontSize->setMinimumWidth(64);
-    textForm->addRow(QStringLiteral("字号"), m_fontSize);
-    textForm->addRow(QStringLiteral("颜色"), m_fontColor);
+    textForm->addRow(QStringLiteral("Font Size"), m_fontSize);
+    textForm->addRow(QStringLiteral("Color"), m_fontColor);
 
     m_align = new QComboBox(textGroup);
-    m_align->addItem(QStringLiteral("左对齐"), QStringLiteral("left"));
-    m_align->addItem(QStringLiteral("居中"), QStringLiteral("center"));
-    m_align->addItem(QStringLiteral("右对齐"), QStringLiteral("right"));
-    textForm->addRow(QStringLiteral("水平对齐"), m_align);
+    m_align->addItem(QStringLiteral("Align Left"), QStringLiteral("left"));
+    m_align->addItem(QStringLiteral("Center"), QStringLiteral("center"));
+    m_align->addItem(QStringLiteral("Align Right"), QStringLiteral("right"));
+    textForm->addRow(QStringLiteral("Horizontal Align"), m_align);
 
     m_verticalAlign = new QComboBox(textGroup);
-    m_verticalAlign->addItem(QStringLiteral("顶部"), QStringLiteral("top"));
-    m_verticalAlign->addItem(QStringLiteral("居中"), QStringLiteral("middle"));
-    m_verticalAlign->addItem(QStringLiteral("底部"), QStringLiteral("bottom"));
-    textForm->addRow(QStringLiteral("垂直对齐"), m_verticalAlign);
+    m_verticalAlign->addItem(QStringLiteral("Top"), QStringLiteral("top"));
+    m_verticalAlign->addItem(QStringLiteral("Center"), QStringLiteral("middle"));
+    m_verticalAlign->addItem(QStringLiteral("Bottom"), QStringLiteral("bottom"));
+    textForm->addRow(QStringLiteral("Vertical Align"), m_verticalAlign);
 
     auto *formatRow = new QHBoxLayout();
-    m_bold = makeToggle(QStringLiteral("B"), QStringLiteral("粗体"), textGroup);
-    m_italic = makeToggle(QStringLiteral("I"), QStringLiteral("斜体"), textGroup);
-    m_underline = makeToggle(QStringLiteral("U"), QStringLiteral("下划线"), textGroup);
+    m_bold = makeToggle(QStringLiteral("B"), QStringLiteral("Bold"), textGroup);
+    m_italic = makeToggle(QStringLiteral("I"), QStringLiteral("Italic"), textGroup);
+    m_underline = makeToggle(QStringLiteral("U"), QStringLiteral("Underline"), textGroup);
     m_bold->setStyleSheet(QStringLiteral("font-weight: bold;"));
 
     m_underline->setStyleSheet(QStringLiteral("text-decoration: underline;"));
@@ -528,37 +528,37 @@ void FormatPanel::buildUi()
     connect(m_underline, &QToolButton::toggled, this, updateFontStyle);
 
     // --- connectors -------------------------------------------------------
-    auto *edgeGroup = new QGroupBox(QStringLiteral("连线"), content);
+    auto *edgeGroup = new QGroupBox(QStringLiteral("Connector"), content);
     m_edgeGroup = edgeGroup;
     edgeGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     auto *edgeForm = new QFormLayout(edgeGroup);
     edgeForm->setSpacing(4);
 
     m_edgeStyle = new QComboBox(edgeGroup);
-    m_edgeStyle->addItem(QStringLiteral("正交"), QStringLiteral("orthogonalEdgeStyle"));
-    m_edgeStyle->addItem(QStringLiteral("直线"), QString());
-    m_edgeStyle->addItem(QStringLiteral("折线"), QStringLiteral("segmentEdgeStyle"));
-    m_edgeStyle->addItem(QStringLiteral("实体关系"), QStringLiteral("entityRelationEdgeStyle"));
-    edgeForm->addRow(QStringLiteral("线路"), m_edgeStyle);
+    m_edgeStyle->addItem(QStringLiteral("Orthogonal"), QStringLiteral("orthogonalEdgeStyle"));
+    m_edgeStyle->addItem(QStringLiteral("Straight Line"), QString());
+    m_edgeStyle->addItem(QStringLiteral("Polyline"), QStringLiteral("segmentEdgeStyle"));
+    m_edgeStyle->addItem(QStringLiteral("Entity Relation"), QStringLiteral("entityRelationEdgeStyle"));
+    edgeForm->addRow(QStringLiteral("Route"), m_edgeStyle);
 
     m_startArrow = new QComboBox(edgeGroup);
     m_endArrow = new QComboBox(edgeGroup);
 
     const QVector<QPair<QString, QString>> arrows = {
-        {QStringLiteral("无"), QStringLiteral("none")},
-        {QStringLiteral("实心箭头"), QStringLiteral("classic")},
-        {QStringLiteral("细实心箭头"), QStringLiteral("classicThin")},
-        {QStringLiteral("方块箭头"), QStringLiteral("block")},
-        {QStringLiteral("细方块箭头"), QStringLiteral("blockThin")},
-        {QStringLiteral("空心箭头"), QStringLiteral("open")},
-        {QStringLiteral("细空心箭头"), QStringLiteral("openThin")},
-        {QStringLiteral("圆形"), QStringLiteral("oval")},
-        {QStringLiteral("菱形"), QStringLiteral("diamond")},
-        {QStringLiteral("细菱形"), QStringLiteral("diamondThin")},
-        {QStringLiteral("基线"), QStringLiteral("baseDash")},
-        {QStringLiteral("双方块"), QStringLiteral("doubleBlock")},
-        {QStringLiteral("多选"), QStringLiteral("manyOptional")},
-        {QStringLiteral("块状箭头（flexArrow）"), QStringLiteral("flexArrow")},
+        {QStringLiteral("None"), QStringLiteral("none")},
+        {QStringLiteral("Filled Arrow"), QStringLiteral("classic")},
+        {QStringLiteral("Thin Filled Arrow"), QStringLiteral("classicThin")},
+        {QStringLiteral("Block Arrow"), QStringLiteral("block")},
+        {QStringLiteral("Thin Block Arrow"), QStringLiteral("blockThin")},
+        {QStringLiteral("Open Arrow"), QStringLiteral("open")},
+        {QStringLiteral("Thin Open Arrow"), QStringLiteral("openThin")},
+        {QStringLiteral("Ellipse"), QStringLiteral("oval")},
+        {QStringLiteral("Diamond"), QStringLiteral("diamond")},
+        {QStringLiteral("Thin Diamond"), QStringLiteral("diamondThin")},
+        {QStringLiteral("Baseline"), QStringLiteral("baseDash")},
+        {QStringLiteral("Double Block"), QStringLiteral("doubleBlock")},
+        {QStringLiteral("Multi-select"), QStringLiteral("manyOptional")},
+        {QStringLiteral("Flex Arrow (flexArrow)"), QStringLiteral("flexArrow")},
     };
 
     for (const auto &entry : arrows)
@@ -575,11 +575,11 @@ void FormatPanel::buildUi()
     m_endArrow->setIconSize(QSize(48, 24));
     m_startArrow->setMinimumWidth(72);
     m_endArrow->setMinimumWidth(72);
-    m_startArrow->setToolTip(QStringLiteral("起点箭头"));
-    m_endArrow->setToolTip(QStringLiteral("终点箭头"));
+    m_startArrow->setToolTip(QStringLiteral("Start Arrow"));
+    m_endArrow->setToolTip(QStringLiteral("End Arrow"));
 
-    edgeForm->addRow(QStringLiteral("起点"), m_startArrow);
-    edgeForm->addRow(QStringLiteral("终点"), m_endArrow);
+    edgeForm->addRow(QStringLiteral("Start"), m_startArrow);
+    edgeForm->addRow(QStringLiteral("End"), m_endArrow);
 
     m_startSize = new QSpinBox(edgeGroup);
     m_endSize = new QSpinBox(edgeGroup);
@@ -591,8 +591,8 @@ void FormatPanel::buildUi()
         spin->setSuffix(QStringLiteral(" px"));
     }
 
-    edgeForm->addRow(QStringLiteral("起点大小"), m_startSize);
-    edgeForm->addRow(QStringLiteral("终点大小"), m_endSize);
+    edgeForm->addRow(QStringLiteral("Start Size"), m_startSize);
+    edgeForm->addRow(QStringLiteral("End Size"), m_endSize);
     layout->addWidget(edgeGroup);
 
     connect(m_edgeStyle, &QComboBox::currentIndexChanged, this, [this](int)

@@ -16,7 +16,7 @@ namespace dq {
 struct Layer
 {
     QString id = QStringLiteral("1");
-    QString name = QStringLiteral("默认层");
+    QString name = QStringLiteral("Default Layer");
     bool visible = true;
     bool locked = false;
 };
@@ -39,7 +39,7 @@ public:
         double dy = 0.0;
     };
 
-    explicit Page(const QString &name = QStringLiteral("第 1 页"));
+    explicit Page(const QString &name = QStringLiteral("Page 1"));
     ~Page();
 
     Page(const Page &) = delete;

@@ -99,106 +99,106 @@ QVector<ShapeDefinition> toolboxShapes()
         shapes.append(definition);
     };
 
-    add(QStringLiteral("basic.waypoint"), QStringLiteral("连接点"),
+    add(QStringLiteral("basic.waypoint"), QStringLiteral("Waypoint"),
         QStringLiteral("shape=waypoint;size=8;fillColor=#000000;strokeColor=#000000;"),
         QSizeF(20, 20), QStringLiteral("basic"));
-    add(QStringLiteral("rectangle"), QStringLiteral("矩形"),
+    add(QStringLiteral("rectangle"), QStringLiteral("Rectangle"),
         QStringLiteral("rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("rounded"), QStringLiteral("圆角矩形"),
+    add(QStringLiteral("rounded"), QStringLiteral("Rounded Rectangle"),
         QStringLiteral("rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=20;"),
         QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("ellipse"), QStringLiteral("椭圆"),
+    add(QStringLiteral("ellipse"), QStringLiteral("Ellipse"),
         QStringLiteral("ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
         QSizeF(140, 80), QStringLiteral("basic"));
-    add(QStringLiteral("circle"), QStringLiteral("圆形"),
+    add(QStringLiteral("circle"), QStringLiteral("Circle"),
         QStringLiteral("ellipse;aspect=fixed;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
         QSizeF(90, 90), QStringLiteral("basic"));
-    add(QStringLiteral("diamond"), QStringLiteral("菱形"),
+    add(QStringLiteral("diamond"), QStringLiteral("Diamond"),
         QStringLiteral("rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;"),
         QSizeF(120, 90), QStringLiteral("basic"));
-    add(QStringLiteral("triangle"), QStringLiteral("三角形"),
+    add(QStringLiteral("triangle"), QStringLiteral("Triangle"),
         QStringLiteral("triangle;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;"),
         QSizeF(110, 90), QStringLiteral("basic"));
-    add(QStringLiteral("hexagon"), QStringLiteral("六边形"),
+    add(QStringLiteral("hexagon"), QStringLiteral("Hexagon"),
         QStringLiteral("shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;"
                        "fillColor=#e1d5e7;strokeColor=#9673a6;"),
         QSizeF(140, 80), QStringLiteral("basic"));
-    add(QStringLiteral("parallelogram"), QStringLiteral("平行四边形"),
+    add(QStringLiteral("parallelogram"), QStringLiteral("Parallelogram"),
         QStringLiteral("shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;"
                        "fixedSize=1;fillColor=#fff2cc;strokeColor=#d6b656;"),
         QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("trapezoid"), QStringLiteral("梯形"),
+    add(QStringLiteral("trapezoid"), QStringLiteral("Trapezoid"),
         QStringLiteral("shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;html=1;"
                        "fixedSize=1;fillColor=#fff2cc;strokeColor=#d6b656;"),
         QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("pentagon"), QStringLiteral("五边形"),
+    add(QStringLiteral("pentagon"), QStringLiteral("Pentagon"),
         QStringLiteral("shape=pentagon;perimeter=pentagonPerimeter;whiteSpace=wrap;html=1;"
                        "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("octagon"), QStringLiteral("八边形"),
+    add(QStringLiteral("octagon"), QStringLiteral("Octagon"),
         QStringLiteral("shape=octagon;perimeter=octagonPerimeter;whiteSpace=wrap;html=1;"
                        "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("star"), QStringLiteral("星形"),
+    add(QStringLiteral("star"), QStringLiteral("Star"),
         QStringLiteral("shape=star;perimeter=starPerimeter;whiteSpace=wrap;html=1;"
                        "fillColor=#fff2cc;strokeColor=#d6b656;"),
         QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("cross"), QStringLiteral("十字"),
+    add(QStringLiteral("cross"), QStringLiteral("Cross"),
         QStringLiteral("shape=cross;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;"),
         QSizeF(100, 100), QStringLiteral("basic"));
-    add(QStringLiteral("cube"), QStringLiteral("立方体"),
+    add(QStringLiteral("cube"), QStringLiteral("Cube"),
         QStringLiteral("shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;"
                        "darkOpacity=0.05;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("doubleEllipse"), QStringLiteral("双椭圆"),
+    add(QStringLiteral("doubleEllipse"), QStringLiteral("Double Ellipse"),
         QStringLiteral("shape=doubleEllipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
         QSizeF(130, 80), QStringLiteral("basic"));
-    add(QStringLiteral("cylinder"), QStringLiteral("数据库"),
+    add(QStringLiteral("cylinder"), QStringLiteral("Database"),
         QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;"
                        "fillColor=#bac8d3;strokeColor=#23445d;"),
         QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("cloud"), QStringLiteral("云形"),
+    add(QStringLiteral("cloud"), QStringLiteral("Cloud"),
         QStringLiteral("ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;"),
         QSizeF(150, 100), QStringLiteral("basic"));
-    add(QStringLiteral("document"), QStringLiteral("文档"),
+    add(QStringLiteral("document"), QStringLiteral("Document"),
         QStringLiteral("shape=document;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#f8cecc;strokeColor=#b85450;"),
         QSizeF(140, 90), QStringLiteral("basic"));
-    add(QStringLiteral("note"), QStringLiteral("便签"),
+    add(QStringLiteral("note"), QStringLiteral("Note"),
         QStringLiteral("shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;"
                        "fillColor=#fff2cc;strokeColor=#d6b656;"),
         QSizeF(120, 100), QStringLiteral("basic"));
-    add(QStringLiteral("callout"), QStringLiteral("标注"),
+    add(QStringLiteral("callout"), QStringLiteral("Callout"),
         QStringLiteral("shape=callout;whiteSpace=wrap;html=1;perimeter=calloutPerimeter;"
                        "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(150, 90), QStringLiteral("basic"));
-    add(QStringLiteral("swimlane"), QStringLiteral("泳道"),
+    add(QStringLiteral("swimlane"), QStringLiteral("Swimlane"),
         QStringLiteral("swimlane;html=1;startSize=23;fillColor=#f5f5f5;strokeColor=#666666;"),
         QSizeF(240, 160), QStringLiteral("basic"));
-    add(QStringLiteral("text"), QStringLiteral("文本"),
+    add(QStringLiteral("text"), QStringLiteral("Text"),
         QStringLiteral("text;html=1;strokeColor=none;fillColor=none;align=center;"
                        "verticalAlign=middle;whiteSpace=wrap;rounded=0;"),
         QSizeF(120, 40), QStringLiteral("basic"));
-    add(QStringLiteral("line"), QStringLiteral("直线"),
+    add(QStringLiteral("line"), QStringLiteral("Line"),
         QStringLiteral("line;strokeWidth=2;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(120, 60), QStringLiteral("basic"));
 
-    add(QStringLiteral("actor"), QStringLiteral("角色"),
+    add(QStringLiteral("actor"), QStringLiteral("Actor"),
         QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
                        "outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(60, 110), QStringLiteral("uml"));
-    add(QStringLiteral("arrow"), QStringLiteral("箭头"),
+    add(QStringLiteral("arrow"), QStringLiteral("Arrow"),
         QStringLiteral("shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
         QSizeF(140, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("process"), QStringLiteral("流程"),
+    add(QStringLiteral("process"), QStringLiteral("Process"),
         QStringLiteral("shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;"
                        "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(150, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("step"), QStringLiteral("步骤"),
+    add(QStringLiteral("step"), QStringLiteral("Step"),
         QStringLiteral("shape=step;perimeter=stepPerimeter;whiteSpace=wrap;html=1;fixedSize=1;"
                        "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(150, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("terminator"), QStringLiteral("起止"),
+    add(QStringLiteral("terminator"), QStringLiteral("Terminator"),
         QStringLiteral("rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
         QSizeF(140, 60), QStringLiteral("flowchart"));
     const QString blue = QStringLiteral("fillColor=#dae8fc;strokeColor=#6c8ebf;");
@@ -211,647 +211,647 @@ QVector<ShapeDefinition> toolboxShapes()
     const QString plain = QStringLiteral("whiteSpace=wrap;html=1;");
 
     // --- additional draw.io Basic shapes (Sidebar-Basic.js) --------------
-    add(QStringLiteral("basic.partialTopBottom"), QStringLiteral("缺边矩形（上下）"),
+    add(QStringLiteral("basic.partialTopBottom"), QStringLiteral("Partial Top Bottom"),
         QStringLiteral("shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
         QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.partialTop"), QStringLiteral("缺边矩形（上）"),
+    add(QStringLiteral("basic.partialTop"), QStringLiteral("Partial Top"),
         QStringLiteral("shape=partialRectangle;top=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
         QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.partialBottom"), QStringLiteral("缺边矩形（下）"),
+    add(QStringLiteral("basic.partialBottom"), QStringLiteral("Partial Bottom"),
         QStringLiteral("shape=partialRectangle;bottom=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
         QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.partialLeft"), QStringLiteral("缺边矩形（左）"),
+    add(QStringLiteral("basic.partialLeft"), QStringLiteral("Partial Left"),
         QStringLiteral("shape=partialRectangle;left=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
         QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.polygon"), QStringLiteral("多边形"),
+    add(QStringLiteral("basic.polygon"), QStringLiteral("Polygon"),
         QStringLiteral("shape=polygon;whiteSpace=wrap;html=1;") + blue,
         QSizeF(120, 120), QStringLiteral("basic"));
-    add(QStringLiteral("basic.star4"), QStringLiteral("四角星"),
+    add(QStringLiteral("basic.star4"), QStringLiteral("Star4"),
         QStringLiteral("shape=star4;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(100, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.star6"), QStringLiteral("六角星"),
+    add(QStringLiteral("basic.star6"), QStringLiteral("Star6"),
         QStringLiteral("shape=star6;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.star8"), QStringLiteral("八角星"),
+    add(QStringLiteral("basic.star8"), QStringLiteral("Star8"),
         QStringLiteral("shape=star8;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(110, 110), QStringLiteral("basic"));
-    add(QStringLiteral("basic.banner"), QStringLiteral("横幅"),
+    add(QStringLiteral("basic.banner"), QStringLiteral("Banner"),
         QStringLiteral("shape=banner;whiteSpace=wrap;html=1;") + orange,
         QSizeF(180, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.cloudCallout"), QStringLiteral("云标注"),
+    add(QStringLiteral("basic.cloudCallout"), QStringLiteral("Cloud Callout"),
         QStringLiteral("shape=cloudCallout;whiteSpace=wrap;html=1;") + purple,
         QSizeF(160, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.cloudRect"), QStringLiteral("云矩形"),
+    add(QStringLiteral("basic.cloudRect"), QStringLiteral("Cloud Rect"),
         QStringLiteral("shape=cloudRect;whiteSpace=wrap;html=1;") + purple,
         QSizeF(160, 90), QStringLiteral("basic"));
-    add(QStringLiteral("basic.cone"), QStringLiteral("圆锥"),
+    add(QStringLiteral("basic.cone"), QStringLiteral("Cone"),
         QStringLiteral("shape=cone;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(100, 120), QStringLiteral("basic"));
-    add(QStringLiteral("basic.cone2"), QStringLiteral("圆锥（可调）"),
+    add(QStringLiteral("basic.cone2"), QStringLiteral("Cone2"),
         QStringLiteral("shape=cone2;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(100, 120), QStringLiteral("basic"));
-    add(QStringLiteral("basic.donut"), QStringLiteral("圆环"),
+    add(QStringLiteral("basic.donut"), QStringLiteral("Donut"),
         QStringLiteral("shape=donut;whiteSpace=wrap;html=1;") + green,
         QSizeF(110, 110), QStringLiteral("basic"));
-    add(QStringLiteral("basic.drop"), QStringLiteral("水滴"),
+    add(QStringLiteral("basic.drop"), QStringLiteral("Drop"),
         QStringLiteral("shape=drop;whiteSpace=wrap;html=1;") + blue,
         QSizeF(80, 110), QStringLiteral("basic"));
-    add(QStringLiteral("basic.flash"), QStringLiteral("闪电"),
+    add(QStringLiteral("basic.flash"), QStringLiteral("Flash"),
         QStringLiteral("shape=flash;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(80, 120), QStringLiteral("basic"));
-    add(QStringLiteral("basic.halfCircle"), QStringLiteral("半圆"),
+    add(QStringLiteral("basic.halfCircle"), QStringLiteral("Half Circle"),
         QStringLiteral("shape=halfCircle;whiteSpace=wrap;html=1;") + green,
         QSizeF(120, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.heart"), QStringLiteral("心形"),
+    add(QStringLiteral("basic.heart"), QStringLiteral("Heart"),
         QStringLiteral("shape=heart;whiteSpace=wrap;html=1;") + red,
         QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.isocube"), QStringLiteral("等轴立方体"),
+    add(QStringLiteral("basic.isocube"), QStringLiteral("Isocube"),
         QStringLiteral("shape=isocube;whiteSpace=wrap;html=1;") + blue,
         QSizeF(110, 110), QStringLiteral("basic"));
-    add(QStringLiteral("basic.loudCallout"), QStringLiteral("大声标注"),
+    add(QStringLiteral("basic.loudCallout"), QStringLiteral("Loud Callout"),
         QStringLiteral("shape=loudCallout;whiteSpace=wrap;html=1;") + orange,
         QSizeF(150, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.moon"), QStringLiteral("月亮"),
+    add(QStringLiteral("basic.moon"), QStringLiteral("Moon"),
         QStringLiteral("shape=moon;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(90, 110), QStringLiteral("basic"));
-    add(QStringLiteral("basic.noSymbol"), QStringLiteral("禁止符号"),
+    add(QStringLiteral("basic.noSymbol"), QStringLiteral("No Symbol"),
         QStringLiteral("shape=noSymbol;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#b85450;"),
         QSizeF(100, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.orthogonalTriangle"), QStringLiteral("直角三角形"),
+    add(QStringLiteral("basic.orthogonalTriangle"), QStringLiteral("Orthogonal Triangle"),
         QStringLiteral("shape=orthogonalTriangle;whiteSpace=wrap;html=1;") + green,
         QSizeF(110, 90), QStringLiteral("basic"));
-    add(QStringLiteral("basic.acuteTriangle"), QStringLiteral("锐角三角形"),
+    add(QStringLiteral("basic.acuteTriangle"), QStringLiteral("Acute Triangle"),
         QStringLiteral("shape=acuteTriangle;whiteSpace=wrap;html=1;") + green,
         QSizeF(110, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.obtuseTriangle"), QStringLiteral("钝角三角形"),
+    add(QStringLiteral("basic.obtuseTriangle"), QStringLiteral("Obtuse Triangle"),
         QStringLiteral("shape=obtuseTriangle;whiteSpace=wrap;html=1;") + green,
         QSizeF(110, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.ovalCallout"), QStringLiteral("椭圆标注"),
+    add(QStringLiteral("basic.ovalCallout"), QStringLiteral("Oval Callout"),
         QStringLiteral("shape=ovalCallout;whiteSpace=wrap;html=1;") + blue,
         QSizeF(150, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.pointedOval"), QStringLiteral("尖椭圆"),
+    add(QStringLiteral("basic.pointedOval"), QStringLiteral("Pointed Oval"),
         QStringLiteral("shape=pointedOval;whiteSpace=wrap;html=1;") + purple,
         QSizeF(80, 110), QStringLiteral("basic"));
-    add(QStringLiteral("basic.pyramid"), QStringLiteral("金字塔"),
+    add(QStringLiteral("basic.pyramid"), QStringLiteral("Pyramid"),
         QStringLiteral("shape=pyramid;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(120, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.diagSnipRect"), QStringLiteral("斜切矩形"),
+    add(QStringLiteral("basic.diagSnipRect"), QStringLiteral("Diag Snip Rect"),
         QStringLiteral("shape=diagSnipRect;whiteSpace=wrap;html=1;") + blue,
         QSizeF(140, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.diagRoundRect"), QStringLiteral("斜角圆角矩形"),
+    add(QStringLiteral("basic.diagRoundRect"), QStringLiteral("Diag Round Rect"),
         QStringLiteral("shape=diagRoundRect;whiteSpace=wrap;html=1;") + blue,
         QSizeF(140, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.cornerRoundRect"), QStringLiteral("单角圆角矩形"),
+    add(QStringLiteral("basic.cornerRoundRect"), QStringLiteral("Corner Round Rect"),
         QStringLiteral("shape=cornerRoundRect;whiteSpace=wrap;html=1;") + blue,
         QSizeF(140, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.threeCornerRoundRect"), QStringLiteral("三角圆角矩形"),
+    add(QStringLiteral("basic.threeCornerRoundRect"), QStringLiteral("Three Corner Round Rect"),
         QStringLiteral("shape=threeCornerRoundRect;whiteSpace=wrap;html=1;") + blue,
         QSizeF(140, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.plaque"), QStringLiteral("铭牌"),
+    add(QStringLiteral("basic.plaque"), QStringLiteral("Plaque"),
         QStringLiteral("shape=plaque;whiteSpace=wrap;html=1;") + orange,
         QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.frame"), QStringLiteral("框架"),
+    add(QStringLiteral("basic.frame"), QStringLiteral("Frame"),
         QStringLiteral("shape=frame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
         QSizeF(140, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.roundedFrame"), QStringLiteral("圆角框架"),
+    add(QStringLiteral("basic.roundedFrame"), QStringLiteral("Rounded Frame"),
         QStringLiteral("shape=roundedFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
         QSizeF(140, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.plaqueFrame"), QStringLiteral("铭牌框架"),
+    add(QStringLiteral("basic.plaqueFrame"), QStringLiteral("Plaque Frame"),
         QStringLiteral("shape=plaqueFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
         QSizeF(140, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.frameCorner"), QStringLiteral("框架角"),
+    add(QStringLiteral("basic.frameCorner"), QStringLiteral("Frame Corner"),
         QStringLiteral("shape=frameCorner;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
         QSizeF(130, 90), QStringLiteral("basic"));
-    add(QStringLiteral("basic.diagStripe"), QStringLiteral("斜条纹"),
+    add(QStringLiteral("basic.diagStripe"), QStringLiteral("Diag Stripe"),
         QStringLiteral("shape=diagStripe;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(140, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.rectCallout"), QStringLiteral("矩形标注"),
+    add(QStringLiteral("basic.rectCallout"), QStringLiteral("Rect Callout"),
         QStringLiteral("shape=rectCallout;whiteSpace=wrap;html=1;") + blue,
         QSizeF(150, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.roundRectCallout"), QStringLiteral("圆角矩形标注"),
+    add(QStringLiteral("basic.roundRectCallout"), QStringLiteral("Round Rect Callout"),
         QStringLiteral("shape=roundRectCallout;whiteSpace=wrap;html=1;") + blue,
         QSizeF(150, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.layeredRect"), QStringLiteral("分层矩形"),
+    add(QStringLiteral("basic.layeredRect"), QStringLiteral("Layered Rect"),
         QStringLiteral("shape=layeredRect;whiteSpace=wrap;html=1;") + green,
         QSizeF(150, 90), QStringLiteral("basic"));
-    add(QStringLiteral("basic.smiley"), QStringLiteral("笑脸"),
+    add(QStringLiteral("basic.smiley"), QStringLiteral("Smiley"),
         QStringLiteral("shape=smiley;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(110, 110), QStringLiteral("basic"));
-    add(QStringLiteral("basic.sun"), QStringLiteral("太阳"),
+    add(QStringLiteral("basic.sun"), QStringLiteral("Sun"),
         QStringLiteral("shape=sun;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(110, 110), QStringLiteral("basic"));
-    add(QStringLiteral("basic.tick"), QStringLiteral("对勾"),
+    add(QStringLiteral("basic.tick"), QStringLiteral("Tick"),
         QStringLiteral("shape=tick;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
         QSizeF(100, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.wave"), QStringLiteral("波浪"),
+    add(QStringLiteral("basic.wave"), QStringLiteral("Wave"),
         QStringLiteral("shape=wave;whiteSpace=wrap;html=1;") + blue,
         QSizeF(160, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.button"), QStringLiteral("按钮"),
+    add(QStringLiteral("basic.button"), QStringLiteral("Button"),
         QStringLiteral("shape=button;whiteSpace=wrap;html=1;") + green,
         QSizeF(120, 50), QStringLiteral("basic"));
 
     // --- cloud -----------------------------------------------------------
-    add(QStringLiteral("cloud.generic"), QStringLiteral("云"),
+    add(QStringLiteral("cloud.generic"), QStringLiteral("Generic"),
         QStringLiteral("shape=cloud;whiteSpace=wrap;html=1;") + blue,
         QSizeF(150, 100), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.callout"), QStringLiteral("云标注"),
+    add(QStringLiteral("cloud.callout"), QStringLiteral("Callout"),
         QStringLiteral("shape=cloudCallout;whiteSpace=wrap;html=1;") + blue,
         QSizeF(160, 100), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.rect"), QStringLiteral("云矩形"),
+    add(QStringLiteral("cloud.rect"), QStringLiteral("Rect"),
         QStringLiteral("shape=cloudRect;whiteSpace=wrap;html=1;") + blue,
         QSizeF(160, 90), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.server"), QStringLiteral("服务器"),
+    add(QStringLiteral("cloud.server"), QStringLiteral("Server"),
         QStringLiteral("shape=cloudServer;whiteSpace=wrap;html=1;") + blue,
         QSizeF(100, 130), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.datacenter"), QStringLiteral("数据中心"),
+    add(QStringLiteral("cloud.datacenter"), QStringLiteral("Datacenter"),
         QStringLiteral("shape=cloudDatacenter;whiteSpace=wrap;html=1;") + blue,
         QSizeF(120, 110), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.firewall"), QStringLiteral("防火墙"),
+    add(QStringLiteral("cloud.firewall"), QStringLiteral("Firewall"),
         QStringLiteral("shape=cloudFirewall;whiteSpace=wrap;html=1;") + red,
         QSizeF(120, 100), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.globe"), QStringLiteral("全球网络"),
+    add(QStringLiteral("cloud.globe"), QStringLiteral("Globe"),
         QStringLiteral("shape=cloudGlobe;whiteSpace=wrap;html=1;") + green,
         QSizeF(110, 110), QStringLiteral("cloud"));
     add(QStringLiteral("cloud.cdn"), QStringLiteral("CDN"),
         QStringLiteral("shape=cloudCdn;whiteSpace=wrap;html=1;") + green,
         QSizeF(110, 110), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.laptop"), QStringLiteral("笔记本"),
+    add(QStringLiteral("cloud.laptop"), QStringLiteral("Laptop"),
         QStringLiteral("shape=cloudLaptop;whiteSpace=wrap;html=1;") + blue,
         QSizeF(130, 90), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.mobile"), QStringLiteral("移动设备"),
+    add(QStringLiteral("cloud.mobile"), QStringLiteral("Mobile"),
         QStringLiteral("shape=cloudMobile;whiteSpace=wrap;html=1;") + blue,
         QSizeF(70, 120), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.loadbalancer"), QStringLiteral("负载均衡"),
+    add(QStringLiteral("cloud.loadbalancer"), QStringLiteral("Loadbalancer"),
         QStringLiteral("shape=cloudLoadBalancer;whiteSpace=wrap;html=1;") + green,
         QSizeF(110, 100), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.router"), QStringLiteral("路由器"),
+    add(QStringLiteral("cloud.router"), QStringLiteral("Router"),
         QStringLiteral("shape=cloudRouter;whiteSpace=wrap;html=1;") + blue,
         QSizeF(100, 100), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.switch"), QStringLiteral("交换机"),
+    add(QStringLiteral("cloud.switch"), QStringLiteral("Switch"),
         QStringLiteral("shape=cloudSwitch;whiteSpace=wrap;html=1;") + blue,
         QSizeF(110, 80), QStringLiteral("cloud"));
     add(QStringLiteral("cloud.vpc"), QStringLiteral("VPC"),
         QStringLiteral("shape=cloudVpc;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
         QSizeF(160, 110), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.database"), QStringLiteral("云数据库"),
+    add(QStringLiteral("cloud.database"), QStringLiteral("Database"),
         QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;") + blue,
         QSizeF(90, 110), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.storage"), QStringLiteral("云存储"),
+    add(QStringLiteral("cloud.storage"), QStringLiteral("Storage"),
         QStringLiteral("shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;") + green,
         QSizeF(110, 100), QStringLiteral("cloud"));
-    add(QStringLiteral("cloud.user"), QStringLiteral("云用户"),
+    add(QStringLiteral("cloud.user"), QStringLiteral("User"),
         QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;")
             + blue, QSizeF(60, 110), QStringLiteral("cloud"));
 
-    add(QStringLiteral("basic.patternDiag"), QStringLiteral("图案填充（斜线）"),
+    add(QStringLiteral("basic.patternDiag"), QStringLiteral("Pattern Diag"),
         QStringLiteral("shape=patternFillRect;fillStyle=diag;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
         QSizeF(150, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.patternDiagRev"), QStringLiteral("图案填充（反斜线）"),
+    add(QStringLiteral("basic.patternDiagRev"), QStringLiteral("Pattern Diag Rev"),
         QStringLiteral("shape=patternFillRect;fillStyle=diagRev;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
         QSizeF(150, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.patternVertical"), QStringLiteral("图案填充（竖线）"),
+    add(QStringLiteral("basic.patternVertical"), QStringLiteral("Pattern Vertical"),
         QStringLiteral("shape=patternFillRect;fillStyle=vert;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
         QSizeF(150, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.patternHorizontal"), QStringLiteral("图案填充（横线）"),
+    add(QStringLiteral("basic.patternHorizontal"), QStringLiteral("Pattern Horizontal"),
         QStringLiteral("shape=patternFillRect;fillStyle=hor;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
         QSizeF(150, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.patternGrid"), QStringLiteral("图案填充（网格）"),
+    add(QStringLiteral("basic.patternGrid"), QStringLiteral("Pattern Grid"),
         QStringLiteral("shape=patternFillRect;fillStyle=grid;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
         QSizeF(150, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.patternDiagGrid"), QStringLiteral("图案填充（斜网格）"),
+    add(QStringLiteral("basic.patternDiagGrid"), QStringLiteral("Pattern Diag Grid"),
         QStringLiteral("shape=patternFillRect;fillStyle=diagGrid;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
         QSizeF(150, 80), QStringLiteral("basic"));
 
     // --- misc ------------------------------------------------------------
-    add(QStringLiteral("misc.container"), QStringLiteral("容器"),
+    add(QStringLiteral("misc.container"), QStringLiteral("Container"),
         QStringLiteral("swimlane;startSize=0;html=1;fillColor=none;strokeColor=#666666;"),
         QSizeF(220, 160), QStringLiteral("misc"));
-    add(QStringLiteral("misc.table"), QStringLiteral("表格"),
+    add(QStringLiteral("misc.table"), QStringLiteral("Table"),
         QStringLiteral("shape=miscTable;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
         QSizeF(180, 120), QStringLiteral("misc"));
-    add(QStringLiteral("misc.list"), QStringLiteral("列表"),
+    add(QStringLiteral("misc.list"), QStringLiteral("List"),
         QStringLiteral("shape=miscList;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
         QSizeF(180, 120), QStringLiteral("misc"));
-    add(QStringLiteral("misc.note"), QStringLiteral("便签"),
+    add(QStringLiteral("misc.note"), QStringLiteral("Note"),
         QStringLiteral("shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;"),
         QSizeF(120, 100), QStringLiteral("misc"));
-    add(QStringLiteral("misc.callout"), QStringLiteral("标注"),
+    add(QStringLiteral("misc.callout"), QStringLiteral("Callout"),
         QStringLiteral("shape=callout;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(150, 90), QStringLiteral("misc"));
 
     // --- advanced layouts ------------------------------------------------
-    add(QStringLiteral("advanced.container"), QStringLiteral("布局容器"),
+    add(QStringLiteral("advanced.container"), QStringLiteral("Container"),
         QStringLiteral("swimlane;startSize=0;html=1;fillColor=#f5f5f5;strokeColor=#666666;"),
         QSizeF(220, 160), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.horizontal"), QStringLiteral("水平容器"),
+    add(QStringLiteral("advanced.horizontal"), QStringLiteral("Horizontal"),
         QStringLiteral("swimlane;horizontal=0;startSize=30;html=1;fillColor=#f5f5f5;strokeColor=#666666;"),
         QSizeF(220, 160), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.vertical"), QStringLiteral("垂直容器"),
+    add(QStringLiteral("advanced.vertical"), QStringLiteral("Vertical"),
         QStringLiteral("swimlane;startSize=30;html=1;fillColor=#f5f5f5;strokeColor=#666666;"),
         QSizeF(220, 160), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.poolHorizontal"), QStringLiteral("水平池"),
+    add(QStringLiteral("advanced.poolHorizontal"), QStringLiteral("Pool Horizontal"),
         QStringLiteral("swimlane;horizontal=0;startSize=40;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(260, 180), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.poolVertical"), QStringLiteral("垂直池"),
+    add(QStringLiteral("advanced.poolVertical"), QStringLiteral("Pool Vertical"),
         QStringLiteral("swimlane;startSize=40;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(260, 180), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.treeHorizontal"), QStringLiteral("水平树"),
+    add(QStringLiteral("advanced.treeHorizontal"), QStringLiteral("Tree Horizontal"),
         QStringLiteral("shape=advTreeH;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
         QSizeF(220, 150), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.treeVertical"), QStringLiteral("垂直树"),
+    add(QStringLiteral("advanced.treeVertical"), QStringLiteral("Tree Vertical"),
         QStringLiteral("shape=advTreeV;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
         QSizeF(200, 190), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.treeBalloon"), QStringLiteral("气球树"),
+    add(QStringLiteral("advanced.treeBalloon"), QStringLiteral("Tree Balloon"),
         QStringLiteral("shape=advTreeBalloon;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
         QSizeF(220, 190), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.flowHorizontal"), QStringLiteral("水平流"),
+    add(QStringLiteral("advanced.flowHorizontal"), QStringLiteral("Flow Horizontal"),
         QStringLiteral("shape=advFlowH;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
         QSizeF(260, 110), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.flowVertical"), QStringLiteral("垂直流"),
+    add(QStringLiteral("advanced.flowVertical"), QStringLiteral("Flow Vertical"),
         QStringLiteral("shape=advFlowV;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
         QSizeF(160, 240), QStringLiteral("advanced"));
 
     // --- flowchart -------------------------------------------------------
-    add(QStringLiteral("decision"), QStringLiteral("判定"),
+    add(QStringLiteral("decision"), QStringLiteral("Decision"),
         QStringLiteral("rhombus;") + plain + orange, QSizeF(130, 90), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.data"), QStringLiteral("数据"),
+    add(QStringLiteral("fc.data"), QStringLiteral("Data"),
         QStringLiteral("shape=parallelogram;perimeter=parallelogramPerimeter;fixedSize=1;")
             + plain + purple, QSizeF(140, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.document"), QStringLiteral("文档"),
+    add(QStringLiteral("fc.document"), QStringLiteral("Document"),
         QStringLiteral("shape=document;boundedLbl=1;") + plain + blue,
         QSizeF(140, 90), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.multidocument"), QStringLiteral("多文档"),
+    add(QStringLiteral("fc.multidocument"), QStringLiteral("Multidocument"),
         QStringLiteral("shape=mxgraph.flowchart.multi-document;") + plain + blue,
         QSizeF(140, 90), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.predefined"), QStringLiteral("预定义流程"),
+    add(QStringLiteral("fc.predefined"), QStringLiteral("Predefined"),
         QStringLiteral("shape=process;backgroundOutline=1;") + plain + blue,
         QSizeF(150, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.preparation"), QStringLiteral("准备"),
+    add(QStringLiteral("fc.preparation"), QStringLiteral("Preparation"),
         QStringLiteral("shape=hexagon;perimeter=hexagonPerimeter2;fixedSize=1;") + plain + purple,
         QSizeF(140, 80), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.manualinput"), QStringLiteral("手动输入"),
+    add(QStringLiteral("fc.manualinput"), QStringLiteral("Manualinput"),
         QStringLiteral("shape=mxgraph.flowchart.manual_input;") + plain + yellow,
         QSizeF(140, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.manualoperation"), QStringLiteral("手动操作"),
+    add(QStringLiteral("fc.manualoperation"), QStringLiteral("Manualoperation"),
         QStringLiteral("shape=mxgraph.flowchart.manual_operation;") + plain + yellow,
         QSizeF(140, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.delay"), QStringLiteral("延迟"),
+    add(QStringLiteral("fc.delay"), QStringLiteral("Delay"),
         QStringLiteral("shape=mxgraph.flowchart.delay;") + plain + orange,
         QSizeF(130, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.display"), QStringLiteral("显示"),
+    add(QStringLiteral("fc.display"), QStringLiteral("Display"),
         QStringLiteral("shape=mxgraph.flowchart.display;") + plain + blue,
         QSizeF(150, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.connector"), QStringLiteral("连接点"),
+    add(QStringLiteral("fc.connector"), QStringLiteral("Connector"),
         QStringLiteral("shape=ellipse;") + plain + green,
         QSizeF(60, 60), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.offpage"), QStringLiteral("跨页引用"),
+    add(QStringLiteral("fc.offpage"), QStringLiteral("Offpage"),
         QStringLiteral("shape=mxgraph.flowchart.off_page_reference;") + plain + yellow,
         QSizeF(100, 100), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.merge"), QStringLiteral("合并"),
+    add(QStringLiteral("fc.merge"), QStringLiteral("Merge"),
         QStringLiteral("shape=mxgraph.flowchart.merge_or_storage;") + plain + green,
         QSizeF(100, 80), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.extract"), QStringLiteral("提取"),
+    add(QStringLiteral("fc.extract"), QStringLiteral("Extract"),
         QStringLiteral("shape=mxgraph.flowchart.extract_or_measurement;") + plain + green,
         QSizeF(100, 80), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.or"), QStringLiteral("或"),
+    add(QStringLiteral("fc.or"), QStringLiteral("Or"),
         QStringLiteral("shape=ellipse;fcType=or;") + plain + green,
         QSizeF(70, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.summing"), QStringLiteral("汇总"),
+    add(QStringLiteral("fc.summing"), QStringLiteral("Summing"),
         QStringLiteral("shape=ellipse;fcType=summing;") + plain + green,
         QSizeF(70, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.collate"), QStringLiteral("整理"),
+    add(QStringLiteral("fc.collate"), QStringLiteral("Collate"),
         QStringLiteral("shape=mxgraph.flowchart.collate;") + plain + purple,
         QSizeF(90, 90), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.sort"), QStringLiteral("排序"),
+    add(QStringLiteral("fc.sort"), QStringLiteral("Sort"),
         QStringLiteral("shape=rhombus;fcType=sort;") + plain + purple,
         QSizeF(100, 90), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.storeddata"), QStringLiteral("存储数据"),
+    add(QStringLiteral("fc.storeddata"), QStringLiteral("Storeddata"),
         QStringLiteral("shape=mxgraph.flowchart.stored_data;") + plain + blue,
         QSizeF(140, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.internalstorage"), QStringLiteral("内部存储"),
+    add(QStringLiteral("fc.internalstorage"), QStringLiteral("Internalstorage"),
         QStringLiteral("shape=mxgraph.flowchart.internal_storage;") + plain + blue,
         QSizeF(130, 80), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.annotation"), QStringLiteral("注释"),
+    add(QStringLiteral("fc.annotation"), QStringLiteral("Annotation"),
         QStringLiteral("shape=mxgraph.flowchart.annotation;align=left;verticalAlign=top;")
             + plain, QSizeF(120, 60), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.looplimit"), QStringLiteral("循环上限"),
+    add(QStringLiteral("fc.looplimit"), QStringLiteral("Looplimit"),
         QStringLiteral("shape=mxgraph.flowchart.loop_limit;") + plain + blue,
         QSizeF(130, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.card"), QStringLiteral("卡片"),
+    add(QStringLiteral("fc.card"), QStringLiteral("Card"),
         QStringLiteral("shape=mxgraph.flowchart.card;") + plain + blue,
         QSizeF(130, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.directdata"), QStringLiteral("直接数据"),
+    add(QStringLiteral("fc.directdata"), QStringLiteral("Directdata"),
         QStringLiteral("shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=15;")
             + plain + blue, QSizeF(120, 80), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.sequentialdata"), QStringLiteral("顺序数据"),
+    add(QStringLiteral("fc.sequentialdata"), QStringLiteral("Sequentialdata"),
         QStringLiteral("shape=mxgraph.flowchart.sequential_data;") + plain + blue,
         QSizeF(120, 80), QStringLiteral("flowchart"));
 
     // --- arrows ----------------------------------------------------------
-    add(QStringLiteral("arrow.double"), QStringLiteral("双向箭头"),
+    add(QStringLiteral("arrow.double"), QStringLiteral("Double"),
         QStringLiteral("shape=doubleArrow;") + plain + green,
         QSizeF(150, 60), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.left"), QStringLiteral("左箭头"),
+    add(QStringLiteral("arrow.left"), QStringLiteral("Left"),
         QStringLiteral("shape=singleArrow;direction=west;") + plain + green,
         QSizeF(140, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.up"), QStringLiteral("上箭头"),
+    add(QStringLiteral("arrow.up"), QStringLiteral("Up"),
         QStringLiteral("shape=singleArrow;direction=north;") + plain + green,
         QSizeF(80, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.down"), QStringLiteral("下箭头"),
+    add(QStringLiteral("arrow.down"), QStringLiteral("Down"),
         QStringLiteral("shape=singleArrow;direction=south;") + plain + green,
         QSizeF(80, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.chevron"), QStringLiteral("V 形箭头"),
+    add(QStringLiteral("arrow.chevron"), QStringLiteral("Chevron"),
         QStringLiteral("shape=step;perimeter=stepPerimeter;fixedSize=1;") + plain + blue,
         QSizeF(150, 60), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.notched"), QStringLiteral("凹口箭头"),
+    add(QStringLiteral("arrow.notched"), QStringLiteral("Notched"),
         QStringLiteral("shape=singleArrow;notch=0.3;") + plain + orange,
         QSizeF(150, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.open"), QStringLiteral("空心箭头"),
+    add(QStringLiteral("arrow.open"), QStringLiteral("Open"),
         QStringLiteral("shape=singleArrow;arrowWidth=0.5;arrowSize=0.35;") + plain + yellow,
         QSizeF(150, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.thin"), QStringLiteral("细箭头"),
+    add(QStringLiteral("arrow.thin"), QStringLiteral("Thin"),
         QStringLiteral("shape=singleArrow;arrowWidth=0.2;arrowSize=0.4;") + plain + green,
         QSizeF(170, 50), QStringLiteral("arrows"));
 
-    add(QStringLiteral("arrow.tailed"), QStringLiteral("燕尾箭头"),
+    add(QStringLiteral("arrow.tailed"), QStringLiteral("Tailed"),
         QStringLiteral("shape=arrTailed;") + plain + green,
         QSizeF(160, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.sharp"), QStringLiteral("尖锐箭头"),
+    add(QStringLiteral("arrow.sharp"), QStringLiteral("Sharp"),
         QStringLiteral("shape=arrSharp;") + plain + green,
         QSizeF(150, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.slender"), QStringLiteral("细长箭头"),
+    add(QStringLiteral("arrow.slender"), QStringLiteral("Slender"),
         QStringLiteral("shape=arrSlender;") + plain + green,
         QSizeF(170, 50), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.slenderTwo"), QStringLiteral("细长双向箭头"),
+    add(QStringLiteral("arrow.slenderTwo"), QStringLiteral("Slender Two"),
         QStringLiteral("shape=arrSlenderTwo;") + plain + green,
         QSizeF(180, 50), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.wedge"), QStringLiteral("楔形箭头"),
+    add(QStringLiteral("arrow.wedge"), QStringLiteral("Wedge"),
         QStringLiteral("shape=arrWedge;") + plain + orange,
         QSizeF(120, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.chevronBand"), QStringLiteral("V 形条带箭头"),
+    add(QStringLiteral("arrow.chevronBand"), QStringLiteral("Chevron Band"),
         QStringLiteral("shape=arrChevron;") + plain + blue,
         QSizeF(150, 60), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.notched2"), QStringLiteral("凹口箭头"),
+    add(QStringLiteral("arrow.notched2"), QStringLiteral("Notched2"),
         QStringLiteral("shape=arrNotched;") + plain + orange,
         QSizeF(160, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.signalIn"), QStringLiteral("信号输入箭头"),
+    add(QStringLiteral("arrow.signalIn"), QStringLiteral("Signal In"),
         QStringLiteral("shape=arrSignalIn;") + plain + yellow,
         QSizeF(160, 80), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.notchedSignalIn"), QStringLiteral("凹口信号输入箭头"),
+    add(QStringLiteral("arrow.notchedSignalIn"), QStringLiteral("Notched Signal In"),
         QStringLiteral("shape=arrNotchedSignalIn;") + plain + yellow,
         QSizeF(160, 80), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.jumpIn"), QStringLiteral("跳入箭头"),
+    add(QStringLiteral("arrow.jumpIn"), QStringLiteral("Jump In"),
         QStringLiteral("shape=arrJumpIn;") + plain + blue,
         QSizeF(160, 80), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.quad"), QStringLiteral("四向箭头"),
+    add(QStringLiteral("arrow.quad"), QStringLiteral("Quad"),
         QStringLiteral("shape=arrQuad;") + plain + purple,
         QSizeF(140, 140), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.triad"), QStringLiteral("三向箭头"),
+    add(QStringLiteral("arrow.triad"), QStringLiteral("Triad"),
         QStringLiteral("shape=arrTriad;") + plain + purple,
         QSizeF(140, 130), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.uturn"), QStringLiteral("掉头箭头"),
+    add(QStringLiteral("arrow.uturn"), QStringLiteral("Uturn"),
         QStringLiteral("shape=arrUturn;") + plain + green,
         QSizeF(140, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.bend"), QStringLiteral("弯折箭头"),
+    add(QStringLiteral("arrow.bend"), QStringLiteral("Bend"),
         QStringLiteral("shape=arrBend;") + plain + green,
         QSizeF(140, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.bendDouble"), QStringLiteral("弯折双向箭头"),
+    add(QStringLiteral("arrow.bendDouble"), QStringLiteral("Bend Double"),
         QStringLiteral("shape=arrBendDouble;") + plain + green,
         QSizeF(140, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.striped"), QStringLiteral("条纹箭头"),
+    add(QStringLiteral("arrow.striped"), QStringLiteral("Striped"),
         QStringLiteral("shape=arrStriped;") + plain + yellow,
         QSizeF(170, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.stylised"), QStringLiteral("风格化箭头"),
+    add(QStringLiteral("arrow.stylised"), QStringLiteral("Stylised"),
         QStringLiteral("shape=arrStylised;") + plain + blue,
         QSizeF(160, 70), QStringLiteral("arrows"));
 
-    add(QStringLiteral("arrow.callout"), QStringLiteral("标注箭头"),
+    add(QStringLiteral("arrow.callout"), QStringLiteral("Callout"),
         QStringLiteral("shape=arrCalloutArrow;") + plain + blue,
         QSizeF(150, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.calloutDouble"), QStringLiteral("标注双箭头"),
+    add(QStringLiteral("arrow.calloutDouble"), QStringLiteral("Callout Double"),
         QStringLiteral("shape=arrCalloutDouble;") + plain + blue,
         QSizeF(150, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.calloutDouble90"), QStringLiteral("标注双向 90° 箭头"),
+    add(QStringLiteral("arrow.calloutDouble90"), QStringLiteral("Callout Double90"),
         QStringLiteral("shape=arrCalloutDouble90;") + plain + blue,
         QSizeF(150, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.calloutQuad"), QStringLiteral("标注四向箭头"),
+    add(QStringLiteral("arrow.calloutQuad"), QStringLiteral("Callout Quad"),
         QStringLiteral("shape=arrCalloutQuad;") + plain + blue,
         QSizeF(150, 130), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.wedgeDashed"), QStringLiteral("楔形箭头（虚线）"),
+    add(QStringLiteral("arrow.wedgeDashed"), QStringLiteral("Wedge Dashed"),
         QStringLiteral("shape=arrWedge;dashed=1;") + plain + orange,
         QSizeF(120, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.tailedNotch"), QStringLiteral("燕尾凹口箭头"),
+    add(QStringLiteral("arrow.tailedNotch"), QStringLiteral("Tailed Notch"),
         QStringLiteral("shape=arrTailed;") + plain + green,
         QSizeF(160, 70), QStringLiteral("arrows"));
 
     // --- UML -------------------------------------------------------------
-    add(QStringLiteral("uml.class"), QStringLiteral("类"),
+    add(QStringLiteral("uml.class"), QStringLiteral("Class"),
         QStringLiteral("swimlane;fontStyle=1;childLayout=stackLayout;horizontal=1;"
                        "startSize=26;") + blue + QStringLiteral("html=1;"),
         QSizeF(220, 140), QStringLiteral("uml"));
-    add(QStringLiteral("uml.interface"), QStringLiteral("接口"),
+    add(QStringLiteral("uml.interface"), QStringLiteral("Interface"),
         QStringLiteral("ellipse;") + plain + green, QSizeF(100, 100), QStringLiteral("uml"));
-    add(QStringLiteral("uml.package"), QStringLiteral("包"),
+    add(QStringLiteral("uml.package"), QStringLiteral("Package"),
         QStringLiteral("shape=mxgraph.uml.package;") + plain + yellow,
         QSizeF(150, 110), QStringLiteral("uml"));
-    add(QStringLiteral("uml.component"), QStringLiteral("组件"),
+    add(QStringLiteral("uml.component"), QStringLiteral("Component"),
         QStringLiteral("shape=mxgraph.uml.component;") + plain + blue,
         QSizeF(160, 100), QStringLiteral("uml"));
-    add(QStringLiteral("uml.note"), QStringLiteral("UML 注释"),
+    add(QStringLiteral("uml.note"), QStringLiteral("Note"),
         QStringLiteral("shape=note;backgroundOutline=1;") + plain + yellow,
         QSizeF(130, 100), QStringLiteral("uml"));
-    add(QStringLiteral("uml.usecase"), QStringLiteral("用例"),
+    add(QStringLiteral("uml.usecase"), QStringLiteral("Usecase"),
         QStringLiteral("ellipse;") + plain + green, QSizeF(150, 80), QStringLiteral("uml"));
-    add(QStringLiteral("uml.state"), QStringLiteral("状态"),
+    add(QStringLiteral("uml.state"), QStringLiteral("State"),
         QStringLiteral("rounded=1;arcSize=40;") + plain + green,
         QSizeF(140, 70), QStringLiteral("uml"));
-    add(QStringLiteral("uml.initial"), QStringLiteral("初始状态"),
+    add(QStringLiteral("uml.initial"), QStringLiteral("Initial"),
         QStringLiteral("ellipse;fillColor=#000000;strokeColor=#000000;"),
         QSizeF(36, 36), QStringLiteral("uml"));
-    add(QStringLiteral("uml.final"), QStringLiteral("终止状态"),
+    add(QStringLiteral("uml.final"), QStringLiteral("Final"),
         QStringLiteral("shape=doubleEllipse;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(44, 44), QStringLiteral("uml"));
-    add(QStringLiteral("uml.decision"), QStringLiteral("UML 判定"),
+    add(QStringLiteral("uml.decision"), QStringLiteral("Decision"),
         QStringLiteral("rhombus;") + plain + yellow, QSizeF(90, 90), QStringLiteral("uml"));
-    add(QStringLiteral("uml.fork"), QStringLiteral("同步条"),
+    add(QStringLiteral("uml.fork"), QStringLiteral("Fork"),
         QStringLiteral("rounded=0;fillColor=#000000;strokeColor=#000000;"),
         QSizeF(140, 12), QStringLiteral("uml"));
-    add(QStringLiteral("uml.object"), QStringLiteral("对象"),
+    add(QStringLiteral("uml.object"), QStringLiteral("Object"),
         QStringLiteral("swimlane;fontStyle=4;startSize=26;") + blue + QStringLiteral("html=1;"),
         QSizeF(200, 100), QStringLiteral("uml"));
-    add(QStringLiteral("uml.activity"), QStringLiteral("活动"),
+    add(QStringLiteral("uml.activity"), QStringLiteral("Activity"),
         QStringLiteral("rounded=1;arcSize=45;") + plain + green,
         QSizeF(150, 60), QStringLiteral("uml"));
-    add(QStringLiteral("uml.node"), QStringLiteral("节点"),
+    add(QStringLiteral("uml.node"), QStringLiteral("Node"),
         QStringLiteral("shape=cube;boundedLbl=1;backgroundOutline=1;darkOpacity=0.05;")
             + plain + blue, QSizeF(140, 100), QStringLiteral("uml"));
-    add(QStringLiteral("uml.artifact"), QStringLiteral("制品"),
+    add(QStringLiteral("uml.artifact"), QStringLiteral("Artifact"),
         QStringLiteral("shape=note;backgroundOutline=1;") + plain + blue,
         QSizeF(120, 90), QStringLiteral("uml"));
-    add(QStringLiteral("uml.database"), QStringLiteral("UML 数据库"),
+    add(QStringLiteral("uml.database"), QStringLiteral("Database"),
         QStringLiteral("shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=15;")
             + plain + blue, QSizeF(110, 100), QStringLiteral("uml"));
 
     // --- ER --------------------------------------------------------------
-    add(QStringLiteral("er.entity"), QStringLiteral("实体"),
+    add(QStringLiteral("er.entity"), QStringLiteral("Entity"),
         QStringLiteral("swimlane;fontStyle=1;startSize=28;") + green + QStringLiteral("html=1;"),
         QSizeF(180, 90), QStringLiteral("er"));
-    add(QStringLiteral("er.weakentity"), QStringLiteral("弱实体"),
+    add(QStringLiteral("er.weakentity"), QStringLiteral("Weakentity"),
         QStringLiteral("shape=mxgraph.er.weak_entity;fontStyle=1;") + green,
         QSizeF(180, 90), QStringLiteral("er"));
-    add(QStringLiteral("er.relationship"), QStringLiteral("关系"),
+    add(QStringLiteral("er.relationship"), QStringLiteral("Relationship"),
         QStringLiteral("rhombus;") + plain + orange, QSizeF(140, 90), QStringLiteral("er"));
-    add(QStringLiteral("er.attribute"), QStringLiteral("属性"),
+    add(QStringLiteral("er.attribute"), QStringLiteral("Attribute"),
         QStringLiteral("ellipse;") + plain + yellow, QSizeF(130, 70), QStringLiteral("er"));
-    add(QStringLiteral("er.keyattribute"), QStringLiteral("主键属性"),
+    add(QStringLiteral("er.keyattribute"), QStringLiteral("Keyattribute"),
         QStringLiteral("ellipse;fontStyle=4;") + plain + yellow,
         QSizeF(140, 70), QStringLiteral("er"));
-    add(QStringLiteral("er.multivalued"), QStringLiteral("多值属性"),
+    add(QStringLiteral("er.multivalued"), QStringLiteral("Multivalued"),
         QStringLiteral("shape=doubleEllipse;") + plain + yellow,
         QSizeF(140, 80), QStringLiteral("er"));
-    add(QStringLiteral("er.derived"), QStringLiteral("派生属性"),
+    add(QStringLiteral("er.derived"), QStringLiteral("Derived"),
         QStringLiteral("ellipse;dashed=1;") + plain + yellow,
         QSizeF(140, 70), QStringLiteral("er"));
-    add(QStringLiteral("er.associative"), QStringLiteral("关联实体"),
+    add(QStringLiteral("er.associative"), QStringLiteral("Associative"),
         QStringLiteral("shape=rhombus;") + plain + purple,
         QSizeF(150, 100), QStringLiteral("er"));
 
     // --- BPMN ------------------------------------------------------------
-    add(QStringLiteral("bpmn.start"), QStringLiteral("开始事件"),
+    add(QStringLiteral("bpmn.start"), QStringLiteral("Start"),
         QStringLiteral("ellipse;strokeWidth=1.5;") + white,
         QSizeF(56, 56), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.intermediate"), QStringLiteral("中间事件"),
+    add(QStringLiteral("bpmn.intermediate"), QStringLiteral("Intermediate"),
         QStringLiteral("shape=doubleEllipse;strokeWidth=1.5;") + white,
         QSizeF(64, 64), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.end"), QStringLiteral("结束事件"),
+    add(QStringLiteral("bpmn.end"), QStringLiteral("End"),
         QStringLiteral("ellipse;strokeWidth=4;") + white,
         QSizeF(56, 56), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.task"), QStringLiteral("任务"),
+    add(QStringLiteral("bpmn.task"), QStringLiteral("Task"),
         QStringLiteral("rounded=1;arcSize=12;") + white, QSizeF(150, 80), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.usertask"), QStringLiteral("用户任务"),
+    add(QStringLiteral("bpmn.usertask"), QStringLiteral("Usertask"),
         QStringLiteral("rounded=1;arcSize=12;bpmnType=user;") + white, QSizeF(150, 80), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.servicetask"), QStringLiteral("服务任务"),
+    add(QStringLiteral("bpmn.servicetask"), QStringLiteral("Servicetask"),
         QStringLiteral("rounded=1;arcSize=12;bpmnType=service;") + white, QSizeF(150, 80), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.scripttask"), QStringLiteral("脚本任务"),
+    add(QStringLiteral("bpmn.scripttask"), QStringLiteral("Scripttask"),
         QStringLiteral("rounded=1;arcSize=12;bpmnType=script;") + white, QSizeF(150, 80), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.subprocess"), QStringLiteral("子流程"),
+    add(QStringLiteral("bpmn.subprocess"), QStringLiteral("Subprocess"),
         QStringLiteral("rounded=1;arcSize=12;bpmnType=subprocess;") + white, QSizeF(170, 90), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.exclusive"), QStringLiteral("排他网关"),
+    add(QStringLiteral("bpmn.exclusive"), QStringLiteral("Exclusive"),
         QStringLiteral("rhombus;bpmnType=exclusive;") + white, QSizeF(80, 80), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.parallel"), QStringLiteral("并行网关"),
+    add(QStringLiteral("bpmn.parallel"), QStringLiteral("Parallel"),
         QStringLiteral("rhombus;bpmnType=parallel;") + white, QSizeF(80, 80), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.inclusive"), QStringLiteral("包容网关"),
+    add(QStringLiteral("bpmn.inclusive"), QStringLiteral("Inclusive"),
         QStringLiteral("rhombus;bpmnType=inclusive;") + white, QSizeF(80, 80), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.pool"), QStringLiteral("池"),
+    add(QStringLiteral("bpmn.pool"), QStringLiteral("Pool"),
         QStringLiteral("swimlane;horizontal=0;startSize=30;") + white + QStringLiteral("html=1;"),
         QSizeF(420, 180), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.lane"), QStringLiteral("泳道"),
+    add(QStringLiteral("bpmn.lane"), QStringLiteral("Lane"),
         QStringLiteral("swimlane;horizontal=0;startSize=26;") + white + QStringLiteral("html=1;"),
         QSizeF(420, 120), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.dataobject"), QStringLiteral("数据对象"),
+    add(QStringLiteral("bpmn.dataobject"), QStringLiteral("Dataobject"),
         QStringLiteral("shape=note;backgroundOutline=1;") + white,
         QSizeF(70, 90), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.datastore"), QStringLiteral("数据存储"),
+    add(QStringLiteral("bpmn.datastore"), QStringLiteral("Datastore"),
         QStringLiteral("shape=mxgraph.bpmn.data_store;") + white,
         QSizeF(100, 80), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.message"), QStringLiteral("消息"),
+    add(QStringLiteral("bpmn.message"), QStringLiteral("Message"),
         QStringLiteral("shape=mxgraph.bpmn.message;") + white,
         QSizeF(90, 60), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.group"), QStringLiteral("分组"),
+    add(QStringLiteral("bpmn.group"), QStringLiteral("Group"),
         QStringLiteral("rounded=1;dashed=1;fillColor=none;strokeColor=#666666;"),
         QSizeF(200, 140), QStringLiteral("bpmn"));
-    add(QStringLiteral("bpmn.annotation"), QStringLiteral("BPMN 注释"),
+    add(QStringLiteral("bpmn.annotation"), QStringLiteral("Annotation"),
         QStringLiteral("shape=mxgraph.flowchart.annotation;align=left;verticalAlign=top;")
             + plain, QSizeF(130, 60), QStringLiteral("bpmn"));
 
     // --- network ---------------------------------------------------------
-    add(QStringLiteral("net.server"), QStringLiteral("服务器"),
+    add(QStringLiteral("net.server"), QStringLiteral("Server"),
         QStringLiteral("rounded=0;netType=server;") + blue, QSizeF(100, 120), QStringLiteral("network"));
-    add(QStringLiteral("net.router"), QStringLiteral("路由器"),
+    add(QStringLiteral("net.router"), QStringLiteral("Router"),
         QStringLiteral("shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=18;") + blue,
         QSizeF(120, 70), QStringLiteral("network"));
-    add(QStringLiteral("net.switch"), QStringLiteral("交换机"),
+    add(QStringLiteral("net.switch"), QStringLiteral("Switch"),
         QStringLiteral("rounded=0;netType=switch;") + blue, QSizeF(130, 60), QStringLiteral("network"));
-    add(QStringLiteral("net.firewall"), QStringLiteral("防火墙"),
+    add(QStringLiteral("net.firewall"), QStringLiteral("Firewall"),
         QStringLiteral("shape=mxgraph.networks.firewall;") + red,
         QSizeF(120, 80), QStringLiteral("network"));
-    add(QStringLiteral("net.cloud"), QStringLiteral("网络云"),
+    add(QStringLiteral("net.cloud"), QStringLiteral("Cloud"),
         QStringLiteral("ellipse;shape=cloud;") + plain + purple,
         QSizeF(160, 100), QStringLiteral("network"));
-    add(QStringLiteral("net.database"), QStringLiteral("网络数据库"),
+    add(QStringLiteral("net.database"), QStringLiteral("Database"),
         QStringLiteral("shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=15;") + blue,
         QSizeF(100, 110), QStringLiteral("network"));
-    add(QStringLiteral("net.storage"), QStringLiteral("存储"),
+    add(QStringLiteral("net.storage"), QStringLiteral("Storage"),
         QStringLiteral("shape=mxgraph.networks.storage;") + blue,
         QSizeF(100, 110), QStringLiteral("network"));
-    add(QStringLiteral("net.workstation"), QStringLiteral("工作站"),
+    add(QStringLiteral("net.workstation"), QStringLiteral("Workstation"),
         QStringLiteral("rounded=0;netType=workstation;") + blue, QSizeF(120, 90), QStringLiteral("network"));
-    add(QStringLiteral("net.laptop"), QStringLiteral("笔记本"),
+    add(QStringLiteral("net.laptop"), QStringLiteral("Laptop"),
         QStringLiteral("shape=mxgraph.networks.laptop;") + blue,
         QSizeF(130, 80), QStringLiteral("network"));
-    add(QStringLiteral("net.phone"), QStringLiteral("电话"),
+    add(QStringLiteral("net.phone"), QStringLiteral("Phone"),
         QStringLiteral("rounded=1;arcSize=20;") + blue, QSizeF(60, 100), QStringLiteral("network"));
-    add(QStringLiteral("net.printer"), QStringLiteral("打印机"),
+    add(QStringLiteral("net.printer"), QStringLiteral("Printer"),
         QStringLiteral("shape=mxgraph.networks.printer;") + blue,
         QSizeF(110, 80), QStringLiteral("network"));
-    add(QStringLiteral("net.wireless"), QStringLiteral("无线接入点"),
+    add(QStringLiteral("net.wireless"), QStringLiteral("Wireless"),
         QStringLiteral("rounded=1;arcSize=15;netType=wireless;") + blue, QSizeF(90, 90), QStringLiteral("network"));
-    add(QStringLiteral("net.vpn"), QStringLiteral("VPN 网关"),
+    add(QStringLiteral("net.vpn"), QStringLiteral("Vpn"),
         QStringLiteral("shape=mxgraph.networks.vpn;") + green,
         QSizeF(110, 110), QStringLiteral("network"));
-    add(QStringLiteral("net.loadbalancer"), QStringLiteral("负载均衡"),
+    add(QStringLiteral("net.loadbalancer"), QStringLiteral("Loadbalancer"),
         QStringLiteral("ellipse;netType=loadbalancer;") + blue, QSizeF(100, 100), QStringLiteral("network"));
-    add(QStringLiteral("net.users"), QStringLiteral("用户群"),
+    add(QStringLiteral("net.users"), QStringLiteral("Users"),
         QStringLiteral("shape=mxgraph.networks.users;") + blue,
         QSizeF(120, 90), QStringLiteral("network"));
 
     // --- data flow / C4 / UI kits ---------------------------------------
-    add(QStringLiteral("dfd.process"), QStringLiteral("处理"),
+    add(QStringLiteral("dfd.process"), QStringLiteral("Process"),
         QStringLiteral("ellipse;") + green, QSizeF(120, 80), QStringLiteral("dfd"));
-    add(QStringLiteral("dfd.datastore"), QStringLiteral("数据存储"),
+    add(QStringLiteral("dfd.datastore"), QStringLiteral("Datastore"),
         QStringLiteral("shape=mxgraph.dfd.data_store;") + blue,
         QSizeF(160, 50), QStringLiteral("dfd"));
-    add(QStringLiteral("dfd.external"), QStringLiteral("外部实体"),
+    add(QStringLiteral("dfd.external"), QStringLiteral("External"),
         QStringLiteral("rounded=0;") + yellow, QSizeF(140, 70), QStringLiteral("dfd"));
-    add(QStringLiteral("dfd.processgane"), QStringLiteral("Gane 处理"),
+    add(QStringLiteral("dfd.processgane"), QStringLiteral("Processgane"),
         QStringLiteral("rounded=1;arcSize=10;") + green, QSizeF(140, 80), QStringLiteral("dfd"));
 
-    add(QStringLiteral("c4.person"), QStringLiteral("C4 人员"),
+    add(QStringLiteral("c4.person"), QStringLiteral("Person"),
         QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;")
             + blue, QSizeF(70, 120), QStringLiteral("c4"));
-    add(QStringLiteral("c4.system"), QStringLiteral("C4 软件系统"),
+    add(QStringLiteral("c4.system"), QStringLiteral("System"),
         QStringLiteral("rounded=1;arcSize=6;") + blue, QSizeF(200, 120), QStringLiteral("c4"));
-    add(QStringLiteral("c4.container"), QStringLiteral("C4 容器"),
+    add(QStringLiteral("c4.container"), QStringLiteral("Container"),
         QStringLiteral("rounded=1;arcSize=6;") + green, QSizeF(200, 110), QStringLiteral("c4"));
-    add(QStringLiteral("c4.component"), QStringLiteral("C4 组件"),
+    add(QStringLiteral("c4.component"), QStringLiteral("Component"),
         QStringLiteral("rounded=1;arcSize=6;") + yellow, QSizeF(180, 100), QStringLiteral("c4"));
 
-    add(QStringLiteral("ui.button"), QStringLiteral("按钮"),
+    add(QStringLiteral("ui.button"), QStringLiteral("Button"),
         QStringLiteral("rounded=1;arcSize=20;") + blue, QSizeF(110, 40), QStringLiteral("mockup"));
-    add(QStringLiteral("ui.input"), QStringLiteral("输入框"),
+    add(QStringLiteral("ui.input"), QStringLiteral("Input"),
         QStringLiteral("rounded=0;fillColor=#ffffff;strokeColor=#999999;"),
         QSizeF(180, 40), QStringLiteral("mockup"));
-    add(QStringLiteral("ui.window"), QStringLiteral("窗口"),
+    add(QStringLiteral("ui.window"), QStringLiteral("Window"),
         QStringLiteral("swimlane;startSize=26;") + blue, QSizeF(280, 180),
         QStringLiteral("mockup"));
-    add(QStringLiteral("ui.navbar"), QStringLiteral("导航栏"),
+    add(QStringLiteral("ui.navbar"), QStringLiteral("Navbar"),
         QStringLiteral("rounded=0;fillColor=#f5f5f5;strokeColor=#cccccc;"),
         QSizeF(320, 50), QStringLiteral("mockup"));
-    add(QStringLiteral("ui.browser"), QStringLiteral("浏览器"),
+    add(QStringLiteral("ui.browser"), QStringLiteral("Browser"),
         QStringLiteral("swimlane;startSize=30;") + blue, QSizeF(320, 220),
         QStringLiteral("mockup"));
 
-    add(QStringLiteral("android.phone"), QStringLiteral("Android 手机"),
+    add(QStringLiteral("android.phone"), QStringLiteral("Phone"),
         QStringLiteral("rounded=1;arcSize=8;androidType=phone;fillColor=#a4c639;strokeColor=#4a6b14;"),
         QSizeF(100, 190), QStringLiteral("software"));
-    add(QStringLiteral("android.tablet"), QStringLiteral("Android 平板"),
+    add(QStringLiteral("android.tablet"), QStringLiteral("Tablet"),
         QStringLiteral("rounded=1;arcSize=6;androidType=tablet;fillColor=#a4c639;strokeColor=#4a6b14;"),
         QSizeF(160, 220), QStringLiteral("software"));
-    add(QStringLiteral("android.watch"), QStringLiteral("Android 手表"),
+    add(QStringLiteral("android.watch"), QStringLiteral("Watch"),
         QStringLiteral("rounded=1;arcSize=30;androidType=watch;fillColor=#a4c639;strokeColor=#4a6b14;"),
         QSizeF(100, 100), QStringLiteral("software"));
 
-    add(QStringLiteral("image"), QStringLiteral("图片"),
+    add(QStringLiteral("image"), QStringLiteral("Image"),
         QStringLiteral("shape=image;verticalLabelPosition=bottom;verticalAlign=top;imageAspect=0;"
                        "html=1;strokeColor=none;fillColor=none;"),
         QSizeF(140, 100), QStringLiteral("basic"));
@@ -866,39 +866,39 @@ QVector<ShapeDefinition> toolboxShapes()
 
     struct ElecDef { const char *key; const char *name; const char *shape; bool filled; QSizeF size; };
     const QVector<ElecDef> electrical = {
-        {"elec.resistor", "电阻", "elec.resistor", false, QSizeF(120, 50)},
-        {"elec.resistorus", "电阻（锯齿）", "elec.resistorus", false, QSizeF(120, 60)},
-        {"elec.capacitor", "电容", "elec.capacitor", false, QSizeF(80, 70)},
-        {"elec.capacitorpolar", "极性电容", "elec.capacitorpolar", false, QSizeF(80, 70)},
-        {"elec.inductor", "电感", "elec.inductor", false, QSizeF(120, 50)},
-        {"elec.diode", "二极管", "elec.diode", true, QSizeF(110, 60)},
-        {"elec.zener", "稳压二极管", "elec.zener", true, QSizeF(110, 70)},
-        {"elec.led", "发光二极管", "elec.led", true, QSizeF(110, 70)},
-        {"elec.transistornpn", "NPN 三极管", "elec.transistornpn", false, QSizeF(100, 100)},
-        {"elec.transistorpnp", "PNP 三极管", "elec.transistorpnp", false, QSizeF(100, 100)},
-        {"elec.batterystack", "电池", "mxgraph.electrical.miscellaneous.batteryStack", false, QSizeF(120, 60)},
-        {"elec.ground", "接地", "elec.ground", false, QSizeF(80, 70)},
-        {"elec.groundchassis", "机壳地", "elec.groundchassis", false, QSizeF(80, 70)},
-        {"elec.lamp", "灯泡", "elec.lamp", false, QSizeF(80, 80)},
-        {"elec.motor", "电机", "elec.motor", false, QSizeF(90, 90)},
-        {"elec.switchspst", "开关（单刀单掷）", "elec.switchspst", false, QSizeF(120, 60)},
-        {"elec.pushbutton", "按钮", "elec.pushbutton", false, QSizeF(120, 70)},
-        {"elec.transformer", "变压器", "elec.transformer", false, QSizeF(130, 90)},
-        {"elec.fuse", "保险丝", "elec.fuse", false, QSizeF(120, 50)},
-        {"elec.acsource", "交流源", "elec.acsource", false, QSizeF(90, 90)},
-        {"elec.voltagesource", "电压源", "elec.voltagesource", false, QSizeF(90, 90)},
-        {"elec.ammeter", "电流表", "elec.ammeter", false, QSizeF(80, 80)},
-        {"elec.voltmeter", "电压表", "elec.voltmeter", false, QSizeF(80, 80)},
-        {"elec.antenna", "天线", "elec.antenna", false, QSizeF(100, 100)},
-        {"elec.speaker", "扬声器", "elec.speaker", false, QSizeF(100, 80)},
-        {"elec.microphone", "麦克风", "elec.microphone", false, QSizeF(80, 100)},
-        {"elec.opamp", "运算放大器", "elec.opamp", true, QSizeF(110, 100)},
-        {"elec.gate.and", "与门", "elec.gate.and", true, QSizeF(120, 80)},
-        {"elec.gate.or", "或门", "elec.gate.or", true, QSizeF(120, 80)},
-        {"elec.gate.not", "非门", "elec.gate.not", true, QSizeF(110, 80)},
-        {"elec.gate.nand", "与非门", "elec.gate.nand", true, QSizeF(130, 80)},
-        {"elec.gate.nor", "或非门", "elec.gate.nor", true, QSizeF(130, 80)},
-        {"elec.gate.xor", "异或门", "elec.gate.xor", true, QSizeF(130, 80)},
+        {"elec.resistor", "Resistor", "elec.resistor", false, QSizeF(120, 50)},
+        {"elec.resistorus", "Resistor (Zigzag)", "elec.resistorus", false, QSizeF(120, 60)},
+        {"elec.capacitor", "Capacitor", "elec.capacitor", false, QSizeF(80, 70)},
+        {"elec.capacitorpolar", "Polarized Capacitor", "elec.capacitorpolar", false, QSizeF(80, 70)},
+        {"elec.inductor", "Inductor", "elec.inductor", false, QSizeF(120, 50)},
+        {"elec.diode", "Diode", "elec.diode", true, QSizeF(110, 60)},
+        {"elec.zener", "Zener Diode", "elec.zener", true, QSizeF(110, 70)},
+        {"elec.led", "LED", "elec.led", true, QSizeF(110, 70)},
+        {"elec.transistornpn", "NPN Transistor", "elec.transistornpn", false, QSizeF(100, 100)},
+        {"elec.transistorpnp", "PNP Transistor", "elec.transistorpnp", false, QSizeF(100, 100)},
+        {"elec.batterystack", "Battery", "mxgraph.electrical.miscellaneous.batteryStack", false, QSizeF(120, 60)},
+        {"elec.ground", "Ground", "elec.ground", false, QSizeF(80, 70)},
+        {"elec.groundchassis", "Chassis Ground", "elec.groundchassis", false, QSizeF(80, 70)},
+        {"elec.lamp", "Lamp", "elec.lamp", false, QSizeF(80, 80)},
+        {"elec.motor", "Motor", "elec.motor", false, QSizeF(90, 90)},
+        {"elec.switchspst", "Switch (SPST)", "elec.switchspst", false, QSizeF(120, 60)},
+        {"elec.pushbutton", "Push Button", "elec.pushbutton", false, QSizeF(120, 70)},
+        {"elec.transformer", "Transformer", "elec.transformer", false, QSizeF(130, 90)},
+        {"elec.fuse", "Fuse", "elec.fuse", false, QSizeF(120, 50)},
+        {"elec.acsource", "AC Source", "elec.acsource", false, QSizeF(90, 90)},
+        {"elec.voltagesource", "Voltage Source", "elec.voltagesource", false, QSizeF(90, 90)},
+        {"elec.ammeter", "Ammeter", "elec.ammeter", false, QSizeF(80, 80)},
+        {"elec.voltmeter", "Voltmeter", "elec.voltmeter", false, QSizeF(80, 80)},
+        {"elec.antenna", "Antenna", "elec.antenna", false, QSizeF(100, 100)},
+        {"elec.speaker", "Speaker", "elec.speaker", false, QSizeF(100, 80)},
+        {"elec.microphone", "Microphone", "elec.microphone", false, QSizeF(80, 100)},
+        {"elec.opamp", "Op-Amp", "elec.opamp", true, QSizeF(110, 100)},
+        {"elec.gate.and", "AND Gate", "elec.gate.and", true, QSizeF(120, 80)},
+        {"elec.gate.or", "OR Gate", "elec.gate.or", true, QSizeF(120, 80)},
+        {"elec.gate.not", "NOT Gate", "elec.gate.not", true, QSizeF(110, 80)},
+        {"elec.gate.nand", "NAND Gate", "elec.gate.nand", true, QSizeF(130, 80)},
+        {"elec.gate.nor", "NOR Gate", "elec.gate.nor", true, QSizeF(130, 80)},
+        {"elec.gate.xor", "XOR Gate", "elec.gate.xor", true, QSizeF(130, 80)},
     };
 
     for (const ElecDef &entry : electrical)
@@ -909,126 +909,126 @@ QVector<ShapeDefinition> toolboxShapes()
             entry.size, QStringLiteral("electrical"));
     }
 
-    add(QStringLiteral("elec.junction"), QStringLiteral("节点"),
+    add(QStringLiteral("elec.junction"), QStringLiteral("Junction"),
         QStringLiteral("shape=elec.junction;fillColor=#000000;strokeColor=#000000;"),
         QSizeF(24, 24), QStringLiteral("electrical"));
 
     // --- floor plan -------------------------------------------------------
-    add(QStringLiteral("floor.wall"), QStringLiteral("墙体"),
+    add(QStringLiteral("floor.wall"), QStringLiteral("Wall"),
         QStringLiteral("rounded=0;fillColor=#e8eaed;strokeColor=#5f6368;strokeWidth=2;"),
         QSizeF(240, 16), QStringLiteral("floorplan"));
-    add(QStringLiteral("floor.door"), QStringLiteral("门"),
+    add(QStringLiteral("floor.door"), QStringLiteral("Door"),
         QStringLiteral("shape=floor.door;fillColor=none;strokeColor=#5f6368;strokeWidth=2;"),
         QSizeF(90, 90), QStringLiteral("floorplan"));
-    add(QStringLiteral("floor.window"), QStringLiteral("窗"),
+    add(QStringLiteral("floor.window"), QStringLiteral("Window"),
         QStringLiteral("shape=floor.window;fillColor=#dae8fc;strokeColor=#5f6368;strokeWidth=2;"),
         QSizeF(140, 16), QStringLiteral("floorplan"));
-    add(QStringLiteral("floor.stairs"), QStringLiteral("楼梯"),
+    add(QStringLiteral("floor.stairs"), QStringLiteral("Stairs"),
         QStringLiteral("shape=floor.stairs;fillColor=#f5f5f5;strokeColor=#5f6368;"),
         QSizeF(120, 160), QStringLiteral("floorplan"));
-    add(QStringLiteral("floor.table"), QStringLiteral("桌子"),
+    add(QStringLiteral("floor.table"), QStringLiteral("Table"),
         QStringLiteral("rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;"),
         QSizeF(160, 90), QStringLiteral("floorplan"));
-    add(QStringLiteral("floor.chair"), QStringLiteral("椅子"),
+    add(QStringLiteral("floor.chair"), QStringLiteral("Chair"),
         QStringLiteral("rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(60, 60), QStringLiteral("floorplan"));
-    add(QStringLiteral("floor.bed"), QStringLiteral("床"),
+    add(QStringLiteral("floor.bed"), QStringLiteral("Bed"),
         QStringLiteral("rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
         QSizeF(180, 120), QStringLiteral("floorplan"));
-    add(QStringLiteral("floor.sofa"), QStringLiteral("沙发"),
+    add(QStringLiteral("floor.sofa"), QStringLiteral("Sofa"),
         QStringLiteral("rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;"),
         QSizeF(180, 80), QStringLiteral("floorplan"));
 
     // --- infographic ------------------------------------------------------
-    add(QStringLiteral("info.chevron"), QStringLiteral("信息图箭头"),
+    add(QStringLiteral("info.chevron"), QStringLiteral("Chevron"),
         QStringLiteral("shape=step;perimeter=stepPerimeter;fixedSize=1;fillColor=#1a73e8;"
                        "strokeColor=none;fontColor=#ffffff;html=1;"),
         QSizeF(180, 70), QStringLiteral("infographic"));
-    add(QStringLiteral("info.ribbon"), QStringLiteral("缎带"),
+    add(QStringLiteral("info.ribbon"), QStringLiteral("Ribbon"),
         QStringLiteral("shape=info.ribbon;fillColor=#f29900;strokeColor=none;"
                        "fontColor=#ffffff;html=1;"),
         QSizeF(180, 70), QStringLiteral("infographic"));
-    add(QStringLiteral("info.badge"), QStringLiteral("徽章"),
+    add(QStringLiteral("info.badge"), QStringLiteral("Badge"),
         QStringLiteral("shape=star;perimeter=starPerimeter;fillColor=#d93025;strokeColor=none;"
                        "fontColor=#ffffff;html=1;"),
         QSizeF(110, 110), QStringLiteral("infographic"));
-    add(QStringLiteral("info.bubble"), QStringLiteral("气泡"),
+    add(QStringLiteral("info.bubble"), QStringLiteral("Bubble"),
         QStringLiteral("shape=callout;perimeter=calloutPerimeter;fillColor=#e6f4ea;"
                        "strokeColor=#34a853;html=1;"),
         QSizeF(180, 100), QStringLiteral("infographic"));
-    add(QStringLiteral("info.progress"), QStringLiteral("进度条"),
+    add(QStringLiteral("info.progress"), QStringLiteral("Progress"),
         QStringLiteral("rounded=1;arcSize=50;fillColor=#1a73e8;strokeColor=none;"),
         QSizeF(240, 24), QStringLiteral("infographic"));
 
     // --- SysML ------------------------------------------------------------
-    add(QStringLiteral("sysml.block"), QStringLiteral("模块"),
+    add(QStringLiteral("sysml.block"), QStringLiteral("Block"),
         QStringLiteral("swimlane;fontStyle=1;startSize=28;fillColor=#dae8fc;"
                        "strokeColor=#6c8ebf;html=1;"),
         QSizeF(200, 120), QStringLiteral("sysml"));
-    add(QStringLiteral("sysml.port"), QStringLiteral("端口"),
+    add(QStringLiteral("sysml.port"), QStringLiteral("Port"),
         QStringLiteral("fillColor=#ffffff;strokeColor=#6c8ebf;"), QSizeF(24, 24), QStringLiteral("sysml"));
-    add(QStringLiteral("sysml.requirement"), QStringLiteral("需求"),
+    add(QStringLiteral("sysml.requirement"), QStringLiteral("Requirement"),
         QStringLiteral("shape=note;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;"
                        "html=1;"), QSizeF(180, 100), QStringLiteral("sysml"));
-    add(QStringLiteral("sysml.constraint"), QStringLiteral("约束"),
+    add(QStringLiteral("sysml.constraint"), QStringLiteral("Constraint"),
         QStringLiteral("rounded=0;fillColor=#f8cecc;strokeColor=#b85450;html=1;"),
         QSizeF(170, 90), QStringLiteral("sysml"));
-    add(QStringLiteral("sysml.item"), QStringLiteral("条目"),
+    add(QStringLiteral("sysml.item"), QStringLiteral("Item"),
         QStringLiteral("rounded=0;fillColor=#e1d5e7;strokeColor=#9673a6;html=1;"),
         QSizeF(140, 70), QStringLiteral("sysml"));
 
     // --- ArchiMate --------------------------------------------------------
-    add(QStringLiteral("archimate.actor"), QStringLiteral("业务参与者"),
+    add(QStringLiteral("archimate.actor"), QStringLiteral("Actor"),
         QStringLiteral("rounded=1;arcSize=30;fillColor=#fff2cc;strokeColor=#d6b656;html=1;"),
         QSizeF(140, 70), QStringLiteral("archimate"));
-    add(QStringLiteral("archimate.role"), QStringLiteral("业务角色"),
+    add(QStringLiteral("archimate.role"), QStringLiteral("Role"),
         QStringLiteral("rounded=1;arcSize=30;fillColor=#fff2cc;strokeColor=#d6b656;html=1;"),
         QSizeF(140, 70), QStringLiteral("archimate"));
-    add(QStringLiteral("archimate.process"), QStringLiteral("业务流程"),
+    add(QStringLiteral("archimate.process"), QStringLiteral("Process"),
         QStringLiteral("rounded=1;arcSize=30;fillColor=#fff2cc;strokeColor=#d6b656;html=1;"),
         QSizeF(160, 70), QStringLiteral("archimate"));
-    add(QStringLiteral("archimate.appcomponent"), QStringLiteral("应用组件"),
+    add(QStringLiteral("archimate.appcomponent"), QStringLiteral("Appcomponent"),
         QStringLiteral("rounded=1;arcSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;html=1;"),
         QSizeF(160, 70), QStringLiteral("archimate"));
-    add(QStringLiteral("archimate.node"), QStringLiteral("技术节点"),
+    add(QStringLiteral("archimate.node"), QStringLiteral("Node"),
         QStringLiteral("shape=cube;fillColor=#d5e8d4;strokeColor=#82b366;boundedLbl=1;"
                        "backgroundOutline=1;html=1;"),
         QSizeF(160, 100), QStringLiteral("archimate"));
-    add(QStringLiteral("archimate.device"), QStringLiteral("设备"),
+    add(QStringLiteral("archimate.device"), QStringLiteral("Device"),
         QStringLiteral("rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;html=1;"),
         QSizeF(150, 80), QStringLiteral("archimate"));
 
     // --- Enterprise integration patterns ---------------------------------
-    add(QStringLiteral("eip.channel"), QStringLiteral("消息通道"),
+    add(QStringLiteral("eip.channel"), QStringLiteral("Channel"),
         QStringLiteral("rounded=0;fillColor=#dae8fc;strokeColor=#6c8ebf;html=1;"),
         QSizeF(200, 24), QStringLiteral("eip"));
-    add(QStringLiteral("eip.router"), QStringLiteral("消息路由"),
+    add(QStringLiteral("eip.router"), QStringLiteral("Router"),
         QStringLiteral("shape=eip.router;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(180, 90), QStringLiteral("eip"));
-    add(QStringLiteral("eip.splitter"), QStringLiteral("拆分器"),
+    add(QStringLiteral("eip.splitter"), QStringLiteral("Splitter"),
         QStringLiteral("shape=eip.splitter;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(160, 90), QStringLiteral("eip"));
-    add(QStringLiteral("eip.aggregator"), QStringLiteral("聚合器"),
+    add(QStringLiteral("eip.aggregator"), QStringLiteral("Aggregator"),
         QStringLiteral("shape=eip.splitter;direction=west;fillColor=#ffffff;"
                        "strokeColor=#000000;html=1;"),
         QSizeF(160, 90), QStringLiteral("eip"));
 
     // --- Bootstrap --------------------------------------------------------
-    add(QStringLiteral("bs.button"), QStringLiteral("Bootstrap 按钮"),
+    add(QStringLiteral("bs.button"), QStringLiteral("Button"),
         QStringLiteral("rounded=1;arcSize=25;fillColor=#0d6efd;strokeColor=#0d6efd;"
                        "fontColor=#ffffff;html=1;"),
         QSizeF(120, 42), QStringLiteral("bootstrap"));
-    add(QStringLiteral("bs.panel"), QStringLiteral("Bootstrap 面板"),
+    add(QStringLiteral("bs.panel"), QStringLiteral("Panel"),
         QStringLiteral("swimlane;startSize=34;fillColor=#ffffff;strokeColor=#dee2e6;html=1;"),
         QSizeF(240, 160), QStringLiteral("bootstrap"));
-    add(QStringLiteral("bs.navbar"), QStringLiteral("Bootstrap 导航栏"),
+    add(QStringLiteral("bs.navbar"), QStringLiteral("Navbar"),
         QStringLiteral("rounded=0;fillColor=#212529;strokeColor=#212529;fontColor=#ffffff;html=1;"),
         QSizeF(320, 48), QStringLiteral("bootstrap"));
-    add(QStringLiteral("bs.badge"), QStringLiteral("Bootstrap 徽标"),
+    add(QStringLiteral("bs.badge"), QStringLiteral("Badge"),
         QStringLiteral("rounded=1;arcSize=50;fillColor=#6c757d;strokeColor=#6c757d;"
                        "fontColor=#ffffff;html=1;"),
         QSizeF(70, 28), QStringLiteral("bootstrap"));
-    add(QStringLiteral("bs.alert"), QStringLiteral("Bootstrap 提示"),
+    add(QStringLiteral("bs.alert"), QStringLiteral("Alert"),
         QStringLiteral("rounded=1;arcSize=8;fillColor=#cff4fc;strokeColor=#b6effb;html=1;"),
         QSizeF(260, 56), QStringLiteral("bootstrap"));
 

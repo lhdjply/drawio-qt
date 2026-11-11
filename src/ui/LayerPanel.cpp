@@ -1,5 +1,6 @@
 #include "ui/LayerPanel.h"
 
+#include "app/I18n.h"
 #include "core/Page.h"
 #include "ui/DiagramView.h"
 
@@ -61,22 +62,22 @@ LayerPanel::LayerPanel(QWidget *parent)
     auto *buttons = new QHBoxLayout();
     m_add = new QToolButton(this);
     m_add->setText(QStringLiteral("＋"));
-    m_add->setToolTip(QStringLiteral("新建图层"));
+    m_add->setToolTip(QStringLiteral("New Layer"));
     m_remove = new QToolButton(this);
     m_remove->setText(QStringLiteral("－"));
-    m_remove->setToolTip(QStringLiteral("删除图层"));
+    m_remove->setToolTip(QStringLiteral("Delete Layer"));
     m_up = new QToolButton(this);
     m_up->setText(QStringLiteral("↑"));
-    m_up->setToolTip(QStringLiteral("上移图层"));
+    m_up->setToolTip(QStringLiteral("Move Layer Up"));
     m_down = new QToolButton(this);
     m_down->setText(QStringLiteral("↓"));
-    m_down->setToolTip(QStringLiteral("下移图层"));
+    m_down->setToolTip(QStringLiteral("Move Layer Down"));
     m_lock = new QToolButton(this);
     m_lock->setText(QStringLiteral("🔒"));
-    m_lock->setToolTip(QStringLiteral("锁定图层"));
+    m_lock->setToolTip(QStringLiteral("Lock Layer"));
     auto *rename = new QToolButton(this);
     rename->setText(QStringLiteral("✎"));
-    rename->setToolTip(QStringLiteral("重命名图层"));
+    rename->setToolTip(QStringLiteral("Rename Layer"));
 
     for (QToolButton *button : {m_add, m_remove, m_up, m_down, m_lock, rename})
     {
@@ -241,7 +242,8 @@ QString LayerPanel::objectLabel(const QString &cellId) const
 
     if (text.isEmpty())
     {
-        text = cell->isEdge() ? QStringLiteral("连线") : QStringLiteral("形状");
+        text = I18n::text(cell->isEdge() ? QStringLiteral("Connector")
+                                         : QStringLiteral("Shape"));
     }
 
     if (text.size() > 28)
@@ -276,8 +278,10 @@ void LayerPanel::refresh()
         const Layer &layer = layers.at(i);
         auto *layerItem = new QTreeWidgetItem(m_tree);
         const QString layerName = layer.name.isEmpty()
-            ? QStringLiteral("图层 %1").arg(i + 1) : layer.name;
-        layerItem->setText(0, layer.locked ? QStringLiteral("🔒 ") + layerName : layerName);
+            ? I18n::text(QStringLiteral("Layer %1")).arg(i + 1) : layer.name;
+        const QString translatedName = I18n::text(layerName);
+        layerItem->setText(0, layer.locked ? QStringLiteral("🔒 ") + translatedName
+                                           : translatedName);
         layerItem->setData(0, Qt::UserRole, layer.id);
         layerItem->setFlags(layerItem->flags() | Qt::ItemIsUserCheckable);
         layerItem->setCheckState(0, layer.visible ? Qt::Checked : Qt::Unchecked);
@@ -325,7 +329,7 @@ void LayerPanel::refresh()
     m_lock->setText(currentLayer != nullptr && currentLayer->locked
                         ? QStringLiteral("🔓") : QStringLiteral("🔒"));
     m_lock->setToolTip(currentLayer != nullptr && currentLayer->locked
-                           ? QStringLiteral("解锁图层") : QStringLiteral("锁定图层"));
+                           ? QStringLiteral("Unlock Layer") : QStringLiteral("Lock Layer"));
     m_remove->setEnabled(layers.size() > 1
                          && (currentLayer == nullptr || !currentLayer->locked));
     m_up->setEnabled(layers.size() > 1);
@@ -438,8 +442,8 @@ void LayerPanel::renameLayer()
     }
 
     bool ok = false;
-    const QString name = QInputDialog::getText(this, QStringLiteral("重命名图层"),
-                                               QStringLiteral("图层名称："), QLineEdit::Normal,
+    const QString name = QInputDialog::getText(this, QStringLiteral("Rename Layer"),
+                                               QStringLiteral("Layer name:"), QLineEdit::Normal,
                                                layer->name, &ok);
 
     if (ok && !name.trimmed().isEmpty())

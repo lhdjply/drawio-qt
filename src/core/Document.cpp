@@ -50,7 +50,7 @@ void Document::setCurrentIndex(int index)
 Page *Document::addPage(const QString &name)
 {
     auto *page = new Page(name.isEmpty()
-                              ? QStringLiteral("第 %1 页").arg(m_pages.size() + 1)
+                              ? QStringLiteral("Page %1").arg(m_pages.size() + 1)
                               : name);
     m_pages.append(page);
     emit pagesChanged();
@@ -103,7 +103,7 @@ void Document::newDocument()
     clear();
     m_filePath.clear();
     m_suggestedSavePath.clear();
-    addPage(QStringLiteral("第 1 页"));
+    addPage(QStringLiteral("Page 1"));
     m_currentIndex = 0;
     m_modified = false;
     m_readOnly = false;
@@ -136,7 +136,7 @@ QString Document::displayName() const
             return QFileInfo(m_suggestedSavePath).fileName();
         }
 
-        return QStringLiteral("未命名绘图");
+        return QStringLiteral("Untitled Drawing");
     }
 
     return QFileInfo(m_filePath).fileName();
@@ -173,7 +173,7 @@ bool Document::load(const QString &path, QString *error)
     {
         if (error != nullptr)
         {
-            *error = QStringLiteral("无法打开文件：%1").arg(file.errorString());
+            *error = QStringLiteral("Cannot open file: %1").arg(file.errorString());
         }
         return false;
     }
@@ -192,7 +192,7 @@ bool Document::load(const QString &path, QString *error)
         {
             if (error != nullptr)
             {
-                *error = QStringLiteral("文件中没有内嵌的图数据");
+                *error = QStringLiteral("The file contains no embedded diagram data");
             }
             return false;
         }
@@ -259,7 +259,7 @@ bool Document::save(const QString &path, QString *error)
     {
         if (error != nullptr)
         {
-            *error = QStringLiteral("无法写入文件：%1").arg(file.errorString());
+            *error = QStringLiteral("Cannot write file: %1").arg(file.errorString());
         }
         return false;
     }
@@ -270,7 +270,7 @@ bool Document::save(const QString &path, QString *error)
     {
         if (error != nullptr)
         {
-            *error = QStringLiteral("写入文件失败：%1").arg(file.errorString());
+            *error = QStringLiteral("Failed to write file: %1").arg(file.errorString());
         }
         return false;
     }
@@ -286,7 +286,7 @@ bool Document::save(QString *error)
     {
         if (error != nullptr)
         {
-            *error = QStringLiteral("尚未指定文件名");
+            *error = QStringLiteral("No file name specified");
         }
         return false;
     }
@@ -332,7 +332,7 @@ bool Document::restorePageXml(int index, const QString &xml, QString *error)
     {
         if (error != nullptr)
         {
-            *error = QStringLiteral("页面索引无效");
+            *error = QStringLiteral("Invalid page index");
         }
         return false;
     }

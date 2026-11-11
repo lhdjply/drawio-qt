@@ -129,7 +129,7 @@ ExportResult exportImage(const Page &page, const ExportOptions &options)
 
     if (image.isNull())
     {
-        result.error = QStringLiteral("无法创建 %1x%2 的图像").arg(width).arg(height);
+        result.error = QStringLiteral("Cannot create %1x%2 image").arg(width).arg(height);
         return result;
     }
 
@@ -165,7 +165,7 @@ ExportResult exportImage(const Page &page, const ExportOptions &options)
 
     if (data.isEmpty())
     {
-        result.error = QStringLiteral("图像编码失败");
+        result.error = QStringLiteral("Image encoding failed");
         return result;
     }
 
@@ -212,7 +212,7 @@ ExportResult exportSvg(const Page &page, const ExportOptions &options)
 
     if (!painter.begin(&generator))
     {
-        result.error = QStringLiteral("无法创建 SVG 输出");
+        result.error = QStringLiteral("Cannot create SVG output");
         return result;
     }
 
@@ -224,7 +224,7 @@ ExportResult exportSvg(const Page &page, const ExportOptions &options)
 
     if (data.isEmpty())
     {
-        result.error = QStringLiteral("SVG 生成失败");
+        result.error = QStringLiteral("SVG generation failed");
         return result;
     }
 
@@ -304,7 +304,7 @@ ExportResult exportPdf(const Document &document, const ExportOptions &options)
 
         if (!started)
         {
-            result.error = QStringLiteral("无法创建 PDF 输出");
+            result.error = QStringLiteral("Cannot create PDF output");
             return result;
         }
 
@@ -325,7 +325,7 @@ ExportResult exportPdf(const Document &document, const ExportOptions &options)
 
     if (data.isEmpty())
     {
-        result.error = QStringLiteral("PDF 生成失败");
+        result.error = QStringLiteral("PDF generation failed");
         return result;
     }
 
@@ -366,7 +366,7 @@ ExportResult exportHtml(const Document &document, const ExportOptions &options)
 
     if (page == nullptr)
     {
-        result.error = QStringLiteral("没有页面可导出");
+        result.error = QStringLiteral("No pages to export");
         return result;
     }
 
@@ -391,7 +391,7 @@ ExportResult exportHtml(const Document &document, const ExportOptions &options)
 
     if (!result.ok)
     {
-        result.error = QStringLiteral("HTML 生成失败");
+        result.error = QStringLiteral("HTML generation failed");
     }
 
     return result;
@@ -442,7 +442,7 @@ ExportResult exportPage(const Page &page, const ExportOptions &options, const QS
     }
 
     ExportResult result;
-    result.error = QStringLiteral("不支持的页面导出格式：%1").arg(format);
+    result.error = QStringLiteral("Unsupported page export format: %1").arg(format);
     return result;
 }
 
@@ -470,7 +470,7 @@ ExportResult exportDocument(const Document &document, const ExportOptions &optio
     if (page == nullptr)
     {
         ExportResult result;
-        result.error = QStringLiteral("没有页面可导出");
+        result.error = QStringLiteral("No pages to export");
         return result;
     }
 

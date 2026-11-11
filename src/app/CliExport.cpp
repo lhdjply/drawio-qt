@@ -48,7 +48,7 @@ QVector<QString> collectFiles(const QStringList &inputs, bool recursive, QString
         {
             if (error != nullptr)
             {
-                *error = QStringLiteral("输入文件/文件夹不存在：%1").arg(input);
+                *error = QStringLiteral("Input file/folder does not exist: %1").arg(input);
             }
             return {};
         }
@@ -272,7 +272,7 @@ int run(const CliOptions &cli)
     {
         if (isUnsupportedInput(file))
         {
-            err() << QStringLiteral("Error: 原生渲染器暂不支持导入 %1：%2\n")
+            err() << QStringLiteral("Error: native renderer cannot import %1: %2\n")
                          .arg(QFileInfo(file).suffix(), file);
             failed = true;
             continue;

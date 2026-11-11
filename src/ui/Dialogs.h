@@ -113,10 +113,11 @@ class SettingsDialog : public QDialog
 
 public:
     SettingsDialog(const QVector<ShortcutSetting> &shortcuts, const QString &theme,
-                   QWidget *parent = nullptr);
+                   const QString &language, QWidget *parent = nullptr);
 
     QVector<ShortcutSetting> shortcutSettings() const;
     QString theme() const;
+    QString language() const;
 
 private:
     void restoreDefaults();
@@ -125,9 +126,9 @@ private:
     QVector<ShortcutSetting> m_shortcuts;
     QVector<QKeySequenceEdit *> m_editors;
     class QComboBox *m_theme = nullptr;
+    class QComboBox *m_language = nullptr;
 };
 
-void showShortcutsDialog(QWidget *parent);
 void showAboutDialog(QWidget *parent);
 
 QString exportFilterForFormat(const QString &format);

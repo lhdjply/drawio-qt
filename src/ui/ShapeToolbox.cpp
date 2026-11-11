@@ -1,5 +1,6 @@
 #include "ui/ShapeToolbox.h"
 
+#include "app/I18n.h"
 #include "render/ShapeCatalog.h"
 #include "ui/ShapeLibraryDialog.h"
 
@@ -24,6 +25,7 @@
 #include <QVBoxLayout>
 
 namespace dq {
+
 namespace {
 
 constexpr const char *kShapeMimeType = "application/x-drawio-shape";
@@ -257,7 +259,7 @@ ShapeToolbox::ShapeToolbox(QWidget *parent)
     layout->setSpacing(4);
 
     m_search = new QLineEdit(this);
-    m_search->setPlaceholderText(QStringLiteral("搜索形状…"));
+    m_search->setPlaceholderText(QStringLiteral("Search shapes…"));
     m_search->setClearButtonEnabled(true);
     layout->addWidget(m_search);
 
@@ -270,7 +272,7 @@ ShapeToolbox::ShapeToolbox(QWidget *parent)
 
     auto *manage = new QToolButton(this);
     manage->setText(QStringLiteral("…"));
-    manage->setToolTip(QStringLiteral("选择要显示的形状库"));
+    manage->setToolTip(QStringLiteral("Choose shape libraries"));
     manage->setAutoRaise(true);
     categoryRow->addWidget(manage);
 
@@ -321,7 +323,8 @@ void ShapeToolbox::populateCategories()
     m_category->blockSignals(true);
     m_category->clear();
 
-    m_category->addItem(QStringLiteral("全部内置形状"), QStringLiteral("builtin:all"));
+    m_category->addItem(I18n::text(QStringLiteral("All Built-in Shapes")),
+                        QStringLiteral("builtin:all"));
 
     const QStringList enabled = enabledCategories();
 
@@ -332,7 +335,7 @@ void ShapeToolbox::populateCategories()
             continue;
         }
 
-        m_category->addItem(category.name, category.id);
+        m_category->addItem(I18n::categoryName(category.id, category.name), category.id);
     }
 
     bool separatorAdded = false;
@@ -350,7 +353,7 @@ void ShapeToolbox::populateCategories()
             separatorAdded = true;
         }
 
-        m_category->addItem(category.name, category.id);
+        m_category->addItem(I18n::categoryName(category.id, category.name), category.id);
     }
 
     const int index = m_category->findData(previous);
@@ -417,16 +420,17 @@ void ShapeToolbox::populateList()
     for (const ShapeDefinition &definition : shapes)
     {
         auto *item = new QListWidgetItem(m_list);
-        item->setText(definition.name);
+        const QString name = I18n::shapeName(definition.key, definition.name);
+        item->setText(name);
         item->setData(Qt::UserRole, definition.key);
-        item->setToolTip(QStringLiteral("%1\n%2").arg(definition.name, definition.style));
+        item->setToolTip(QStringLiteral("%1\n%2").arg(name, definition.style));
         item->setTextAlignment(Qt::AlignHCenter | Qt::AlignTop);
         item->setIcon(ShapeCatalog::instance().iconFor(definition, 38));
     }
 
     m_count->setText(query.isEmpty()
-                         ? QStringLiteral("%1 个形状").arg(shapes.size())
-                         : QStringLiteral("找到 %1 个形状").arg(shapes.size()));
+                         ? I18n::text(I18n::text(QStringLiteral("%1 shapes"))).arg(shapes.size())
+                         : I18n::text(I18n::text(QStringLiteral("%1 shapes found"))).arg(shapes.size()));
 }
 
 void ShapeToolbox::manageLibraries()

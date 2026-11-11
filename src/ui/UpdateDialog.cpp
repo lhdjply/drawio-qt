@@ -1,5 +1,7 @@
 #include "ui/UpdateDialog.h"
 
+#include "app/I18n.h"
+
 #include <QDateTime>
 #include <QDesktopServices>
 #include <QHBoxLayout>
@@ -13,7 +15,7 @@ namespace dq {
 
 UpdateDialog::UpdateDialog(const ReleaseInfo &release, QWidget *parent) : QDialog(parent)
 {
-    setWindowTitle(UpdateDialog::tr("有可用更新"));
+    setWindowTitle(I18n::text(QStringLiteral("Update Available")));
     setModal(true);
     setMinimumSize(620, 520);
 
@@ -21,12 +23,12 @@ UpdateDialog::UpdateDialog(const ReleaseInfo &release, QWidget *parent) : QDialo
     root->setContentsMargins(20, 18, 20, 16);
     root->setSpacing(12);
 
-    auto *heading = new QLabel(UpdateDialog::tr("版本 %1 已发布").arg(release.tagName), this);
+    auto *heading = new QLabel(I18n::text(I18n::text(QStringLiteral("Version %1 released"))).arg(release.tagName), this);
     heading->setStyleSheet(QStringLiteral("font-size: 17px; font-weight: 600;"));
     root->addWidget(heading);
 
     auto *subheading = new QLabel(
-        UpdateDialog::tr("当前版本 v%1。更新日志来自 GitHub Release；下载与安装由你自行完成，本程序不会替换自身。")
+        I18n::text(I18n::text(QStringLiteral("Current version v%1. Release notes come from GitHub; download and installation are up to you, this app never replaces itself.")))
             .arg(QLatin1String(DRAWIO_QT_VERSION)),
         this);
     subheading->setWordWrap(true);
@@ -46,7 +48,7 @@ UpdateDialog::UpdateDialog(const ReleaseInfo &release, QWidget *parent) : QDialo
         notesText = QStringLiteral("## %1\n\n%2").arg(title, notesText);
     }
     if (notesText.isEmpty()) {
-        notesText = UpdateDialog::tr("（此版本没有更新日志，请到发布页查看。）");
+        notesText = I18n::text(QStringLiteral("(No release notes for this version; open the release page.)"));
     }
 
     auto *notes = new QTextBrowser(this);
@@ -59,10 +61,10 @@ UpdateDialog::UpdateDialog(const ReleaseInfo &release, QWidget *parent) : QDialo
 
     QString hint;
     if (published.isValid()) {
-        hint = UpdateDialog::tr("发布于 %1。请到发布页下载安装包。")
+        hint = I18n::text(I18n::text(QStringLiteral("Published %1. Download the installer from the release page.")))
                    .arg(published.toString(QStringLiteral("yyyy-MM-dd")));
     } else {
-        hint = UpdateDialog::tr("请到发布页下载安装包。");
+        hint = I18n::text(QStringLiteral("Download the installer from the release page."));
     }
     auto *hintLabel = new QLabel(hint, this);
     hintLabel->setWordWrap(true);
@@ -74,8 +76,8 @@ UpdateDialog::UpdateDialog(const ReleaseInfo &release, QWidget *parent) : QDialo
     actions->setSpacing(8);
     actions->addStretch(1);
 
-    auto *later = new QPushButton(UpdateDialog::tr("以后再说"), this);
-    auto *open  = new QPushButton(UpdateDialog::tr("打开下载页"), this);
+    auto *later = new QPushButton(I18n::text(QStringLiteral("Later")), this);
+    auto *open  = new QPushButton(I18n::text(QStringLiteral("Open Download Page")), this);
     open->setDefault(true);
     actions->addWidget(later);
     actions->addWidget(open);

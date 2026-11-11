@@ -117,6 +117,8 @@ set(DRAWIO_QT_SOURCES
     src/app/CliExport.h
     src/app/AppSettings.cpp
     src/app/AppSettings.h
+    src/app/I18n.cpp
+    src/app/I18n.h
     src/app/UiTheme.cpp
     src/app/UiTheme.h
     src/app/UpdateChecker.cpp
@@ -183,6 +185,13 @@ qt_add_resources(drawioqt_lib "drawio_image_resources"
     FILES ${DRAWIO_IMAGE_FILES})
 
 target_sources(drawioqt_lib PRIVATE ${DRAWIO_QT_RESOURCES})
+
+qt_add_resources(drawioqt_lib "drawio_translations"
+    PREFIX "/translations"
+    BASE "${CMAKE_CURRENT_SOURCE_DIR}/resources/translations"
+    FILES
+        "${CMAKE_CURRENT_SOURCE_DIR}/resources/translations/en.json"
+        "${CMAKE_CURRENT_SOURCE_DIR}/resources/translations/zh.json")
 
 add_executable(drawio-qt src/main.cpp)
 target_link_libraries(drawio-qt PRIVATE drawioqt_lib)
