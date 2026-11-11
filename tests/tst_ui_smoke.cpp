@@ -31,7 +31,7 @@
 #include <QTreeWidget>
 #include <QToolButton>
 #include <QSettings>
-#include <QKeySequenceEdit>
+#include "ui/Dialogs.h"
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -633,7 +633,13 @@ private slots:
             {QStringLiteral("b"), QStringLiteral("功能 B"), QKeySequence(QStringLiteral("Ctrl+B")),
              QKeySequence(QStringLiteral("Ctrl+B"))}};
         ShortcutDialog dialog(items);
-        QCOMPARE(dialog.findChildren<QKeySequenceEdit *>().size(), 2);
+        QCOMPARE(dialog.findChildren<ShortcutEdit *>().size(), 2);
+
+        ShortcutEdit edit;
+        edit.show();
+        edit.setFocus();
+        QTest::keyClick(&edit, Qt::Key_Delete, Qt::ControlModifier | Qt::ShiftModifier);
+        QCOMPARE(edit.keySequence(), QKeySequence(QStringLiteral("Ctrl+Shift+Del")));
     }
 
     void settingsDialogHasAppearanceAndShortcuts()
@@ -644,7 +650,7 @@ private slots:
         SettingsDialog dialog(items, QStringLiteral("dark"), QStringLiteral("zh"));
         QCOMPARE(dialog.theme(), QStringLiteral("dark"));
         QCOMPARE(dialog.findChildren<QTabWidget *>().size(), 1);
-        QCOMPARE(dialog.findChildren<QKeySequenceEdit *>().size(), 1);
+        QCOMPARE(dialog.findChildren<ShortcutEdit *>().size(), 1);
     }
 
     void englishTranslationAppliesToMenus()

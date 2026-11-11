@@ -2785,5 +2785,6 @@
   "Download the installer from the release page.": "Download the installer from the release page.",
   "Later": "Later",
   "Open Download Page": "Open Download Page",
-  "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)": "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)"
+  "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)": "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)",
+  "Press shortcut": "Press shortcut"
 }

@@ -12,6 +12,7 @@
 #include <QFileDialog>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QKeyEvent>
 #include <QKeySequenceEdit>
 #include <QMessageBox>
 #include <QPushButton>
@@ -480,7 +481,8 @@ ShortcutDialog::ShortcutDialog(const QVector<ShortcutSetting> &settings, QWidget
 
     auto *layout = new QVBoxLayout(this);
     auto *table = new QTableWidget(m_settings.size(), 2, this);
-    table->setHorizontalHeaderLabels({QStringLiteral("Action"), QStringLiteral("Shortcut")});
+    table->setHorizontalHeaderLabels({I18n::text(QStringLiteral("Action")),
+                                      I18n::text(QStringLiteral("Shortcut"))});
     table->horizontalHeader()->setStretchLastSection(true);
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     table->verticalHeader()->setVisible(false);
@@ -490,8 +492,9 @@ ShortcutDialog::ShortcutDialog(const QVector<ShortcutSetting> &settings, QWidget
     for (int row = 0; row < m_settings.size(); ++row)
     {
         const ShortcutSetting &item = m_settings.at(row);
-        table->setItem(row, 0, new QTableWidgetItem(item.label));
-        auto *edit = new QKeySequenceEdit(item.sequence, table);
+        table->setItem(row, 0, new QTableWidgetItem(I18n::text(item.label)));
+        auto *edit = new ShortcutEdit(table);
+        edit->setKeySequence(item.sequence.isEmpty() ? item.defaultSequence : item.sequence);
         table->setCellWidget(row, 1, edit);
         m_editors.append(edit);
     }
@@ -562,6 +565,50 @@ void ShortcutDialog::acceptIfValid()
     accept();
 }
 
+ShortcutEdit::ShortcutEdit(QWidget *parent)
+    : QLineEdit(parent)
+{
+    setReadOnly(true);
+    setPlaceholderText(QStringLiteral("Press shortcut"));
+}
+
+void ShortcutEdit::setKeySequence(const QKeySequence &sequence)
+{
+    m_sequence = sequence;
+    setText(m_sequence.toString(QKeySequence::PortableText));
+}
+
+void ShortcutEdit::keyPressEvent(QKeyEvent *event)
+{
+    if (event->modifiers() == Qt::NoModifier
+        && (event->key() == Qt::Key_Backspace || event->key() == Qt::Key_Delete))
+    {
+        setKeySequence(QKeySequence());
+        emit keySequenceChanged();
+        event->accept();
+        return;
+    }
+
+    if (event->key() == Qt::Key_Tab || event->key() == Qt::Key_Backtab
+        || event->key() == Qt::Key_unknown)
+    {
+        QLineEdit::keyPressEvent(event);
+        return;
+    }
+
+    if (event->modifiers() == Qt::NoModifier
+        && (event->key() == Qt::Key_Shift || event->key() == Qt::Key_Control
+            || event->key() == Qt::Key_Alt || event->key() == Qt::Key_Meta))
+    {
+        event->accept();
+        return;
+    }
+
+    setKeySequence(QKeySequence(event->keyCombination()));
+    emit keySequenceChanged();
+    event->accept();
+}
+
 SettingsDialog::SettingsDialog(const QVector<ShortcutSetting> &shortcuts,
                                const QString &theme, const QString &language,
                                QWidget *parent)
@@ -598,7 +645,8 @@ SettingsDialog::SettingsDialog(const QVector<ShortcutSetting> &shortcuts,
     auto *shortcutPage = new QWidget(tabs);
     auto *shortcutLayout = new QVBoxLayout(shortcutPage);
     auto *table = new QTableWidget(m_shortcuts.size(), 2, shortcutPage);
-    table->setHorizontalHeaderLabels({QStringLiteral("Action"), QStringLiteral("Shortcut")});
+    table->setHorizontalHeaderLabels({I18n::text(QStringLiteral("Action")),
+                                      I18n::text(QStringLiteral("Shortcut"))});
     table->horizontalHeader()->setStretchLastSection(true);
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
     table->verticalHeader()->setVisible(false);
@@ -608,8 +656,9 @@ SettingsDialog::SettingsDialog(const QVector<ShortcutSetting> &shortcuts,
     for (int row = 0; row < m_shortcuts.size(); ++row)
     {
         const ShortcutSetting &item = m_shortcuts.at(row);
-        table->setItem(row, 0, new QTableWidgetItem(item.label));
-        auto *edit = new QKeySequenceEdit(item.sequence, table);
+        table->setItem(row, 0, new QTableWidgetItem(I18n::text(item.label)));
+        auto *edit = new ShortcutEdit(table);
+        edit->setKeySequence(item.sequence.isEmpty() ? item.defaultSequence : item.sequence);
         table->setCellWidget(row, 1, edit);
         m_editors.append(edit);
     }

@@ -2785,5 +2785,6 @@
   "Download the installer from the release page.": "请到发布页下载安装包。",
   "Later": "以后再说",
   "Open Download Page": "打开下载页",
-  "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)": "draw.io 文件 (*.drawio *.dio *.xml *.svg *.png *.pdf);;所有文件 (*)"
+  "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)": "draw.io 文件 (*.drawio *.dio *.xml *.svg *.png *.pdf);;所有文件 (*)",
+  "Press shortcut": "按下快捷键"
 }

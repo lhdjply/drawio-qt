@@ -589,13 +589,15 @@ void MainWindow::createActions()
         printDocument();
     });
 
-    m_printPreviewAction = makeAction(QStringLiteral("Print Preview…"), QKeySequence(), QIcon(),
+    m_printPreviewAction = makeAction(QStringLiteral("Print Preview…"),
+                                      key(QStringLiteral("Ctrl+Shift+P")), QIcon(),
                                       [this]()
     {
         printPreview();
     });
 
-    m_pageSetupAction = makeAction(QStringLiteral("Page Setup…"), QKeySequence(), QIcon(),
+    m_pageSetupAction = makeAction(QStringLiteral("Page Setup…"),
+                                   key(QStringLiteral("Ctrl+Alt+P")), QIcon(),
                                    [this]()
     {
         pageSetup();
@@ -698,7 +700,8 @@ void MainWindow::createActions()
     m_gridAction->setCheckable(true);
     m_gridAction->setChecked(true);
 
-    m_guidesAction = makeAction(QStringLiteral("Alignment Guides"), QKeySequence(), QIcon(),
+    m_guidesAction = makeAction(QStringLiteral("Alignment Guides"),
+                                 key(QStringLiteral("Ctrl+Shift+L")), QIcon(),
                                 [this]()
     {
         const bool visible = m_guidesAction->isChecked();
@@ -708,7 +711,8 @@ void MainWindow::createActions()
     m_guidesAction->setCheckable(true);
     m_guidesAction->setChecked(AppSettings::instance().guidesVisible());
 
-    m_pageViewAction = makeAction(QStringLiteral("Show Page Bounds"), QKeySequence(), QIcon(),
+    m_pageViewAction = makeAction(QStringLiteral("Show Page Bounds"),
+                                   key(QStringLiteral("Ctrl+Shift+B")), QIcon(),
                                   [this]()
     {
         const bool visible = m_pageViewAction->isChecked();
@@ -739,7 +743,8 @@ void MainWindow::createActions()
     });
     m_fullScreenAction->setCheckable(true);
 
-    m_toggleShapesAction = makeAction(QStringLiteral("Shape Panel"), QKeySequence(), QIcon(),
+    m_toggleShapesAction = makeAction(QStringLiteral("Shape Panel"),
+                                      key(QStringLiteral("Ctrl+Shift+K")), QIcon(),
                                       [this]()
     {
         if (auto *dock = findChild<QDockWidget *>(QStringLiteral("shapesDock")))
@@ -750,7 +755,8 @@ void MainWindow::createActions()
     m_toggleShapesAction->setCheckable(true);
     m_toggleShapesAction->setChecked(true);
 
-    m_toggleFormatAction = makeAction(QStringLiteral("Format Panel"), QKeySequence(), QIcon(),
+    m_toggleFormatAction = makeAction(QStringLiteral("Format Panel"),
+                                      key(QStringLiteral("Ctrl+Shift+F")), QIcon(),
                                       [this]()
     {
         if (auto *dock = findChild<QDockWidget *>(QStringLiteral("formatDock")))
@@ -798,7 +804,8 @@ void MainWindow::createActions()
         m_view->changeZOrder(DiagramView::ZOrder::Backward);
     });
 
-    m_addPageAction = makeAction(QStringLiteral("Add Page"), QKeySequence(), QIcon(), [this]()
+    m_addPageAction = makeAction(QStringLiteral("Add Page"),
+                                  key(QStringLiteral("Ctrl+Shift+PgDown")), QIcon(), [this]()
     {
         addPage();
     });
@@ -917,9 +924,18 @@ void MainWindow::setupShortcuts()
             continue;
         }
 
-        QAction *action = m_shortcutActions.value(item.id);
+        const QString saved = settings.value(key).toString();
         const QKeySequence sequence = QKeySequence::fromString(
-            settings.value(key).toString(), QKeySequence::PortableText);
+            saved, QKeySequence::PortableText);
+
+        if (saved.isEmpty() || sequence.toString().isEmpty())
+        {
+            // Older builds saved empty/invalid shortcuts before defaults existed.
+            settings.remove(key);
+            continue;
+        }
+
+        QAction *action = m_shortcutActions.value(item.id);
 
         if (action != nullptr)
         {

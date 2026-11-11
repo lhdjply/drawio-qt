@@ -4,6 +4,7 @@
 #include "io/Exporter.h"
 
 #include <QDialog>
+#include <QLineEdit>
 #include <QKeySequence>
 #include <QVector>
 #include <QSizeF>
@@ -14,9 +15,32 @@ class QDoubleSpinBox;
 class QLabel;
 class QLineEdit;
 class QSpinBox;
-class QKeySequenceEdit;
+
 
 namespace dq {
+
+/// Shortcut recorder that always displays Qt's portable English key names
+/// ("Ctrl+Shift+Down"), independent of the interface language.
+class ShortcutEdit : public QLineEdit
+{
+    Q_OBJECT
+
+public:
+    explicit ShortcutEdit(QWidget *parent = nullptr);
+
+    QKeySequence keySequence() const { return m_sequence; }
+    void setKeySequence(const QKeySequence &sequence);
+
+signals:
+    void keySequenceChanged();
+
+protected:
+    void keyPressEvent(QKeyEvent *event) override;
+
+private:
+    QKeySequence m_sequence;
+};
+
 
 class Document;
 
@@ -103,7 +127,7 @@ private:
     void acceptIfValid();
 
     QVector<ShortcutSetting> m_settings;
-    QVector<QKeySequenceEdit *> m_editors;
+    QVector<ShortcutEdit *> m_editors;
 };
 
 /// Unified settings dialog: appearance and keyboard shortcuts.
@@ -124,7 +148,7 @@ private:
     void acceptIfValid();
 
     QVector<ShortcutSetting> m_shortcuts;
-    QVector<QKeySequenceEdit *> m_editors;
+    QVector<ShortcutEdit *> m_editors;
     class QComboBox *m_theme = nullptr;
     class QComboBox *m_language = nullptr;
 };
