@@ -1093,18 +1093,6 @@ void MainWindow::createMenus()
 
     QMenu *insertMenu = menuBar()->addMenu(QStringLiteral("Insert"));
 
-    QMenu *shapesMenu = insertMenu->addMenu(QStringLiteral("Shape"));
-    for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
-    {
-        QAction *action = shapesMenu->addAction(definition.name);
-        connect(action, &QAction::triggered, this, [this, definition]()
-        {
-            const QPointF center = m_view->toScene(QPointF(m_view->width() / 2.0,
-                                                           m_view->height() / 2.0));
-            m_view->addShape(definition, center);
-        });
-    }
-
     insertMenu->addAction(m_textAction);
     insertMenu->addSeparator();
     insertMenu->addAction(m_connectorAction);
