@@ -14,6 +14,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QTableWidget>
+#include <QTabWidget>
 #include <QHeaderView>
 #include <QGroupBox>
 #include <QHBoxLayout>
@@ -500,7 +501,6 @@ ShortcutDialog::ShortcutDialog(const QVector<ShortcutSetting> &settings, QWidget
     auto *cancel = new QPushButton(QStringLiteral("取消"), this);
     auto *ok = new QPushButton(QStringLiteral("确定"), this);
     ok->setDefault(true);
-    buttons->addWidget(reset);
     buttons->addStretch(1);
     buttons->addWidget(cancel);
     buttons->addWidget(ok);
@@ -557,6 +557,127 @@ void ShortcutDialog::acceptIfValid()
     }
 
     m_settings = current;
+    accept();
+}
+
+SettingsDialog::SettingsDialog(const QVector<ShortcutSetting> &shortcuts,
+                               const QString &theme, QWidget *parent)
+    : QDialog(parent), m_shortcuts(shortcuts)
+{
+    setWindowTitle(QStringLiteral("设置"));
+    resize(620, 680);
+
+    auto *layout = new QVBoxLayout(this);
+    auto *tabs = new QTabWidget(this);
+
+    auto *general = new QWidget(tabs);
+    auto *form = new QFormLayout(general);
+    m_theme = new QComboBox(general);
+    m_theme->addItem(QStringLiteral("浅色"), QStringLiteral("light"));
+    m_theme->addItem(QStringLiteral("深色"), QStringLiteral("dark"));
+    m_theme->addItem(QStringLiteral("跟随系统"), QStringLiteral("system"));
+
+    const int themeIndex = m_theme->findData(theme);
+    m_theme->setCurrentIndex(themeIndex >= 0 ? themeIndex : 2);
+    form->addRow(QStringLiteral("外观"), m_theme);
+    form->addRow(QString(), new QLabel(QStringLiteral("快捷键可在“快捷键”页逐项修改。"), general));
+    tabs->addTab(general, QStringLiteral("常规"));
+
+    auto *shortcutPage = new QWidget(tabs);
+    auto *shortcutLayout = new QVBoxLayout(shortcutPage);
+    auto *table = new QTableWidget(m_shortcuts.size(), 2, shortcutPage);
+    table->setHorizontalHeaderLabels({QStringLiteral("功能"), QStringLiteral("快捷键")});
+    table->horizontalHeader()->setStretchLastSection(true);
+    table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    table->verticalHeader()->setVisible(false);
+    table->setSelectionMode(QAbstractItemView::NoSelection);
+    table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+
+    for (int row = 0; row < m_shortcuts.size(); ++row)
+    {
+        const ShortcutSetting &item = m_shortcuts.at(row);
+        table->setItem(row, 0, new QTableWidgetItem(item.label));
+        auto *edit = new QKeySequenceEdit(item.sequence, table);
+        table->setCellWidget(row, 1, edit);
+        m_editors.append(edit);
+    }
+
+    shortcutLayout->addWidget(table, 1);
+
+    auto *reset = new QPushButton(QStringLiteral("恢复默认快捷键"), shortcutPage);
+    auto *resetRow = new QHBoxLayout();
+    resetRow->addWidget(reset);
+    resetRow->addStretch(1);
+    shortcutLayout->addLayout(resetRow);
+
+    tabs->addTab(shortcutPage, QStringLiteral("快捷键"));
+    layout->addWidget(tabs, 1);
+
+    auto *buttons = new QHBoxLayout();
+    auto *cancel = new QPushButton(QStringLiteral("取消"), this);
+    auto *ok = new QPushButton(QStringLiteral("确定"), this);
+    ok->setDefault(true);
+    buttons->addStretch(1);
+    buttons->addWidget(cancel);
+    buttons->addWidget(ok);
+    layout->addLayout(buttons);
+
+    connect(reset, &QPushButton::clicked, this, &SettingsDialog::restoreDefaults);
+    connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
+    connect(ok, &QPushButton::clicked, this, &SettingsDialog::acceptIfValid);
+}
+
+QVector<ShortcutSetting> SettingsDialog::shortcutSettings() const
+{
+    QVector<ShortcutSetting> result = m_shortcuts;
+
+    for (int i = 0; i < result.size() && i < m_editors.size(); ++i)
+    {
+        result[i].sequence = m_editors.at(i)->keySequence();
+    }
+
+    return result;
+}
+
+QString SettingsDialog::theme() const
+{
+    return m_theme != nullptr ? m_theme->currentData().toString() : QStringLiteral("system");
+}
+
+void SettingsDialog::restoreDefaults()
+{
+    for (int i = 0; i < m_shortcuts.size() && i < m_editors.size(); ++i)
+    {
+        m_editors.at(i)->setKeySequence(m_shortcuts.at(i).defaultSequence);
+    }
+}
+
+void SettingsDialog::acceptIfValid()
+{
+    const QVector<ShortcutSetting> current = shortcutSettings();
+    QHash<QString, QString> used;
+
+    for (const ShortcutSetting &item : current)
+    {
+        const QString text = item.sequence.toString(QKeySequence::PortableText);
+
+        if (text.isEmpty())
+        {
+            continue;
+        }
+
+        if (used.contains(text))
+        {
+            QMessageBox::warning(this, QStringLiteral("快捷键冲突"),
+                                 QStringLiteral("“%1”和“%2”都使用了 %3")
+                                     .arg(used.value(text), item.label, text));
+            return;
+        }
+
+        used.insert(text, item.label);
+    }
+
+    m_shortcuts = current;
     accept();
 }
 

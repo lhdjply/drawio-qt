@@ -716,12 +716,11 @@ void MainWindow::createActions()
     m_pageViewAction->setCheckable(true);
     m_pageViewAction->setChecked(true);
 
-    m_darkAction = makeAction(QStringLiteral("深色模式"), QKeySequence(), QIcon(), [this]()
+    m_settingsAction = makeAction(QStringLiteral("设置…"), key(QStringLiteral("Ctrl+,")), QIcon(),
+                                  [this]()
     {
-        applyTheme(m_darkAction->isChecked() ? QStringLiteral("dark")
-                                             : QStringLiteral("light"));
+        openSettings();
     });
-    m_darkAction->setCheckable(true);
 
     m_fullScreenAction = makeAction(QStringLiteral("全屏"), key(QStringLiteral("F11")), QIcon(),
                                     [this]()
@@ -886,7 +885,6 @@ void MainWindow::setupShortcuts()
     add(QStringLiteral("view.grid"), QStringLiteral("显示网格"), m_gridAction);
     add(QStringLiteral("view.guides"), QStringLiteral("对齐参考线"), m_guidesAction);
     add(QStringLiteral("view.page"), QStringLiteral("显示页面边界"), m_pageViewAction);
-    add(QStringLiteral("view.dark"), QStringLiteral("深色模式"), m_darkAction);
     add(QStringLiteral("view.fullScreen"), QStringLiteral("全屏"), m_fullScreenAction);
     add(QStringLiteral("view.shapes"), QStringLiteral("形状面板"), m_toggleShapesAction);
     add(QStringLiteral("view.format"), QStringLiteral("格式面板"), m_toggleFormatAction);
@@ -903,6 +901,7 @@ void MainWindow::setupShortcuts()
     add(QStringLiteral("insert.connector"), QStringLiteral("连线"), m_connectorAction);
     add(QStringLiteral("tool.select"), QStringLiteral("选择工具"), m_selectToolAction);
     add(QStringLiteral("tool.pan"), QStringLiteral("平移工具"), m_panToolAction);
+    add(QStringLiteral("app.settings"), QStringLiteral("设置…"), m_settingsAction);
 
     QSettings settings;
 
@@ -938,6 +937,34 @@ void MainWindow::editShortcuts()
     }
 
     m_shortcuts = dialog.settings();
+    QSettings settings;
+
+    for (const ShortcutSetting &item : m_shortcuts)
+    {
+        if (QAction *action = m_shortcutActions.value(item.id))
+        {
+            action->setShortcut(item.sequence);
+        }
+
+        settings.setValue(QStringLiteral("shortcuts/") + item.id,
+                          item.sequence.toString(QKeySequence::PortableText));
+    }
+
+    settings.sync();
+}
+
+void MainWindow::openSettings()
+{
+    SettingsDialog dialog(m_shortcuts, AppSettings::instance().theme(), this);
+
+    if (dialog.exec() != QDialog::Accepted)
+    {
+        return;
+    }
+
+    applyTheme(dialog.theme());
+    m_shortcuts = dialog.shortcutSettings();
+
     QSettings settings;
 
     for (const ShortcutSetting &item : m_shortcuts)
@@ -1013,6 +1040,8 @@ void MainWindow::createMenus()
     editMenu->addSeparator();
     editMenu->addAction(m_groupAction);
     editMenu->addAction(m_ungroupAction);
+    editMenu->addSeparator();
+    editMenu->addAction(m_settingsAction);
 
     QMenu *viewMenu = menuBar()->addMenu(QStringLiteral("视图(&V)"));
     viewMenu->setObjectName(QStringLiteral("viewMenu"));
@@ -1024,7 +1053,6 @@ void MainWindow::createMenus()
     viewMenu->addAction(m_gridAction);
     viewMenu->addAction(m_guidesAction);
     viewMenu->addAction(m_pageViewAction);
-    viewMenu->addAction(m_darkAction);
     viewMenu->addSeparator();
     viewMenu->addAction(m_toggleShapesAction);
     viewMenu->addAction(m_toggleFormatAction);
@@ -1150,11 +1178,6 @@ void MainWindow::createMenus()
     arrangeMenu->addAction(m_backwardAction);
 
     QMenu *helpMenu = menuBar()->addMenu(QStringLiteral("帮助(&H)"));
-    QAction *shortcuts = helpMenu->addAction(QStringLiteral("键盘快捷键"));
-    connect(shortcuts, &QAction::triggered, this, [this]()
-    {
-        editShortcuts();
-    });
     QAction *checkUpdates = helpMenu->addAction(QStringLiteral("检查更新…"));
     connect(checkUpdates, &QAction::triggered, this, [this]()
     {
@@ -1980,7 +2003,6 @@ void MainWindow::applyTheme(const QString &theme)
     const bool dark = theme == QLatin1String("dark")
         || (theme != QLatin1String("light") && UiTheme::isDarkScheme());
 
-    m_darkAction->setChecked(dark);
     m_view->setDarkTheme(dark);
     UiTheme::applyColorScheme(theme);
 

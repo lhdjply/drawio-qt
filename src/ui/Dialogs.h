@@ -106,6 +106,27 @@ private:
     QVector<QKeySequenceEdit *> m_editors;
 };
 
+/// Unified settings dialog: appearance and keyboard shortcuts.
+class SettingsDialog : public QDialog
+{
+    Q_OBJECT
+
+public:
+    SettingsDialog(const QVector<ShortcutSetting> &shortcuts, const QString &theme,
+                   QWidget *parent = nullptr);
+
+    QVector<ShortcutSetting> shortcutSettings() const;
+    QString theme() const;
+
+private:
+    void restoreDefaults();
+    void acceptIfValid();
+
+    QVector<ShortcutSetting> m_shortcuts;
+    QVector<QKeySequenceEdit *> m_editors;
+    class QComboBox *m_theme = nullptr;
+};
+
 void showShortcutsDialog(QWidget *parent);
 void showAboutDialog(QWidget *parent);
 

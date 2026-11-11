@@ -60,6 +60,7 @@ private:
     void createStatusBar();
     void setupShortcuts();
     void editShortcuts();
+    void openSettings();
     void createPageTabs();
     void createFileTabs();
     int addDocumentTab(Document *document);
@@ -151,7 +152,6 @@ private:
     QAction *m_gridAction = nullptr;
     QAction *m_guidesAction = nullptr;
     QAction *m_pageViewAction = nullptr;
-    QAction *m_darkAction = nullptr;
     QAction *m_fullScreenAction = nullptr;
     QAction *m_toggleShapesAction = nullptr;
     QAction *m_toggleFormatAction = nullptr;
@@ -170,6 +170,7 @@ private:
     QAction *m_connectorAction = nullptr;
     QAction *m_selectToolAction = nullptr;
     QAction *m_panToolAction = nullptr;
+    QAction *m_settingsAction = nullptr;
     QHash<QString, QAction *> m_shortcutActions;
     QVector<ShortcutSetting> m_shortcuts;
 

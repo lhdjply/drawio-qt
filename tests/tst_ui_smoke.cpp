@@ -11,6 +11,7 @@
 #include "ui/OverlayEditor.h"
 #include "ui/MainWindow.h"
 #include "ui/LayerPanel.h"
+#include "ui/Dialogs.h"
 
 #include <QApplication>
 #include <QComboBox>
@@ -30,6 +31,7 @@
 #include <QToolButton>
 #include <QSettings>
 #include <QKeySequenceEdit>
+#include <QTabWidget>
 #include <QTemporaryDir>
 #include <QtTest>
 
@@ -631,6 +633,17 @@ private slots:
              QKeySequence(QStringLiteral("Ctrl+B"))}};
         ShortcutDialog dialog(items);
         QCOMPARE(dialog.findChildren<QKeySequenceEdit *>().size(), 2);
+    }
+
+    void settingsDialogHasAppearanceAndShortcuts()
+    {
+        QVector<ShortcutSetting> items = {
+            {QStringLiteral("a"), QStringLiteral("功能 A"), QKeySequence(QStringLiteral("Ctrl+A")),
+             QKeySequence(QStringLiteral("Ctrl+A"))}};
+        SettingsDialog dialog(items, QStringLiteral("dark"));
+        QCOMPARE(dialog.theme(), QStringLiteral("dark"));
+        QCOMPARE(dialog.findChildren<QTabWidget *>().size(), 1);
+        QCOMPARE(dialog.findChildren<QKeySequenceEdit *>().size(), 1);
     }
 
     void layerCanBeDeletedFromPanel()
