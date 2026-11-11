@@ -68,7 +68,8 @@ jobs:
             apt install -y build-essential devscripts dh-make equivs &&
             mk-build-deps -i -t 'apt-get -y' './debian/control' &&
             DEB_BUILD_OPTIONS=\"parallel=\$Jobs\" debuild -us -uc -b &&
-            cp ../*.deb ./
+            cp ../*.deb ./ &&
+            { bash scripts/package-linux-tarball.sh --arch ${{ matrix.platform }} --from-deb \$(ls drawio-qt_*.deb | head -1) || echo \"::warning::packaging the Linux tarball failed; the deb is still published\"; }
             "
 
       # -b：debian/source/format 是 3.0 (native)，加 -b 只是跳过源码包。
@@ -94,6 +95,13 @@ jobs:
           name: ${{ env.APP_NAME }}_linux_deb_${{ matrix.platform }}
           path: deb_package/*.deb
           if-no-files-found: error
+
+      - name: Upload Linux tarball
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ env.APP_NAME }}_linux_tarball_${{ matrix.platform }}
+          path: dist/*.tar.gz
+          if-no-files-found: warn
 
   build-windows:
     name: Package (Windows ${{ matrix.arch }})
@@ -586,7 +594,7 @@ jobs:
           # Linux 侧可直接 sha256sum -c 校验
           # deb、Windows 便携包与安装包一起进清单，格式统一为
           # 「哈希 *文件名」，Linux 侧可直接 sha256sum -c 校验
-          for file in $(find . -type f \( -name "*.deb" -o -name "*.zip" -o -name "*-setup.exe" \)); do
+          for file in $(find . -type f \( -name "*.deb" -o -name "*.tar.gz" -o -name "*.zip" -o -name "*-setup.exe" \)); do
             filename=$(basename "$file")
             sha256sum "$file" | awk -v fname="$filename" '{print $1 " *" fname}' >> hashes.sha256
           done
@@ -713,6 +721,7 @@ jobs:
         run: |
           NOTES_FILE="$RUNNER_TEMP/release-notes.md"
           deb_files=$(find artifacts -name "*.deb" -print0 | xargs -0 echo)
+          tar_files=$(find artifacts -name "*.tar.gz" -print0 | xargs -0 echo)
           zip_files=$(find artifacts -name "*.zip" -print0 | xargs -0 echo)
           setup_files=$(find artifacts -name "*-setup.exe" -print0 | xargs -0 echo)
           hash_files=$(find artifacts -name "*.sha256" -print0 | xargs -0 echo)
@@ -725,6 +734,17 @@ jobs:
           if [ -z "$deb_files" ]; then
             echo "::error::No deb artifacts were produced; aborting the release."
             exit 1
+          fi
+
+          if [ -z "$tar_files" ]; then
+            echo "::warning::No Linux tarball was produced; publishing deb packages only."
+          else
+            for deb in $deb_files; do
+              arch=$(basename "$deb" .deb | cut -d_ -f3)
+              if ! find artifacts -name "*-linux-${arch}.tar.gz" | grep -q .; then
+                echo "::warning::Linux tarball for $arch is missing; only its deb is published."
+              fi
+            done
           fi
 
           # Windows 产物缺失时的策略，按缺到什么程度分三档：
@@ -775,6 +795,7 @@ jobs:
 
           gh release create ${{ env.TAG_NAME }} \
                             $deb_files \
+                            $tar_files \
                             $zip_files \
                             $setup_files \
                             $hash_files \
@@ -787,6 +808,7 @@ jobs:
           echo "Created release: ${{ env.TAG_NAME }}"
           echo "Artifacts:"
           echo "$deb_files"
+          echo "$tar_files"
           echo "$zip_files"
           echo "$setup_files"
           echo "$hash_files"

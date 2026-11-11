@@ -5,3 +5,5 @@ build*/
 CMakeUserPresets.json
 .cache/
 *.autosave
+
+dist/
