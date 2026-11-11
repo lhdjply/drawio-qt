@@ -913,7 +913,8 @@ void MainWindow::setupShortcuts()
     add(QStringLiteral("tool.pan"), QStringLiteral("Pan Tool"), m_panToolAction);
     add(QStringLiteral("app.settings"), QStringLiteral("Settings…"), m_settingsAction);
 
-    QSettings settings;
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope,
+                       QStringLiteral("drawio-qt"), QStringLiteral("drawio-qt"));
 
     for (ShortcutSetting &item : m_shortcuts)
     {
@@ -956,7 +957,8 @@ void MainWindow::editShortcuts()
     }
 
     m_shortcuts = dialog.settings();
-    QSettings settings;
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope,
+                       QStringLiteral("drawio-qt"), QStringLiteral("drawio-qt"));
 
     for (const ShortcutSetting &item : m_shortcuts)
     {
@@ -1013,7 +1015,8 @@ void MainWindow::openSettings()
 
     m_shortcuts = dialog.shortcutSettings();
 
-    QSettings settings;
+    QSettings settings(QSettings::IniFormat, QSettings::UserScope,
+                       QStringLiteral("drawio-qt"), QStringLiteral("drawio-qt"));
 
     for (const ShortcutSetting &item : m_shortcuts)
     {

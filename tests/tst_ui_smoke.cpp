@@ -604,7 +604,8 @@ private slots:
 
     void shortcutsAreConfigurable()
     {
-        QSettings settings;
+        QSettings settings(QSettings::IniFormat, QSettings::UserScope,
+                           QStringLiteral("drawio-qt"), QStringLiteral("drawio-qt"));
         settings.setValue(QStringLiteral("shortcuts/file.new"), QStringLiteral("Ctrl+Alt+N"));
         settings.sync();
 
