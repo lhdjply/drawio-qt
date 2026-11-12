@@ -525,6 +525,44 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
 
 } // namespace LabelPainter
 
+namespace {
+
+QPainterPath roughOutline(const QPainterPath &path, double amount, uint seed)
+{
+    QPainterPath result;
+
+    for (const QPolygonF &polygon : path.toFillPolygons())
+    {
+        if (polygon.size() < 2)
+        {
+            continue;
+        }
+
+        for (int i = 0; i < polygon.size(); ++i)
+        {
+            const QPointF point = polygon.at(i);
+            const double nx = (static_cast<int>((seed + i * 2654435761u) % 2001) / 1000.0) - 1.0;
+            const double ny = (static_cast<int>((seed * 3 + i * 40503u) % 2001) / 1000.0) - 1.0;
+            const QPointF jittered = point + QPointF(nx * amount, ny * amount);
+
+            if (i == 0)
+            {
+                result.moveTo(jittered);
+            }
+            else
+            {
+                result.lineTo(jittered);
+            }
+        }
+
+        result.closeSubpath();
+    }
+
+    return result;
+}
+
+} // namespace
+
 namespace ShapeRenderer {
 
 QColor fillColor(const Cell &cell)
@@ -836,7 +874,56 @@ void paint(QPainter &painter, const Cell &cell)
             painter.setBrush(Qt::NoBrush);
         }
 
+        if (cell.styleFlag(QStringLiteral("multiple")))
+        {
+            const int count = qBound(1, static_cast<int>(
+                cell.styleNumber(QStringLiteral("multipleCount"), 2.0)), 16);
+            const double dx = cell.styleNumber(QStringLiteral("multipleDx"), 8.0);
+            const double dy = cell.styleNumber(QStringLiteral("multipleDy"), -8.0);
+
+            for (int copy = count; copy >= 1; --copy)
+            {
+                painter.save();
+                painter.translate(copy * dx, copy * dy);
+                painter.drawPath(path);
+                painter.restore();
+            }
+        }
+
+        const bool sketch = cell.styleFlag(QStringLiteral("sketch"));
+        const bool comic = cell.styleFlag(QStringLiteral("comic"));
+        const QPen outlinePen = painter.pen();
+
+        if (sketch || comic)
+        {
+            painter.setPen(Qt::NoPen);
+        }
+
         painter.drawPath(path);
+
+        if (sketch || comic)
+        {
+            painter.setPen(outlinePen);
+            const QPainterPath rough = roughOutline(
+                path, comic ? 3.0 : 1.6,
+                qHash(cell.id) ^ static_cast<uint>(local.width() * 13 + local.height()));
+            painter.setBrush(Qt::NoBrush);
+            painter.drawPath(rough);
+        }
+
+        if (cell.styleFlag(QStringLiteral("glass")) && fill.alpha() > 0)
+        {
+            painter.save();
+            painter.setClipPath(path);
+            QLinearGradient glass(local.topLeft(),
+                                  QPointF(local.left(), local.top() + local.height() * 0.6));
+            glass.setColorAt(0.0, QColor(255, 255, 255, 230));
+            glass.setColorAt(1.0, QColor(255, 255, 255, 25));
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(glass);
+            painter.drawRect(local);
+            painter.restore();
+        }
 
         // Decorations that draw.io renders on top of the base outline.
         const QString shape = cell.styleValue(QStringLiteral("shape")).toLower();

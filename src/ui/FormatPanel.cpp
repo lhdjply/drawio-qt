@@ -647,8 +647,8 @@ void FormatPanel::buildUi()
     {
         if (!m_updating)
         {
-            checked ? m_view->applyStyle(QStringLiteral("comic"), QStringLiteral("1"))
-                    : m_view->clearStyle(QStringLiteral("comic"));
+            checked ? m_view->applyStyle(QStringLiteral("multiple"), QStringLiteral("1"))
+                    : m_view->clearStyle(QStringLiteral("multiple"));
         }
     });
     connect(m_rounded, &QCheckBox::toggled, this, [this](bool checked)
@@ -1054,7 +1054,7 @@ void FormatPanel::updateFromSelection()
     m_sketch->setChecked(cell->styleFlag(QStringLiteral("sketch")));
     m_glass->setChecked(cell->styleFlag(QStringLiteral("glass")));
     m_shadow->setChecked(cell->styleFlag(QStringLiteral("shadow")));
-    m_multiple->setChecked(cell->styleFlag(QStringLiteral("comic")));
+    m_multiple->setChecked(cell->styleFlag(QStringLiteral("multiple")));
 
     const int fontStyle = static_cast<int>(cell->styleNumber(QStringLiteral("fontStyle"), 0));
     m_bold->setChecked((fontStyle & 1) != 0);
