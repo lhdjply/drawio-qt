@@ -31,6 +31,13 @@ ShapeDefinition definition(const QString &key);
 QPainterPath pathFor(const Cell &cell);
 QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect);
 
+/// Canonical shape key for a style map (handles mxgraph.basic stencil names).
+QString canonicalKey(const StyleMap &style);
+
+/// Appends an SVG style elliptical arc to \a path (mxStencil <arc> semantics).
+void appendSvgArc(QPainterPath &path, const QPointF &from, const QPointF &to,
+                  double rx, double ry, bool largeArc, bool sweep);
+
 bool isTextShape(const Cell &cell);
 bool isImageShape(const Cell &cell);
 bool isLineArt(const Cell &cell);

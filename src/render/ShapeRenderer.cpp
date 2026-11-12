@@ -926,8 +926,7 @@ void paint(QPainter &painter, const Cell &cell)
         }
 
         // Decorations that draw.io renders on top of the base outline.
-        const QString shape = cell.styleValue(QStringLiteral("shape")).toLower();
-        const QString key = shape.isEmpty() ? QStringLiteral("rect") : shape;
+        const QString key = ShapeRegistry::canonicalKey(cell.style);
 
         if (key == QLatin1String("process"))
         {
@@ -938,12 +937,22 @@ void paint(QPainter &painter, const Cell &cell)
         }
         else if (key == QLatin1String("cylinder3") || key == QLatin1String("cylinder"))
         {
-            const double cap = qMin(local.height() * 0.18, 26.0);
-            QPainterPath top;
-            top.moveTo(0, cap / 2);
-            top.cubicTo(QPointF(0, 0), QPointF(local.width(), 0),
-                        QPointF(local.width(), cap / 2));
-            painter.drawPath(top);
+            // draw.io strokes the front half of the top lid after the body so the
+            // ellipse reads as a closed lid; filling it would punch a hole.
+            if (cell.styleFlag(QStringLiteral("lid"), true))
+            {
+                const double size = qBound(0.0,
+                    cell.styleNumber(QStringLiteral("size"), 15.0), local.height() * 0.5);
+
+                if (size > 0.0)
+                {
+                    QPainterPath lid;
+                    lid.arcMoveTo(QRectF(0, 0, local.width(), 2 * size), 0);
+                    lid.arcTo(QRectF(0, 0, local.width(), 2 * size), 0, -180);
+                    painter.setBrush(Qt::NoBrush);
+                    painter.drawPath(lid);
+                }
+            }
         }
         else if (key == QLatin1String("note"))
         {
@@ -951,14 +960,114 @@ void paint(QPainter &painter, const Cell &cell)
             painter.drawLine(QPointF(local.width() - fold, 0), QPointF(local.width() - fold, fold));
             painter.drawLine(QPointF(local.width() - fold, fold), QPointF(local.width(), fold));
         }
+        else if (key == QLatin1String("smiley"))
+        {
+            // Mouth and eyes use their own stroke widths in the stencil.
+            const double scale = local.height() / 98.0;
+            const auto px = [&](double v) { return local.width() * (v / 98.0); };
+            const auto py = [&](double v) { return local.height() * (v / 98.0); };
+
+            painter.save();
+            QPen pen = painter.pen();
+            pen.setWidthF(qMax(1.0, 2.0 * scale));
+            pen.setCapStyle(Qt::RoundCap);
+            painter.setPen(pen);
+            painter.setBrush(Qt::NoBrush);
+
+            QPainterPath mouth;
+            mouth.moveTo(px(11), py(54));
+            ShapeRegistry::appendSvgArc(mouth, QPointF(px(11), py(54)), QPointF(px(87), py(54)),
+                                 local.width() * 38.0 / 98.0, local.height() * 27.0 / 98.0,
+                                 true, false);
+            painter.drawPath(mouth);
+
+            pen.setWidthF(qMax(1.0, 6.0 * scale));
+            painter.setPen(pen);
+            painter.drawEllipse(QRectF(px(24), py(27),
+                                       local.width() * 6.0 / 98.0,
+                                       local.height() * 16.0 / 98.0));
+            painter.drawEllipse(QRectF(px(68), py(27),
+                                       local.width() * 6.0 / 98.0,
+                                       local.height() * 16.0 / 98.0));
+            painter.restore();
+        }
+        else if (key == QLatin1String("isoCube"))
+        {
+            const double angle = qBound(0.01,
+                cell.styleNumber(QStringLiteral("isoAngle"), 15.0), 94.0);
+            const double isoH = qMin(local.width() * std::tan(angle * M_PI / 200.0),
+                                     local.height() * 0.5);
+
+            painter.drawLine(QPointF(0, isoH), QPointF(local.width() * 0.5, 2 * isoH));
+            painter.drawLine(QPointF(local.width() * 0.5, 2 * isoH),
+                             QPointF(local.width(), isoH));
+            painter.drawLine(QPointF(local.width() * 0.5, 2 * isoH),
+                             QPointF(local.width() * 0.5, local.height()));
+        }
         else if (key == QLatin1String("cube"))
         {
-            const double depth = qMin(qMin(local.width(), local.height()) * 0.18, 20.0);
-            painter.drawLine(QPointF(0, depth), QPointF(local.width() - depth, depth));
-            painter.drawLine(QPointF(local.width() - depth, depth),
-                             QPointF(local.width(), 0));
-            painter.drawLine(QPointF(local.width() - depth, depth),
-                             QPointF(local.width() - depth, local.height()));
+            // Interior edges are stroked separately: keeping them inside the
+            // filled path would close them into triangles and punch holes.
+            const double depth = qBound(0.0, cell.styleNumber(QStringLiteral("size"), 20.0),
+                                        qMin(local.width(), local.height()));
+            const double opTop = qBound(-1.0, cell.styleNumber(QStringLiteral("darkOpacity"), 0.0), 1.0);
+            const double opSide = qBound(-1.0, cell.styleNumber(QStringLiteral("darkOpacity2"), 0.0), 1.0);
+            const QColor topColor = opTop < 0 ? QColor(255, 255, 255) : QColor(0, 0, 0);
+            const QColor sideColor = opSide < 0 ? QColor(255, 255, 255) : QColor(0, 0, 0);
+
+            painter.save();
+            painter.setPen(Qt::NoPen);
+
+            if (opTop != 0.0)
+            {
+                QPolygonF top;
+                top << QPointF(0, 0) << QPointF(local.width() - depth, 0)
+                    << QPointF(local.width(), depth) << QPointF(depth, depth);
+                QColor color = topColor;
+                color.setAlphaF(qAbs(opTop));
+                painter.setBrush(color);
+                painter.drawPolygon(top);
+            }
+
+            if (opSide != 0.0)
+            {
+                QPolygonF side;
+                side << QPointF(0, 0) << QPointF(depth, depth)
+                     << QPointF(depth, local.height()) << QPointF(0, local.height() - depth);
+                QColor color = sideColor;
+                color.setAlphaF(qAbs(opSide));
+                painter.setBrush(color);
+                painter.drawPolygon(side);
+            }
+
+            painter.restore();
+
+            painter.drawLine(QPointF(depth, local.height()), QPointF(depth, depth));
+            painter.drawLine(QPointF(depth, depth), QPointF(0, 0));
+            painter.drawLine(QPointF(depth, depth), QPointF(local.width(), depth));
+        }
+        else if (key == QLatin1String("banner"))
+        {
+            // Fold lines from the banner stencil's foreground path.
+            const double px = local.width() / 96.0;
+            const double py = local.height() / 50.0;
+
+            QPainterPath folds;
+            folds.moveTo(40.5 * px, 47.5 * py);
+            folds.quadTo(38 * px, 47.5 * py, 38 * px, 45 * py);
+            folds.lineTo(28 * px, 45 * py);
+            folds.quadTo(28 * px, 40 * py, 30.5 * px, 40 * py);
+            folds.lineTo(65.5 * px, 40 * py);
+            folds.quadTo(68 * px, 40 * py, 68 * px, 45 * py);
+            folds.lineTo(58 * px, 45 * py);
+            folds.quadTo(55.5 * px, 45 * py, 55.5 * px, 47.5 * py);
+            folds.moveTo(25.5 * px, 42.5 * py);
+            folds.lineTo(25.5 * px, 10 * py);
+            folds.moveTo(70.5 * px, 42.5 * py);
+            folds.lineTo(70.5 * px, 10 * py);
+
+            painter.setBrush(Qt::NoBrush);
+            painter.drawPath(folds);
         }
         else if (key == QLatin1String("swimlane") || cell.styleFlag(QStringLiteral("swimlane")))
         {

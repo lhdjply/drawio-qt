@@ -1,5 +1,7 @@
 #include "render/DiagramRenderer.h"
 
+#include "render/ShapeRegistry.h"
+
 #include "render/EdgeRenderer.h"
 #include "render/EdgeRouter.h"
 #include "render/ShapeRenderer.h"
@@ -190,6 +192,16 @@ QRectF DiagramRenderer::contentBounds(const Page &page)
         if (cell->isVertex())
         {
             bounds = cell->visualRect();
+
+            // Some draw.io shapes (callout tails, cloud bubbles) draw outside
+            // their geometry box, so include the painted path in the bounds.
+            const QRectF local = ShapeRegistry::pathFor(*cell).boundingRect();
+
+            if (!local.isEmpty())
+            {
+                bounds = bounds.united(local.translated(cell->absolutePosition()));
+            }
+
             const double stroke = qMax(1.0, cell->styleNumber(QStringLiteral("strokeWidth"), 1.0));
             bounds = bounds.adjusted(-stroke, -stroke, stroke, stroke);
 

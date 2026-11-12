@@ -1,15 +1,62 @@
 #include "render/ShapeRegistry.h"
 
 #include <QPainterPath>
+#include <QRegularExpression>
 #include <QtMath>
 
 namespace dq {
 namespace ShapeRegistry {
 namespace {
 
+QString camelize(const QString &name)
+{
+    const QStringList parts = name.split(QLatin1Char('_'), Qt::SkipEmptyParts);
+    QString result;
+
+    for (int i = 0; i < parts.size(); ++i)
+    {
+        const QString part = parts.at(i);
+        result += i == 0 ? part.toLower()
+                         : part.left(1).toUpper() + part.mid(1).toLower();
+    }
+
+    return result;
+}
+
+/// Maps draw.io stencil names (mxgraph.basic.cloud_callout) to the canonical
+/// keys used by the renderer (cloudCallout).
+QString normalizeStencilKey(const QString &shape)
+{
+    const QString prefix = QStringLiteral("mxgraph.basic.");
+
+    if (!shape.startsWith(prefix, Qt::CaseInsensitive))
+    {
+        // Other stencil sets are matched by their lower case draw.io names.
+        return shape.startsWith(QLatin1String("mxgraph."), Qt::CaseInsensitive)
+            ? shape.toLower() : shape;
+    }
+
+    QString name = shape.mid(prefix.size()).toLower();
+
+    if (name == QLatin1String("isocube"))
+    {
+        return QStringLiteral("isoCube");
+    }
+    static const QRegularExpression star(QStringLiteral("^(\\d+)_point_star(_2)?$"));
+    const QRegularExpressionMatch match = star.match(name);
+
+    if (match.hasMatch())
+    {
+        return QStringLiteral("star") + match.captured(1);
+    }
+
+    return camelize(name);
+}
+
 QString shapeKey(const Cell &cell)
 {
-    const QString shape = cell.styleValue(QStringLiteral("shape")).toLower();
+    const QString shape = normalizeStencilKey(
+        cell.styleValue(QStringLiteral("shape")).trimmed());
 
     if (!shape.isEmpty())
     {
@@ -72,6 +119,85 @@ double arcSizeFor(const StyleMap &style)
 
 } // namespace
 
+
+/// Appends an SVG-style elliptical arc (same semantics as mxStencil's <arc>).
+void addSvgArc(QPainterPath &path, const QPointF &from, const QPointF &to,
+               double rx, double ry, bool largeArc, bool sweep)
+{
+    if (qFuzzyCompare(from.x(), to.x()) && qFuzzyCompare(from.y(), to.y()))
+    {
+        return;
+    }
+
+    rx = qAbs(rx);
+    ry = qAbs(ry);
+
+    const double dx2 = (from.x() - to.x()) / 2.0;
+    const double dy2 = (from.y() - to.y()) / 2.0;
+    const double lambda = (dx2 * dx2) / (rx * rx) + (dy2 * dy2) / (ry * ry);
+
+    if (lambda > 1.0)
+    {
+        const double scale = std::sqrt(lambda);
+        rx *= scale;
+        ry *= scale;
+    }
+
+    const double num = rx * rx * ry * ry - rx * rx * dy2 * dy2 - ry * ry * dx2 * dx2;
+    const double den = rx * rx * dy2 * dy2 + ry * ry * dx2 * dx2;
+    const double factor = std::sqrt(qMax(0.0, num / den));
+
+    const QPointF mid((from.x() + to.x()) / 2.0, (from.y() + to.y()) / 2.0);
+    const QPointF offset(factor * (rx * dy2) / ry, factor * -(ry * dx2) / rx);
+
+    // Both candidate centres are valid for the radii; the flags pick one.
+    bool found = false;
+    QPointF center;
+    double startAngle = 0.0;
+    double delta = 0.0;
+
+    for (double sign : {1.0, -1.0})
+    {
+        const QPointF candidate = mid + offset * sign;
+        const double a0 = std::atan2((from.y() - candidate.y()) / ry,
+                                     (from.x() - candidate.x()) / rx);
+        const double a1 = std::atan2((to.y() - candidate.y()) / ry,
+                                     (to.x() - candidate.x()) / rx);
+        double d = a1 - a0;
+
+        if (sweep && d < 0.0)
+        {
+            d += 2.0 * M_PI;
+        }
+        else if (!sweep && d > 0.0)
+        {
+            d -= 2.0 * M_PI;
+        }
+
+        if ((qAbs(d) > M_PI) == largeArc)
+        {
+            center = candidate;
+            startAngle = a0;
+            delta = d;
+            found = true;
+            break;
+        }
+    }
+
+    if (!found)
+    {
+        path.lineTo(to);
+        return;
+    }
+
+    const int steps = qMax(8, static_cast<int>(qAbs(delta) * 24.0));
+
+    for (int i = 1; i <= steps; ++i)
+    {
+        const double angle = startAngle + delta * (static_cast<double>(i) / steps);
+        path.lineTo(center.x() + rx * std::cos(angle), center.y() + ry * std::sin(angle));
+    }
+}
 QString defaultVertexStyle()
 {
     return QStringLiteral("rounded=0;whiteSpace=wrap;html=1;");
@@ -118,8 +244,17 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;"),
         QSizeF(120, 90), QStringLiteral("basic"));
     add(QStringLiteral("triangle"), QStringLiteral("Triangle"),
-        QStringLiteral("triangle;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;"),
+        QStringLiteral("shape=mxgraph.basic.acute_triangle;dx=0.5;whiteSpace=wrap;html=1;"
+                       "fillColor=#ffe6cc;strokeColor=#d79b00;"),
         QSizeF(110, 90), QStringLiteral("basic"));
+    add(QStringLiteral("basic.orthogonalTriangle"), QStringLiteral("Orthogonal Triangle"),
+        QStringLiteral("shape=mxgraph.basic.orthogonal_triangle;whiteSpace=wrap;html=1;"
+                       "fillColor=#ffe6cc;strokeColor=#d79b00;"),
+        QSizeF(110, 90), QStringLiteral("basic"));
+    add(QStringLiteral("basic.obtuseTriangle"), QStringLiteral("Obtuse Triangle"),
+        QStringLiteral("shape=mxgraph.basic.obtuse_triangle;dx=0.25;whiteSpace=wrap;html=1;"
+                       "fillColor=#ffe6cc;strokeColor=#d79b00;"),
+        QSizeF(130, 90), QStringLiteral("basic"));
     add(QStringLiteral("hexagon"), QStringLiteral("Hexagon"),
         QStringLiteral("shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;"
                        "fillColor=#e1d5e7;strokeColor=#9673a6;"),
@@ -158,16 +293,46 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;"
                        "fillColor=#bac8d3;strokeColor=#23445d;"),
         QSizeF(110, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.cylinder"), QStringLiteral("Cylinder"),
+        QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;"
+                       "size=15;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QSizeF(90, 110), QStringLiteral("basic"));
+    add(QStringLiteral("basic.cylinderStack"), QStringLiteral("Cylinder Stack"),
+        QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;"
+                       "size=15;lid=0;fillColor=#bac8d3;strokeColor=#23445d;"),
+        QSizeF(80, 100), QStringLiteral("basic"));
     add(QStringLiteral("cloud"), QStringLiteral("Cloud"),
         QStringLiteral("ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;"),
         QSizeF(150, 100), QStringLiteral("basic"));
     add(QStringLiteral("document"), QStringLiteral("Document"),
         QStringLiteral("shape=document;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#f8cecc;strokeColor=#b85450;"),
         QSizeF(140, 90), QStringLiteral("basic"));
+    add(QStringLiteral("tape"), QStringLiteral("Tape"),
+        QStringLiteral("shape=tape;whiteSpace=wrap;html=1;"
+                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QSizeF(120, 100), QStringLiteral("basic"));
     add(QStringLiteral("note"), QStringLiteral("Note"),
         QStringLiteral("shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;"
                        "fillColor=#fff2cc;strokeColor=#d6b656;"),
         QSizeF(120, 100), QStringLiteral("basic"));
+    add(QStringLiteral("or"), QStringLiteral("Or"),
+        QStringLiteral("shape=or;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QSizeF(60, 80), QStringLiteral("basic"));
+    add(QStringLiteral("xor"), QStringLiteral("Xor"),
+        QStringLiteral("shape=xor;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QSizeF(60, 80), QStringLiteral("basic"));
+    add(QStringLiteral("dataStorage"), QStringLiteral("Data Storage"),
+        QStringLiteral("shape=dataStorage;whiteSpace=wrap;html=1;fixedSize=1;"
+                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QSizeF(100, 80), QStringLiteral("basic"));
+    add(QStringLiteral("internalStorage"), QStringLiteral("Internal Storage"),
+        QStringLiteral("shape=internalStorage;whiteSpace=wrap;html=1;backgroundOutline=1;"
+                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QSizeF(80, 80), QStringLiteral("basic"));
+    add(QStringLiteral("wedgeCallout"), QStringLiteral("Wedge Callout"),
+        QStringLiteral("shape=wedgeCallout;whiteSpace=wrap;html=1;"
+                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QSizeF(120, 80), QStringLiteral("basic"));
     add(QStringLiteral("callout"), QStringLiteral("Callout"),
         QStringLiteral("shape=callout;whiteSpace=wrap;html=1;perimeter=calloutPerimeter;"
                        "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
@@ -265,8 +430,8 @@ QVector<ShapeDefinition> toolboxShapes()
     add(QStringLiteral("basic.heart"), QStringLiteral("Heart"),
         QStringLiteral("shape=heart;whiteSpace=wrap;html=1;") + red,
         QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.isocube"), QStringLiteral("Isocube"),
-        QStringLiteral("shape=isocube;whiteSpace=wrap;html=1;") + blue,
+    add(QStringLiteral("basic.isocube"), QStringLiteral("Isometric Cube"),
+        QStringLiteral("shape=mxgraph.basic.isocube;isoAngle=15;whiteSpace=wrap;html=1;") + blue,
         QSizeF(110, 110), QStringLiteral("basic"));
     add(QStringLiteral("basic.loudCallout"), QStringLiteral("Loud Callout"),
         QStringLiteral("shape=loudCallout;whiteSpace=wrap;html=1;") + orange,
@@ -293,7 +458,8 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=pointedOval;whiteSpace=wrap;html=1;") + purple,
         QSizeF(80, 110), QStringLiteral("basic"));
     add(QStringLiteral("basic.pyramid"), QStringLiteral("Pyramid"),
-        QStringLiteral("shape=pyramid;whiteSpace=wrap;html=1;") + yellow,
+        QStringLiteral("shape=mxgraph.basic.pyramid;dx1=0.4;dx2=0.6;dy1=0.9;dy2=0.8;"
+                       "whiteSpace=wrap;html=1;") + yellow,
         QSizeF(120, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.diagSnipRect"), QStringLiteral("Diag Snip Rect"),
         QStringLiteral("shape=diagSnipRect;whiteSpace=wrap;html=1;") + blue,
@@ -335,16 +501,24 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=layeredRect;whiteSpace=wrap;html=1;") + green,
         QSizeF(150, 90), QStringLiteral("basic"));
     add(QStringLiteral("basic.smiley"), QStringLiteral("Smiley"),
-        QStringLiteral("shape=smiley;whiteSpace=wrap;html=1;") + yellow,
+        QStringLiteral("shape=mxgraph.basic.smiley;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(110, 110), QStringLiteral("basic"));
     add(QStringLiteral("basic.sun"), QStringLiteral("Sun"),
-        QStringLiteral("shape=sun;whiteSpace=wrap;html=1;") + yellow,
+        QStringLiteral("shape=mxgraph.basic.sun;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(110, 110), QStringLiteral("basic"));
     add(QStringLiteral("basic.tick"), QStringLiteral("Tick"),
-        QStringLiteral("shape=tick;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
+        QStringLiteral("shape=mxgraph.basic.tick;whiteSpace=wrap;html=1;"
+                       "fillColor=#d5e8d4;strokeColor=#82b366;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.pie"), QStringLiteral("Pie"),
+        QStringLiteral("shape=mxgraph.basic.pie;startAngle=0.2;endAngle=0.9;"
+                       "whiteSpace=wrap;html=1;") + blue,
+        QSizeF(110, 110), QStringLiteral("basic"));
+    add(QStringLiteral("basic.x"), QStringLiteral("X"),
+        QStringLiteral("shape=mxgraph.basic.x;whiteSpace=wrap;html=1;") + red,
         QSizeF(100, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.wave"), QStringLiteral("Wave"),
-        QStringLiteral("shape=wave;whiteSpace=wrap;html=1;") + blue,
+        QStringLiteral("shape=mxgraph.basic.wave2;dy=0.3;whiteSpace=wrap;html=1;") + blue,
         QSizeF(160, 70), QStringLiteral("basic"));
     add(QStringLiteral("basic.button"), QStringLiteral("Button"),
         QStringLiteral("shape=button;whiteSpace=wrap;html=1;") + green,
@@ -1116,6 +1290,19 @@ QPainterPath pathFor(const Cell &cell)
     return pathForStyle(cell.style, QRectF(QPointF(0, 0), cell.geometry.size()));
 }
 
+void appendSvgArc(QPainterPath &path, const QPointF &from, const QPointF &to,
+                  double rx, double ry, bool largeArc, bool sweep)
+{
+    addSvgArc(path, from, to, rx, ry, largeArc, sweep);
+}
+
+QString canonicalKey(const StyleMap &style)
+{
+    Cell probe(Cell::Kind::Vertex, QStringLiteral("probe"));
+    probe.style = style;
+    return shapeKey(probe);
+}
+
 QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 {
     QPainterPath path;
@@ -1134,11 +1321,11 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
     };
 
     if (key == QLatin1String("ellipse") || key == QLatin1String("circle")
-        || key == QLatin1String("doubleellipse"))
+        || key == QLatin1String("doubleEllipse"))
     {
         path.addEllipse(rect);
 
-        if (key == QLatin1String("doubleellipse"))
+        if (key == QLatin1String("doubleEllipse"))
         {
             const double inset = qMin(w, h) * 0.1;
             path.addEllipse(rect.adjusted(inset, inset, -inset, -inset));
@@ -1159,9 +1346,32 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("triangle"))
     {
-        path.moveTo(point(w / 2, 0));
+        // draw.io's mxTriangle points right: (0,0) -> (w,h/2) -> (0,h).
+        path.moveTo(point(0, 0));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(0, h));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("orthogonalTriangle"))
+    {
+        path.moveTo(point(0, 0));
         path.lineTo(point(w, h));
         path.lineTo(point(0, h));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("acuteTriangle") || key == QLatin1String("obtuseTriangle"))
+    {
+        // Up-pointing triangle stencils from draw.io's basic library.
+        const double fallback = key == QLatin1String("obtuseTriangle") ? 0.25 : 0.5;
+        const double dx = w * qBound(0.0, Style::number(probe.style, QStringLiteral("dx"), fallback), 1.0);
+
+        path.moveTo(point(0, h));
+        path.lineTo(point(dx, 0));
+        path.lineTo(point(w, h));
         path.closeSubpath();
         return path;
     }
@@ -1203,11 +1413,17 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("step"))
     {
-        const double inset = qMin(w * 0.12, h * 0.4);
-        path.moveTo(point(inset, 0));
-        path.lineTo(point(w - inset, 0));
-        path.lineTo(point(w, h));
+        // draw.io StepShape: pointed right edge, notched left edge.
+        const bool fixed = Style::flag(probe.style, QStringLiteral("fixedSize"));
+        const double size = Style::number(probe.style, QStringLiteral("size"), fixed ? 20.0 : 0.2);
+        const double s = fixed ? qBound(0.0, size, w) : w * qBound(0.0, size, 1.0);
+
+        path.moveTo(point(0, 0));
+        path.lineTo(point(w - s, 0));
+        path.lineTo(point(w, h / 2));
+        path.lineTo(point(w - s, h));
         path.lineTo(point(0, h));
+        path.lineTo(point(s, h / 2));
         path.closeSubpath();
         return path;
     }
@@ -1215,29 +1431,72 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
     if (key == QLatin1String("cylinder3") || key == QLatin1String("cylinder")
         || key == QLatin1String("database"))
     {
-        const double cap = qMin(h * 0.18, 26.0);
-        path.moveTo(point(0, cap / 2));
-        path.cubicTo(point(0, 0), point(w, 0), point(w, cap / 2));
-        path.lineTo(point(w, h - cap / 2));
-        path.cubicTo(point(w, h), point(0, h), point(0, h - cap / 2));
+        // draw.io's CylinderShape3: size is a pixel cap height (default 15).
+        const double size = qBound(0.0, Style::number(probe.style, QStringLiteral("size"), 15.0),
+                                   h * 0.5);
+
+        if (size <= 0.0)
+        {
+            path.addRect(rect);
+            return path;
+        }
+
+        const QRectF topEllipse(0, 0, w, 2 * size);
+        const QRectF bottomEllipse(0, h - 2 * size, w, 2 * size);
+        const bool lid = Style::flag(probe.style, QStringLiteral("lid"), true);
+
+        if (lid)
+        {
+            path.moveTo(point(0, size));
+            path.arcTo(topEllipse, 180, -180);
+        }
+        else
+        {
+            // Without a lid the top edge dips inward, like a stacked tube.
+            path.moveTo(point(0, 0));
+            path.arcTo(QRectF(0, -size, w, 2 * size), 180, 180);
+        }
+
+        path.lineTo(point(w, h - size));
+        path.arcTo(bottomEllipse, 0, -180);
         path.closeSubpath();
+
         return path;
     }
 
-    if (key == QLatin1String("cloud"))
+    if (key == QLatin1String("cloud") || key == QLatin1String("cloudCallout"))
     {
-        const double cw = w;
-        const double ch = h;
-        path.moveTo(point(cw * 0.25, ch * 0.35));
-        path.cubicTo(point(cw * 0.05, ch * 0.35), point(cw * 0.0, ch * 0.6),
-                     point(cw * 0.2, ch * 0.68));
-        path.cubicTo(point(cw * 0.15, ch * 0.92), point(cw * 0.45, ch), point(cw * 0.55, ch * 0.82));
-        path.cubicTo(point(cw * 0.65, ch), point(cw * 0.95, ch * 0.92), point(cw * 0.92, ch * 0.7));
-        path.cubicTo(point(cw * 1.05, ch * 0.55), point(cw * 0.95, ch * 0.32),
-                     point(cw * 0.75, ch * 0.35));
-        path.cubicTo(point(cw * 0.68, ch * 0.12), point(cw * 0.35, ch * 0.08),
-                     point(cw * 0.25, ch * 0.35));
+        // mxgraph.basic.cloud_callout / cloud (90.41 x 61.4) bump outline.
+        const auto px = [&](double v) { return x + w * (v / 90.41); };
+        const auto py = [&](double v) { return y + h * (v / 61.4); };
+
+        QPointF current(px(12.1), py(31.8));
+        path.moveTo(current);
+
+        const double arcs[][4] = {
+            {8, 8, 12.1, 16.8}, {12, 12, 33.1, 8.8}, {14, 14, 59.1, 8.8},
+            {12, 12, 79.1, 16.8}, {8, 8, 79.1, 31.8}, {12, 12, 58.1, 38.8},
+            {14, 14, 34.1, 38.8}, {10, 8, 12.1, 31.8}
+        };
+
+        for (const auto &arc : arcs)
+        {
+            const QPointF next(px(arc[2]), py(arc[3]));
+            addSvgArc(path, current, next, w * arc[0] / 90.41, h * arc[1] / 61.4,
+                      true, true);
+            current = next;
+        }
+
         path.closeSubpath();
+
+        if (key == QLatin1String("cloudCallout"))
+        {
+            // Three bubbles in the foreground path.
+            path.addEllipse(QPointF(px(15.1), py(48.8)), w * 6.0 / 90.41, h * 2.7 / 61.4);
+            path.addEllipse(QPointF(px(8.1), py(55.3)), w * 3.8 / 90.41, h * 1.8 / 61.4);
+            path.addEllipse(QPointF(px(2.4), py(60.1)), w * 2.4 / 90.41, h * 1.3 / 61.4);
+        }
+
         return path;
     }
 
@@ -1249,6 +1508,23 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         path.lineTo(point(w, h - wave));
         path.cubicTo(point(w * 0.75, h - wave * 2.4), point(w * 0.25, h + wave * 0.6),
                      point(0, h - wave));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("tape"))
+    {
+        // draw.io TapeShape: wavy top and bottom edges made of quadratic arcs.
+        const double dy = h * qBound(0.0, Style::number(probe.style, QStringLiteral("size"), 0.4), 1.0);
+        const double fy = 1.4;
+
+        path.moveTo(point(0, dy / 2));
+        path.quadTo(point(w / 4, dy * fy), point(w / 2, dy / 2));
+        path.quadTo(point(w * 3 / 4, dy * (1 - fy)), point(w, dy / 2));
+        path.lineTo(point(w, h - dy / 2));
+        path.quadTo(point(w * 3 / 4, h - dy * fy), point(w / 2, h - dy / 2));
+        path.quadTo(point(w / 4, h - dy * (1 - fy)), point(0, h - dy / 2));
+        path.lineTo(point(0, dy / 2));
         path.closeSubpath();
         return path;
     }
@@ -1267,12 +1543,43 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("callout"))
     {
-        const double tail = qMin(qMin(w, h) * 0.3, 36.0);
-        const double bodyHeight = h - tail;
-        path.addRoundedRect(QRectF(x, y, w, bodyHeight), 6, 6);
-        path.moveTo(point(w * 0.25, bodyHeight));
-        path.lineTo(point(w * 0.35, bodyHeight));
-        path.lineTo(point(w * 0.2, h));
+        // draw.io CalloutShape: rectangle with a triangular tail from the base.
+        const double s = qBound(0.0, Style::number(probe.style, QStringLiteral("size"), 30.0), h);
+        const double position = qBound(0.0, Style::number(probe.style, QStringLiteral("position"), 0.5), 1.0);
+        const double position2 = qBound(0.0, Style::number(probe.style, QStringLiteral("position2"), 0.5), 1.0);
+        const double base = qBound(0.0, Style::number(probe.style, QStringLiteral("base"), 20.0), w);
+        const double dx = w * position;
+        const double dx2 = w * position2;
+
+        path.moveTo(point(0, 0));
+        path.lineTo(point(w, 0));
+        path.lineTo(point(w, h - s));
+        path.lineTo(point(qMin(w, dx + base), h - s));
+        path.lineTo(point(dx2, h));
+        path.lineTo(point(qMax(0.0, dx), h - s));
+        path.lineTo(point(0, h - s));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("wedgeCallout"))
+    {
+        // draw.io WedgeCalloutShape with the default tip below the bubble.
+        const double base = qMax(0.0, Style::number(probe.style, QStringLiteral("base"), 20.0));
+        const double hb = qMax(0.0, qMin(base, w)) / 2;
+        const double tipX = 0.25 * w;
+        const double tipY = 1.5 * h;
+        // The tail base is where the line from the tip crosses the bottom edge.
+        double ex = w / 2 + (tipX - w / 2) * (h / 2) / qMax(1e-6, tipY - h / 2);
+        ex = qBound(hb, w - hb, ex);
+
+        path.moveTo(point(0, 0));
+        path.lineTo(point(w, 0));
+        path.lineTo(point(w, h));
+        path.lineTo(point(ex + hb, h));
+        path.lineTo(point(tipX, tipY));
+        path.lineTo(point(ex - hb, h));
+        path.lineTo(point(0, h));
         path.closeSubpath();
         return path;
     }
@@ -1381,14 +1688,61 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("cube"))
     {
-        const double depth = qMin(qMin(w, h) * 0.18, 20.0);
-        path.moveTo(point(0, depth));
-        path.lineTo(point(depth, 0));
-        path.lineTo(point(w, 0));
-        path.lineTo(point(w, h - depth));
-        path.lineTo(point(w - depth, h));
-        path.lineTo(point(0, h));
+        // draw.io CubeShape: top-right and bottom-left corners are cut by size.
+        const double depth = qBound(0.0, Style::number(probe.style, QStringLiteral("size"), 20.0),
+                                    qMin(w, h));
+
+        path.moveTo(point(0, 0));
+        path.lineTo(point(w - depth, 0));
+        path.lineTo(point(w, depth));
+        path.lineTo(point(w, h));
+        path.lineTo(point(depth, h));
+        path.lineTo(point(0, h - depth));
         path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("or") || key == QLatin1String("xor"))
+    {
+        // draw.io OrShape / XorShape: flat left edge, curved right edge.
+        path.moveTo(point(0, 0));
+        path.quadTo(point(w, 0), point(w, h / 2));
+        path.quadTo(point(w, h), point(0, h));
+
+        if (key == QLatin1String("xor"))
+        {
+            path.quadTo(point(w / 2, h / 2), point(0, 0));
+        }
+
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("dataStorage"))
+    {
+        // draw.io DataStorageShape: curved left and right edges.
+        const bool fixed = Style::flag(probe.style, QStringLiteral("fixedSize"));
+        const double size = Style::number(probe.style, QStringLiteral("size"), fixed ? 20.0 : 0.1);
+        const double s = fixed ? qBound(0.0, size, w) : w * qBound(0.0, size, 1.0);
+
+        path.moveTo(point(s, 0));
+        path.lineTo(point(w, 0));
+        path.quadTo(point(w - 2 * s, h / 2), point(w, h));
+        path.lineTo(point(s, h));
+        path.quadTo(point(s - 2 * s, h / 2), point(s, 0));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("internalStorage"))
+    {
+        path.addRect(rect);
+        const double dx = qBound(0.0, Style::number(probe.style, QStringLiteral("dx"), 20.0), w);
+        const double dy = qBound(0.0, Style::number(probe.style, QStringLiteral("dy"), 20.0), h);
+        path.moveTo(point(0, dy));
+        path.lineTo(point(w, dy));
+        path.moveTo(point(dx, 0));
+        path.lineTo(point(dx, h));
         return path;
     }
 
@@ -1449,19 +1803,47 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
-    if (key == QLatin1String("star4") || key == QLatin1String("star6")
-        || key == QLatin1String("star8"))
+    if (key == QLatin1String("star6") || key == QLatin1String("star8"))
     {
-        const int points = key.endsWith(QLatin1Char('4')) ? 4
-            : (key.endsWith(QLatin1Char('6')) ? 6 : 8);
+        // mxgraph.basic.6_point_star / 8_point_star, in stencil units.
+        static const double star6[][2] = {
+            {23, 28.9}, {23, 0}, {48, 14.4}, {73, 0}, {73, 28.9}, {96, 42.2},
+            {73, 55.6}, {73, 84.5}, {48, 70}, {23, 84.5}, {23, 55.6}, {0, 42.2}
+        };
+        static const double star8[][2] = {
+            {28, 28}, {28, 0}, {48, 20}, {68, 0}, {68, 28}, {96, 28}, {76, 48},
+            {96, 68}, {68, 68}, {68, 96}, {48, 76}, {28, 96}, {28, 68}, {0, 68},
+            {20, 48}, {0, 28}
+        };
+
+        const bool six = key == QLatin1String("star6");
+        const double baseW = 96.0;
+        const double baseH = six ? 84.5 : 96.0;
+        const int count = six ? 12 : 16;
+
+        for (int i = 0; i < count; ++i)
+        {
+            const double px = six ? star6[i][0] : star8[i][0];
+            const double py = six ? star6[i][1] : star8[i][1];
+            const QPointF p = point(w * px / baseW, h * py / baseH);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+        }
+
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("star4"))
+    {
+        // mxgraph.basic.4_point_star_2: slim four point sparkle.
         const QPointF center(w / 2.0, h / 2.0);
         const double outer = qMin(w, h) / 2.0;
-        const double inner = outer * 0.4;
+        const double inner = outer * 0.28;
 
-        for (int i = 0; i < points * 2; ++i)
+        for (int i = 0; i < 8; ++i)
         {
             const double radius = i % 2 == 0 ? outer : inner;
-            const double angle = -M_PI / 2.0 + i * M_PI / points;
+            const double angle = -M_PI / 2.0 + i * M_PI / 4.0;
             const QPointF p(center.x() + std::cos(angle) * radius * (w / qMin(w, h)),
                             center.y() + std::sin(angle) * radius);
             i == 0 ? path.moveTo(p) : path.lineTo(p);
@@ -1473,12 +1855,34 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("banner"))
     {
-        path.moveTo(point(0, 0));
-        path.lineTo(point(w * 0.88, 0));
-        path.lineTo(point(w, h * 0.5));
-        path.lineTo(point(w * 0.88, h));
-        path.lineTo(point(0, h));
-        path.lineTo(point(w * 0.12, h * 0.5));
+        // mxgraph.basic.banner (96 x 50). The panel sits on top of two
+        // swallow-tailed ribbons; the notch at the bottom centre separates the
+        // two fold tabs. Fold lines are stroked separately.
+        const auto px = [&](double v) { return x + w * (v / 96.0); };
+        const auto py = [&](double v) { return y + h * (v / 50.0); };
+
+        path.moveTo(px(0), py(50));
+        path.lineTo(px(38), py(50));
+        addSvgArc(path, QPointF(px(38), py(50)), QPointF(px(40.5), py(47.5)),
+                  w * 2.5 / 96.0, h * 2.5 / 50.0, false, false);
+        path.lineTo(px(40.5), py(40));
+        path.lineTo(px(55.5), py(40));
+        path.lineTo(px(55.5), py(47.5));
+        addSvgArc(path, QPointF(px(55.5), py(47.5)), QPointF(px(58), py(50)),
+                  w * 2.5 / 96.0, h * 2.5 / 50.0, false, false);
+        path.lineTo(px(96), py(50));
+        path.lineTo(px(83), py(30));
+        path.lineTo(px(96), py(10));
+        path.lineTo(px(70.5), py(10));
+        path.lineTo(px(70.5), py(2.5));
+        addSvgArc(path, QPointF(px(70.5), py(2.5)), QPointF(px(68), py(0)),
+                  w * 2.5 / 96.0, h * 2.5 / 50.0, false, false);
+        path.lineTo(px(28), py(0));
+        addSvgArc(path, QPointF(px(28), py(0)), QPointF(px(25.5), py(2.5)),
+                  w * 2.5 / 96.0, h * 2.5 / 50.0, false, false);
+        path.lineTo(px(25.5), py(10));
+        path.lineTo(px(0), py(10));
+        path.lineTo(px(13), py(30));
         path.closeSubpath();
         return path;
     }
@@ -2007,10 +2411,14 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
         if (key == QLatin1String("cloudCallout"))
         {
-            path.moveTo(point(w * 0.2, ch * 0.65));
-            path.lineTo(point(w * 0.12, h));
-            path.lineTo(point(w * 0.34, ch * 0.78));
-            path.closeSubpath();
+            // mxgraph.basic.cloud_callout (90.41 x 61.4): bubbles are part of
+            // the foreground path, outside the cloud body.
+            path.addEllipse(QPointF(x + w * 0.1006, y + h * 0.7956),
+                            w * 0.0664, h * 0.0440);
+            path.addEllipse(QPointF(x + w * 0.0896, y + h * 0.9015),
+                            w * 0.0420, h * 0.0293);
+            path.addEllipse(QPointF(x + w * 0.0265, y + h * 0.9827),
+                            w * 0.0265, h * 0.0212);
         }
 
         return path;
@@ -2038,21 +2446,31 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("drop"))
     {
+        // Teardrop: pointed top, round bottom.
         path.moveTo(point(w * 0.5, 0));
-        path.cubicTo(point(w * 0.92, h * 0.35), point(w, h * 0.62), point(w * 0.5, h));
-        path.cubicTo(point(0, h * 0.62), point(w * 0.08, h * 0.35), point(w * 0.5, 0));
+        path.cubicTo(point(w * 0.66, h * 0.24), point(w, h * 0.5), point(w, h * 0.68));
+        path.cubicTo(point(w, h * 0.88), point(w * 0.78, h), point(w * 0.5, h));
+        path.cubicTo(point(w * 0.22, h), point(0, h * 0.88), point(0, h * 0.68));
+        path.cubicTo(point(0, h * 0.5), point(w * 0.34, h * 0.24), point(w * 0.5, 0));
         path.closeSubpath();
         return path;
     }
 
     if (key == QLatin1String("flash"))
     {
-        path.moveTo(point(w * 0.55, 0));
-        path.lineTo(point(w * 0.12, h * 0.56));
-        path.lineTo(point(w * 0.42, h * 0.56));
-        path.lineTo(point(w * 0.32, h));
-        path.lineTo(point(w * 0.88, h * 0.4));
-        path.lineTo(point(w * 0.55, h * 0.4));
+        // mxgraph.basic.flash (60 x 95.5)
+        static const double bolt[][2] = {
+            {0.0, 1.0}, {0.3333, 0.7906}, {0.05, 0.6440}, {0.3333, 0.5183},
+            {0.05, 0.3298}, {0.5667, 0.0}, {1.0, 0.2670}, {0.6, 0.4136},
+            {0.8333, 0.5602}, {0.4833, 0.6859}, {0.7, 0.8008}
+        };
+
+        for (int i = 0; i < int(sizeof(bolt) / sizeof(bolt[0])); ++i)
+        {
+            const QPointF p = point(w * bolt[i][0], h * bolt[i][1]);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+        }
+
         path.closeSubpath();
         return path;
     }
@@ -2067,30 +2485,35 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("heart"))
     {
-        path.moveTo(point(w * 0.5, h));
-        path.cubicTo(point(0, h * 0.62), point(0, h * 0.12), point(w * 0.25, h * 0.12));
-        path.cubicTo(point(w * 0.42, h * 0.12), point(w * 0.5, h * 0.3), point(w * 0.5, h * 0.3));
-        path.cubicTo(point(w * 0.5, h * 0.3), point(w * 0.58, h * 0.12), point(w * 0.75, h * 0.12));
-        path.cubicTo(point(w, h * 0.12), point(w, h * 0.62), point(w * 0.5, h));
+        // mxgraph.basic.heart (103.89 x 94.74)
+        const auto px = [&](double v) { return x + w * (v / 103.89); };
+        const auto py = [&](double v) { return y + h * (v / 94.74); };
+
+        path.moveTo(px(51.94), py(94.74));
+        path.cubicTo(px(55.79), py(90.78), px(77.8), py(68.16), px(91.56), py(54.03));
+        path.cubicTo(px(103.89), py(41.37), px(103.62), py(22.91), px(92.42), py(11.46));
+        path.cubicTo(px(81.21), py(0), px(63.09), py(0.05), px(51.94), py(11.56));
+        path.cubicTo(px(40.79), py(0.05), px(22.67), py(0), px(11.47), py(11.45));
+        path.cubicTo(px(0.26), py(22.9), px(0), py(41.36), px(12.32), py(54.03));
+        path.cubicTo(px(26.08), py(68.16), px(48.09), py(90.78), px(51.94), py(94.74));
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("isocube"))
+    if (key == QLatin1String("isoCube"))
     {
-        const double d = qMin(w, h) * 0.18;
-        path.moveTo(point(0, d));
-        path.lineTo(point(w * 0.5, 0));
-        path.lineTo(point(w, d));
-        path.lineTo(point(w, h - d));
+        // mxShapeBasicIsoCube: hexagon whose depth follows isoAngle.
+        const double angle = qBound(0.01, Style::number(probe.style,
+                                                       QStringLiteral("isoAngle"), 15.0), 94.0);
+        const double isoH = qMin(w * std::tan(angle * M_PI / 200.0), h * 0.5);
+
+        path.moveTo(point(w * 0.5, 0));
+        path.lineTo(point(w, isoH));
+        path.lineTo(point(w, h - isoH));
         path.lineTo(point(w * 0.5, h));
-        path.lineTo(point(0, h - d));
+        path.lineTo(point(0, h - isoH));
+        path.lineTo(point(0, isoH));
         path.closeSubpath();
-        path.moveTo(point(0, d));
-        path.lineTo(point(w * 0.5, d * 2));
-        path.lineTo(point(w, d));
-        path.moveTo(point(w * 0.5, d * 2));
-        path.lineTo(point(w * 0.5, h));
         return path;
     }
 
@@ -2123,9 +2546,27 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("noSymbol"))
     {
-        path.addEllipse(QRectF(x, y, w, h));
-        path.moveTo(point(w * 0.18, h * 0.18));
-        path.lineTo(point(w * 0.82, h * 0.82));
+        // mxgraph.basic.no_symbol: circle plus two lens shaped cut-outs that
+        // together form the diagonal bar.
+        const auto px = [&](double v) { return x + w * (v / 100.0); };
+        const auto py = [&](double v) { return y + h * (v / 100.0); };
+
+        path.moveTo(px(0), py(50));
+        addSvgArc(path, QPointF(px(0), py(50)), QPointF(px(100), py(50)),
+                  w * 0.35, h * 0.35, false, true);
+        addSvgArc(path, QPointF(px(100), py(50)), QPointF(px(0), py(50)),
+                  w * 0.35, h * 0.35, false, true);
+        path.closeSubpath();
+
+        path.moveTo(px(78.95), py(69.7));
+        addSvgArc(path, QPointF(px(78.95), py(69.7)), QPointF(px(30.3), py(21.05)),
+                  w * 0.35, h * 0.35, false, false);
+        path.closeSubpath();
+
+        path.moveTo(px(21.15), py(30.3));
+        addSvgArc(path, QPointF(px(21.15), py(30.3)), QPointF(px(69.7), py(79)),
+                  w * 0.35, h * 0.35, false, false);
+        path.closeSubpath();
         return path;
     }
 
@@ -2172,16 +2613,20 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("pyramid"))
     {
-        const double base = h * 0.8;
-        path.moveTo(point(w * 0.5, 0));
-        path.lineTo(point(w, base));
-        path.lineTo(point(w * 0.5, h));
-        path.lineTo(point(0, base));
+        // draw.io's mxShapeBasicPyramid: a quadrilateral with a single ridge
+        // line running from the top corner to the bottom corner.
+        const double dx1 = w * qBound(0.0, Style::number(probe.style, QStringLiteral("dx1"), 0.5), 1.0);
+        const double dx2 = w * qBound(0.0, Style::number(probe.style, QStringLiteral("dx2"), 0.6), 1.0);
+        const double dy1 = h * qBound(0.0, Style::number(probe.style, QStringLiteral("dy1"), 0.9), 1.0);
+        const double dy2 = h * qBound(0.0, Style::number(probe.style, QStringLiteral("dy2"), 0.8), 1.0);
+
+        path.moveTo(point(dx1, 0));
+        path.lineTo(point(w, dy2));
+        path.lineTo(point(dx2, h));
+        path.lineTo(point(0, dy1));
         path.closeSubpath();
-        path.moveTo(point(0, base));
-        path.lineTo(point(w, base));
-        path.moveTo(point(w * 0.5, 0));
-        path.lineTo(point(w * 0.5, h));
+        path.moveTo(point(dx1, 0));
+        path.lineTo(point(dx2, h));
         return path;
     }
 
@@ -2272,27 +2717,44 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("smiley"))
     {
-        const double r = qMin(w, h) / 2.0;
-        path.addEllipse(QPointF(x + w / 2.0, y + h / 2.0), r, r);
-        path.addEllipse(QPointF(x + w * 0.35, y + h * 0.4), r * 0.08, r * 0.08);
-        path.addEllipse(QPointF(x + w * 0.65, y + h * 0.4), r * 0.08, r * 0.08);
-        path.moveTo(point(w * 0.3, h * 0.62));
-        path.cubicTo(point(w * 0.4, h * 0.82), point(w * 0.6, h * 0.82), point(w * 0.7, h * 0.62));
+        // mxgraph.basic.smiley (98 x 98)
+        const auto px = [&](double v) { return x + w * (v / 98.0); };
+        const auto py = [&](double v) { return y + h * (v / 98.0); };
+
+        path.addEllipse(QRectF(px(0), py(0), w, h));
+
+        path.moveTo(px(16), py(51));
+        path.lineTo(px(6), py(57));
+        path.moveTo(px(82), py(51));
+        path.lineTo(px(92), py(57));
         return path;
     }
 
     if (key == QLatin1String("sun"))
     {
-        const double r = qMin(w, h) * 0.28;
-        path.addEllipse(QPointF(x + w / 2.0, y + h / 2.0), r, r);
+        // mxgraph.basic.sun (95 x 95): disc plus eight triangular rays.
+        const auto px = [&](double v) { return x + w * (v / 95.0); };
+        const auto py = [&](double v) { return y + h * (v / 95.0); };
 
-        for (int i = 0; i < 8; ++i)
+        path.addEllipse(QRectF(px(17.5), py(17.5), w * 60.0 / 95.0, h * 60.0 / 95.0));
+
+        static const double rays[][6] = {
+            {42.5, 14.5, 47.5, 0, 52.5, 14.5},
+            {42.5, 80.5, 47.5, 95, 52.5, 80.5},
+            {14.5, 42.5, 0, 47.5, 14.5, 52.5},
+            {80.5, 42.5, 95, 47.5, 80.5, 52.5},
+            {67.5, 20.5, 81.2, 13.9, 74.5, 27.5},
+            {67.5, 74.5, 81.2, 81.1, 74.5, 67.5},
+            {27.5, 20.5, 13.8, 13.9, 20.5, 27.5},
+            {27.5, 74.5, 13.8, 81.1, 20.5, 67.5}
+        };
+
+        for (const auto &ray : rays)
         {
-            const double angle = i * M_PI / 4.0;
-            path.moveTo(QPointF(x + w / 2.0 + std::cos(angle) * r * 1.25,
-                                y + h / 2.0 + std::sin(angle) * r * 1.25));
-            path.lineTo(QPointF(x + w / 2.0 + std::cos(angle) * r * 1.8,
-                                y + h / 2.0 + std::sin(angle) * r * 1.8));
+            path.moveTo(px(ray[0]), py(ray[1]));
+            path.lineTo(px(ray[2]), py(ray[3]));
+            path.lineTo(px(ray[4]), py(ray[5]));
+            path.closeSubpath();
         }
 
         return path;
@@ -2300,23 +2762,90 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("tick"))
     {
-        path.moveTo(point(w * 0.08, h * 0.5));
-        path.lineTo(point(w * 0.38, h * 0.82));
-        path.lineTo(point(w * 0.92, h * 0.12));
-        path.lineTo(point(w * 0.78, 0));
-        path.lineTo(point(w * 0.36, h * 0.52));
-        path.lineTo(point(w * 0.2, h * 0.34));
+        // mxgraph.basic.tick (84.4 x 97.54): a brush-stroke check made of arcs.
+        const auto px = [&](double v) { return x + w * (v / 84.4); };
+        const auto py = [&](double v) { return y + h * (v / 97.54); };
+        const auto arc = [&](double rx, double ry, double tx, double ty,
+                             bool largeArc, bool sweep)
+        {
+            const QPointF from = path.currentPosition();
+            addSvgArc(path, from, QPointF(px(tx), py(ty)),
+                      w * rx / 84.4, h * ry / 97.54, largeArc, sweep);
+        };
+
+        path.moveTo(px(0.36), py(66.69));
+        arc(12, 12, 16.36, 58.69, false, true);
+        arc(20, 20, 26.36, 69.69, false, true);
+        arc(200, 200, 63.36, 5.69, false, true);
+        arc(18, 18, 80.36, 1.69, false, true);
+        arc(4.5, 4.5, 83.36, 8.69, false, true);
+        arc(230, 230, 35.36, 94.69, false, false);
+        arc(20, 20, 17.36, 94.69, false, true);
+        arc(100, 100, 0.36, 68.69, false, false);
+        arc(2, 2, 0.36, 66.69, false, true);
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("wave"))
+    if (key == QLatin1String("wave") || key == QLatin1String("wave2"))
     {
-        path.moveTo(point(0, h * 0.7));
-        path.cubicTo(point(w * 0.25, 0), point(w * 0.5, h), point(w * 0.75, h * 0.3));
-        path.cubicTo(point(w * 0.85, h * 0.1), point(w * 0.95, h * 0.15), point(w, h * 0.2));
-        path.lineTo(point(w, h * 0.8));
-        path.cubicTo(point(w * 0.75, h), point(w * 0.5, 0), point(w * 0.25, h * 0.7));
+        // mxShapeBasicWave (mxgraph.basic.wave2)
+        const double dy = h * qBound(0.0, Style::number(probe.style, QStringLiteral("dy"), 0.5), 1.0);
+        const double fy = 1.4;
+
+        path.moveTo(point(0, dy / 2));
+        path.quadTo(point(w / 6, dy * (1 - fy)), point(w / 3, dy / 2));
+        path.quadTo(point(w / 2, dy * fy), point(w * 2 / 3, dy / 2));
+        path.quadTo(point(w * 5 / 6, dy * (1 - fy)), point(w, dy / 2));
+        path.lineTo(point(w, h - dy / 2));
+        path.quadTo(point(w * 5 / 6, h - dy * fy), point(w * 2 / 3, h - dy / 2));
+        path.quadTo(point(w / 2, h - dy * (1 - fy)), point(w / 3, h - dy / 2));
+        path.quadTo(point(w / 6, h - dy * fy), point(0, h - dy / 2));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("pie"))
+    {
+        // mxShapeBasicPie (mxgraph.basic.pie)
+        const double startFraction = qBound(0.0,
+            Style::number(probe.style, QStringLiteral("startAngle"), 0.25), 1.0);
+        const double endFraction = qBound(0.0,
+            Style::number(probe.style, QStringLiteral("endAngle"), 0.75), 1.0);
+        const double rx = w / 2.0;
+        const double ry = h / 2.0;
+        double a0 = 2.0 * M_PI * startFraction;
+        double a1 = 2.0 * M_PI * endFraction;
+
+        if (a1 < a0)
+        {
+            a1 += 2.0 * M_PI;
+        }
+
+        const QPointF start(rx + std::sin(a0) * rx, ry - std::cos(a0) * ry);
+
+        path.moveTo(point(rx, ry));
+        path.lineTo(point(start.x(), start.y()));
+        path.arcTo(QRectF(x, y, w, h),
+                   90.0 - a0 * 180.0 / M_PI, -(a1 - a0) * 180.0 / M_PI);
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("x"))
+    {
+        // mxgraph.basic.x (96 x 98)
+        static const double letter[][2] = {
+            {0, 0}, {28, 0}, {48, 29}, {68, 0}, {96, 0}, {62, 49},
+            {96, 98}, {68, 98}, {48, 69}, {28, 98}, {0, 98}, {32, 49}
+        };
+
+        for (int i = 0; i < 12; ++i)
+        {
+            const QPointF p = point(w * letter[i][0] / 96.0, h * letter[i][1] / 98.0);
+            i == 0 ? path.moveTo(p) : path.lineTo(p);
+        }
+
         path.closeSubpath();
         return path;
     }

@@ -213,6 +213,234 @@ private slots:
         QVERIFY(battery.elementCount() > 5);
     }
 
+    void triangleMatchesDrawioOrientation()
+    {
+        const QPainterPath right = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("triangle;whiteSpace=wrap;")), QRectF(0, 0, 100, 80));
+
+        QCOMPARE(right.elementAt(0).x, 0.0);
+        QCOMPARE(right.elementAt(0).y, 0.0);
+        QCOMPARE(right.elementAt(1).x, 100.0);
+        QCOMPARE(right.elementAt(1).y, 40.0);
+
+        const QPainterPath up = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.basic.acute_triangle;dx=0.5;")),
+            QRectF(0, 0, 100, 80));
+
+        QCOMPARE(up.elementAt(1).x, 50.0);
+        QCOMPARE(up.elementAt(1).y, 0.0);
+    }
+
+    void cylinder3UsesSizeCap()
+    {
+        const QPainterPath path = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=cylinder3;size=15;")), QRectF(0, 0, 60, 80));
+
+        QVERIFY(path.elementCount() > 6);
+        QCOMPARE(path.boundingRect().height(), 80.0);
+    }
+
+    void basicStencilShapes()
+    {
+        const auto path = [](const QString &style)
+        {
+            return ShapeRegistry::pathForStyle(Style::parse(style), QRectF(0, 0, 100, 100));
+        };
+
+        // Wave has two wavy edges made of quadratic curves.
+        QVERIFY(path(QStringLiteral("shape=mxgraph.basic.wave2;dy=0.3;")).elementCount() > 10);
+
+        // Pie is a wedge from the centre.
+        const QPainterPath pie = path(QStringLiteral("shape=mxgraph.basic.pie;"));
+        QCOMPARE(pie.elementAt(0).x, 50.0);
+
+        // Sun adds eight triangular rays to the disc.
+        QVERIFY(path(QStringLiteral("shape=mxgraph.basic.sun;")).elementCount() > 40);
+
+        // Tick is a brush stroke made of nine arcs.
+        QVERIFY(path(QStringLiteral("shape=mxgraph.basic.tick;")).elementCount() > 40);
+
+        // X is a twelve point polygon.
+        QCOMPARE(path(QStringLiteral("shape=mxgraph.basic.x;")).elementCount(), 13);
+
+        QStringList keys;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category == QStringLiteral("basic"))
+            {
+                keys.append(definition.key);
+            }
+        }
+
+        for (const QString &key : {QStringLiteral("basic.wave"), QStringLiteral("basic.pie"),
+                                   QStringLiteral("basic.x"), QStringLiteral("basic.sun"),
+                                   QStringLiteral("basic.tick"), QStringLiteral("basic.smiley")})
+        {
+            QVERIFY2(keys.contains(key), qPrintable(key));
+        }
+    }
+
+    void bareIsocubeFallsBackToRectangle()
+    {
+        const QPainterPath bare = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=isocube;")), QRectF(0, 0, 100, 100));
+        QCOMPARE(bare.elementCount(), 5);
+
+        const QPainterPath stencil = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.basic.isocube;isoAngle=15;")),
+            QRectF(0, 0, 100, 100));
+        QCOMPARE(stencil.elementCount(), 7);
+    }
+
+    void basicStencilsResolveToCanonicalKeys()
+    {
+        const auto path = [](const QString &shape)
+        {
+            return ShapeRegistry::pathForStyle(
+                Style::parse(QStringLiteral("shape=") + shape), QRectF(0, 0, 100, 100));
+        };
+
+        // Stencil names are normalised to the internal camel case keys.
+        const QPainterPath heart = path(QStringLiteral("mxgraph.basic.heart"));
+        QVERIFY(heart.elementCount() > 8);
+
+        const QPainterPath star6 = path(QStringLiteral("mxgraph.basic.6_point_star"));
+        QVERIFY(star6.elementCount() >= 12);
+
+        // no_symbol is a circle plus a diagonal band, not a plain line.
+        const QPainterPath noSymbol = path(QStringLiteral("mxgraph.basic.no_symbol"));
+        QVERIFY(noSymbol.elementCount() > 12);
+
+        // Electrical stencils keep their lower case draw.io names.
+        const QPainterPath battery = path(
+            QStringLiteral("mxgraph.electrical.miscellaneous.batteryStack"));
+        QVERIFY(battery.elementCount() > 5);
+    }
+
+    void flowchartShapesMatchDrawio()
+    {
+        const auto path = [](const QString &style)
+        {
+            return ShapeRegistry::pathForStyle(Style::parse(style), QRectF(0, 0, 100, 80));
+        };
+
+        // or: flat left edge, curved right edge.
+        const QPainterPath orPath = path(QStringLiteral("shape=or;"));
+        QVERIFY(orPath.elementCount() >= 6);
+        QCOMPARE(orPath.elementAt(0).x, 0.0);
+
+        // xor adds the inner curve back to the start point.
+        QVERIFY(path(QStringLiteral("shape=xor;")).elementCount() > orPath.elementCount());
+
+        // step uses fixedSize pixels for its notches.
+        const QPainterPath step = path(QStringLiteral("shape=step;fixedSize=1;"));
+        QCOMPARE(step.elementAt(1).x, 80.0);
+
+        // callout keeps a square body and a triangular tail.
+        const QPainterPath callout = path(QStringLiteral("shape=callout;"));
+        QCOMPARE(callout.elementAt(2).y, 50.0);
+
+        // cube cuts the top-right and bottom-left corners; the interior edges
+        // are decorations so the filled path stays a single hexagon.
+        const QPainterPath cube = path(QStringLiteral("shape=cube;size=20;"));
+        QCOMPARE(cube.elementAt(1).x, 80.0);
+        QCOMPARE(cube.elementCount(), 7);
+    }
+
+    void flowchartShapesAreInBasicLibrary()
+    {
+        QStringList keys;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category == QStringLiteral("basic"))
+            {
+                keys.append(definition.key);
+            }
+        }
+
+        for (const QString &key : {QStringLiteral("or"), QStringLiteral("xor"),
+                                   QStringLiteral("dataStorage"),
+                                   QStringLiteral("internalStorage"),
+                                   QStringLiteral("wedgeCallout")})
+        {
+            QVERIFY2(keys.contains(key), qPrintable(key));
+        }
+    }
+
+    void basicLibraryHasTriangleAndCylinderVariants()
+    {
+        QStringList keys;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category == QStringLiteral("basic"))
+            {
+                keys.append(definition.key);
+            }
+        }
+
+        QVERIFY(keys.contains(QStringLiteral("basic.orthogonalTriangle")));
+        QVERIFY(keys.contains(QStringLiteral("basic.obtuseTriangle")));
+        QVERIFY(keys.contains(QStringLiteral("basic.cylinder")));
+        QVERIFY(keys.contains(QStringLiteral("basic.cylinderStack")));
+    }
+
+    void cylinderStackHasOpenTop()
+    {
+        const QPainterPath lid = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=cylinder3;size=15;")), QRectF(0, 0, 80, 100));
+        const QPainterPath open = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=cylinder3;size=15;lid=0;")), QRectF(0, 0, 80, 100));
+
+        // A closed lid starts at the top edge, an open stack dips below it.
+        QCOMPARE(lid.elementAt(0).y, 15.0);
+        QCOMPARE(open.elementAt(0).y, 0.0);
+    }
+
+    void tapeIsInBasicLibrary()
+    {
+        bool found = false;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.key == QStringLiteral("tape"))
+            {
+                found = true;
+                QCOMPARE(definition.category, QStringLiteral("basic"));
+            }
+        }
+
+        QVERIFY(found);
+    }
+
+    void tapeUsesCurvedEdges()
+    {
+        const QPainterPath path = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=tape;")), QRectF(0, 0, 120, 100));
+
+        QVERIFY(path.elementCount() > 8);
+        QCOMPARE(path.boundingRect().width(), 120.0);
+
+        const QPainterPath::Element first = path.elementAt(0);
+        QCOMPARE(first.y, 20.0);
+    }
+
+    void pyramidUsesDrawioParameters()
+    {
+        const QPainterPath path = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral(
+                "shape=mxgraph.basic.pyramid;dx1=0.4;dx2=0.6;dy1=0.9;dy2=0.8;")),
+            QRectF(0, 0, 100, 100));
+
+        QVERIFY(path.elementCount() >= 6);
+        QCOMPARE(path.elementAt(0).x, 40.0);
+        QCOMPARE(path.elementAt(0).y, 0.0);
+        QCOMPARE(path.elementAt(2).x, 60.0);
+        QCOMPARE(path.elementAt(2).y, 100.0);
+    }
+
     void duplicateShapeKeepsAttachedEdgeInsideSelection()
     {
         Page page;
