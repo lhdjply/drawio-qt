@@ -32,6 +32,7 @@
 #include <QTabBar>
 #include <QTreeWidget>
 #include <QToolButton>
+#include <QScrollArea>
 #include <QSettings>
 #include "ui/Dialogs.h"
 #include "ui/FormatPanel.h"
@@ -830,6 +831,32 @@ private slots:
         QVERIFY(east >= 0);
         direction->setCurrentIndex(east);
         QCOMPARE(shape->styleValue(QStringLiteral("gradientDirection")), QStringLiteral("east"));
+    }
+
+    void fontFamilyCanBeSet()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(120, 120));
+        QVERIFY(shape != nullptr);
+        view->selectCell(shape->id);
+
+        auto *panel = window.findChild<FormatPanel *>();
+        QVERIFY(panel != nullptr);
+        auto *family = panel->findChild<QComboBox *>(QStringLiteral("fontFamily"));
+        QVERIFY(family != nullptr);
+        QVERIFY(family->count() > 0);
+
+        auto *panelScroll = panel->findChild<QScrollArea *>();
+        QVERIFY(panelScroll != nullptr);
+        QCOMPARE(panelScroll->horizontalScrollBarPolicy(), Qt::ScrollBarAlwaysOff);
+
+        family->setCurrentIndex(0);
+        emit family->activated(0);
+        QCOMPARE(shape->styleValue(QStringLiteral("fontFamily")), family->itemData(0).toString());
     }
 
     void layerCanBeDeletedFromPanel()

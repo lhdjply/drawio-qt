@@ -10,6 +10,8 @@
 #include <QColorDialog>
 #include <QComboBox>
 #include <QDoubleSpinBox>
+#include <QFontDatabase>
+#include <QLineEdit>
 #include <QFormLayout>
 #include <QPainter>
 #include <QPixmap>
@@ -277,7 +279,7 @@ void FormatPanel::buildUi()
     auto *scroll = new QScrollArea(this);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
-    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAsNeeded);
+    scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
     outer->addWidget(scroll);
 
     auto *content = new QWidget(scroll);
@@ -676,6 +678,25 @@ void FormatPanel::buildUi()
 
     m_fontColor = new ColorButton(textGroup);
     m_fontColor->setObjectName(QStringLiteral("fontColor"));
+
+    m_fontFamily = new QComboBox(textGroup);
+    m_fontFamily->setObjectName(QStringLiteral("fontFamily"));
+    m_fontFamily->setEditable(true);
+    m_fontFamily->setInsertPolicy(QComboBox::NoInsert);
+    m_fontFamily->setSizeAdjustPolicy(QComboBox::AdjustToMinimumContentsLengthWithIcon);
+    m_fontFamily->setMinimumContentsLength(8);
+    m_fontFamily->setSizePolicy(QSizePolicy::Ignored, QSizePolicy::Fixed);
+    m_fontFamily->setMinimumWidth(80);
+
+    for (const QString &family : QFontDatabase::families())
+    {
+        m_fontFamily->addItem(family, family);
+    }
+
+    m_fontFamily->setCurrentIndex(-1);
+    m_fontFamily->lineEdit()->setPlaceholderText(QStringLiteral("Default"));
+    textForm->addRow(QStringLiteral("Font"), m_fontFamily);
+
     m_fontSize = new QSpinBox(textGroup);
     m_fontSize->setRange(4, 200);
     m_fontSize->setSuffix(QStringLiteral(" px"));
@@ -710,6 +731,29 @@ void FormatPanel::buildUi()
 
     layout->addWidget(textGroup);
 
+    connect(m_fontFamily, qOverload<int>(&QComboBox::activated), this, [this](int index)
+    {
+        if (m_updating || index < 0)
+        {
+            return;
+        }
+
+        m_view->applyStyle(QStringLiteral("fontFamily"), m_fontFamily->itemData(index).toString());
+    });
+    connect(m_fontFamily->lineEdit(), &QLineEdit::editingFinished, this, [this]()
+    {
+        if (m_updating)
+        {
+            return;
+        }
+
+        const QString family = m_fontFamily->currentText().trimmed();
+
+        if (!family.isEmpty())
+        {
+            m_view->applyStyle(QStringLiteral("fontFamily"), family);
+        }
+    });
     connect(m_fontSize, qOverload<int>(&QSpinBox::valueChanged), this, [this](int value)
     {
         if (!m_updating)
@@ -1042,6 +1086,19 @@ void FormatPanel::updateFromSelection()
     m_opacity->setValue(static_cast<int>(cell->styleNumber(QStringLiteral("opacity"), 100.0)));
     m_fontSize->setValue(static_cast<int>(cell->styleNumber(QStringLiteral("fontSize"), 11.0)));
 
+    const QString family = cell->styleValue(QStringLiteral("fontFamily"));
+    const int familyIndex = m_fontFamily->findData(family);
+
+    if (familyIndex >= 0)
+    {
+        m_fontFamily->setCurrentIndex(familyIndex);
+    }
+    else
+    {
+        m_fontFamily->setCurrentIndex(-1);
+        m_fontFamily->setEditText(family);
+    }
+
     const bool dashed = cell->styleFlag(QStringLiteral("dashed"));
     const bool dotted = dashed
         && cell->styleValue(QStringLiteral("dashPattern")).contains(QLatin1String("1 2"));
@@ -1183,6 +1240,7 @@ void FormatPanel::updateEnabled(bool hasSelection, bool hasVertex, bool hasEdge)
     m_multiple->setEnabled(hasVertex);
 
     m_fontSize->setEnabled(hasSelection);
+    m_fontFamily->setEnabled(hasSelection);
     m_align->setEnabled(hasSelection);
     m_verticalAlign->setEnabled(hasSelection);
     m_bold->setEnabled(hasSelection);

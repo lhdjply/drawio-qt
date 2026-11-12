@@ -48,6 +48,7 @@ private:
 
     QSpinBox *m_strokeWidth = nullptr;
     QSpinBox *m_fontSize = nullptr;
+    QComboBox *m_fontFamily = nullptr;
     QSpinBox *m_opacity = nullptr;
 
     QCheckBox *m_fillEnabled = nullptr;
