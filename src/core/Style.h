@@ -27,6 +27,10 @@ public:
     static QColor color(const StyleMap &style, const QString &key,
                         const QColor &fallback = QColor());
 
+    /// Parses plain colours as well as draw.io's `light-dark(light,dark)`
+    /// values. The dark variant is selected when  dark is true.
+    static QColor parseColorValue(const QString &value, bool dark = false);
+
     static void set(StyleMap &style, const QString &key, const QString &value);
     static void unset(StyleMap &style, const QString &key);
 

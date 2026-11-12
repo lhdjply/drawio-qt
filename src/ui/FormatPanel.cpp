@@ -116,8 +116,16 @@ public:
         }
         else
         {
-            m_color = QColor(value);
-            setText(m_color.name().toUpper());
+            m_color = Style::parseColorValue(value);
+
+            if (m_color.isValid())
+            {
+                setText(m_color.name().toUpper());
+            }
+            else
+            {
+                setText(value);
+            }
         }
 
         update();
@@ -366,7 +374,9 @@ void FormatPanel::buildUi()
     styleForm->setSpacing(4);
 
     m_fill = new ColorButton(styleGroup);
+    m_fill->setObjectName(QStringLiteral("fillColor"));
     m_stroke = new ColorButton(styleGroup);
+    m_stroke->setObjectName(QStringLiteral("strokeColor"));
     m_fontColor = new ColorButton(styleGroup);
 
     m_fillEnabled = new QCheckBox(styleGroup);

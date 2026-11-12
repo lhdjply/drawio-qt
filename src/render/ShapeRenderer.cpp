@@ -541,7 +541,7 @@ QColor fillColor(const Cell &cell)
         return Qt::transparent;
     }
 
-    const QColor color(value);
+    const QColor color = Style::parseColorValue(value);
     return color.isValid() ? color : QColor(Qt::white);
 }
 
@@ -559,7 +559,7 @@ QColor strokeColor(const Cell &cell)
         return Qt::transparent;
     }
 
-    const QColor color(value);
+    const QColor color = Style::parseColorValue(value);
     return color.isValid() ? color : QColor(Qt::black);
 }
 

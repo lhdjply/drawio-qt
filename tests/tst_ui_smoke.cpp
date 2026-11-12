@@ -776,6 +776,30 @@ private slots:
         QVERIFY(shape->styleValue(QStringLiteral("fillColor")) != QStringLiteral("none"));
     }
 
+    void lightDarkColorsShowInFormatPanel()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(120, 120));
+        QVERIFY(shape != nullptr);
+        shape->setStyleValue(QStringLiteral("fillColor"),
+                             QStringLiteral("light-dark(#FF0000,#FF0000)"));
+        shape->setStyleValue(QStringLiteral("strokeColor"),
+                             QStringLiteral("light-dark(#4B33FF,#4B33FF)"));
+        view->selectCell(shape->id);
+
+        auto *panel = window.findChild<FormatPanel *>();
+        QVERIFY(panel != nullptr);
+        auto *fill = panel->findChild<QToolButton *>(QStringLiteral("fillColor"));
+        auto *stroke = panel->findChild<QToolButton *>(QStringLiteral("strokeColor"));
+        QVERIFY(fill != nullptr && stroke != nullptr);
+        QCOMPARE(fill->text(), QStringLiteral("#FF0000"));
+        QCOMPARE(stroke->text(), QStringLiteral("#4B33FF"));
+    }
+
     void layerCanBeDeletedFromPanel()
     {
         MainWindow window;

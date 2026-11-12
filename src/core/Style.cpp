@@ -88,6 +88,26 @@ double Style::number(const StyleMap &style, const QString &key, double fallback)
     return ok ? parsed : fallback;
 }
 
+QColor Style::parseColorValue(const QString &value, bool dark)
+{
+    const QString text = value.trimmed();
+
+    if (text.startsWith(QLatin1String("light-dark("), Qt::CaseInsensitive)
+        && text.endsWith(QLatin1Char(')')))
+    {
+        const QString inner = text.mid(11, text.size() - 12);
+        const int comma = inner.indexOf(QLatin1Char(','));
+
+        if (comma >= 0)
+        {
+            const QString chosen = dark ? inner.mid(comma + 1) : inner.left(comma);
+            return parseColorValue(chosen.trimmed(), dark);
+        }
+    }
+
+    return QColor(text);
+}
+
 QColor Style::color(const StyleMap &style, const QString &key, const QColor &fallback)
 {
     const auto it = style.constFind(key);
@@ -97,7 +117,7 @@ QColor Style::color(const StyleMap &style, const QString &key, const QColor &fal
         return it == style.constEnd() ? fallback : QColor(Qt::transparent);
     }
 
-    const QColor parsed(it.value());
+    const QColor parsed = parseColorValue(it.value());
 
     if (!parsed.isValid())
     {
