@@ -580,6 +580,224 @@ private slots:
         QCOMPARE(page.cells().size(), 3);
         QCOMPARE(a->styleValue(QStringLiteral("fillColor")), QString());
     }
+
+    void flowchartLibraryMatchesSidebar()
+    {
+        // Sidebar-Flowchart.js offers exactly these entries with exactly these
+        // style strings (w = h = 100, s = strokeWidth=2;html=1;shape=...):
+        // the 23 stencils of flowchart.xml, the registered shapes card,
+        // parallelogram, internalStorage, manualInput, trapezoid,
+        // offPageConnector, process, tape and hexagon, and the transfer arrow.
+        const QStringList official = {
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.annotation_1;"
+                           "align=left;pointerEvents=1;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.annotation_2;"
+                           "align=left;labelPosition=right;pointerEvents=1;"),
+            QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;shape=card;"
+                           "whiteSpace=wrap;size=20;arcSize=12;"),
+            QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                           "shape=mxgraph.flowchart.collate;"),
+            QStringLiteral("shape=parallelogram;html=1;strokeWidth=2;"
+                           "perimeter=parallelogramPerimeter;whiteSpace=wrap;rounded=1;"
+                           "arcSize=12;size=0.23;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.database;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.delay;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.direct_data;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.display;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.document2;"
+                           "whiteSpace=wrap;size=0.25;"),
+            QStringLiteral("strokeWidth=2;html=1;"
+                           "shape=mxgraph.flowchart.extract_or_measurement;whiteSpace=wrap;"),
+            QStringLiteral("shape=internalStorage;whiteSpace=wrap;html=1;dx=15;dy=15;"
+                           "rounded=1;arcSize=8;strokeWidth=2;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.loop_limit;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("html=1;strokeWidth=2;shape=manualInput;boundedLbl=1;"
+                           "whiteSpace=wrap;rounded=1;size=26;arcSize=11;"),
+            QStringLiteral("verticalLabelPosition=middle;verticalAlign=middle;html=1;"
+                           "shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;"
+                           "size=0.23;arcSize=10;flipV=1;labelPosition=center;align=center;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.merge_or_storage;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.multi-document;"
+                           "whiteSpace=wrap;boundedLbl=1;"),
+            QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                           "shape=offPageConnector;rounded=0;size=0.5;"),
+            QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                           "shape=mxgraph.flowchart.on-page_reference;"),
+            QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                           "shape=mxgraph.flowchart.or_2;"),
+            QStringLiteral("shape=tape;whiteSpace=wrap;html=1;strokeWidth=2;size=0.19"),
+            QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                           "shape=mxgraph.flowchart.parallel_mode;accentColor=#ffff00;"
+                           "pointerEvents=1"),
+            QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                           "shape=process;whiteSpace=wrap;rounded=1;size=0.14;arcSize=6;"),
+            QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                           "shape=hexagon;perimeter=hexagonPerimeter2;arcSize=6;size=0.27;"),
+            QStringLiteral("rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;"
+                           "strokeWidth=2;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.sequential_data;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                           "shape=mxgraph.flowchart.sort;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.start_2;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.stored_data;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                           "shape=mxgraph.flowchart.summing_junction;"),
+            QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.terminator;"
+                           "whiteSpace=wrap;"),
+            QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                           "strokeWidth=2;shape=mxgraph.arrows2.arrow;dy=0.6;dx=40;notch=0;"),
+        };
+
+        QStringList library;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category == QLatin1String("flowchart"))
+            {
+                library.append(definition.style);
+            }
+        }
+
+        QCOMPARE(library, official);
+    }
+
+    void flowchartStencilsFollowTheOfficialXml()
+    {
+        const auto path = [](const QString &style, double w, double h)
+        {
+            return ShapeRegistry::pathForStyle(Style::parse(style), QRectF(0, 0, w, h));
+        };
+
+        // Decision: move (50,0), three lines and a close.
+        const QPainterPath decision = path(
+            QStringLiteral("shape=mxgraph.flowchart.decision;"), 100, 100);
+        QCOMPARE(decision.elementCount(), 5);
+        QCOMPARE(decision.elementAt(0).x, 50.0);
+        QCOMPARE(decision.elementAt(0).y, 0.0);
+        QCOMPARE(decision.elementAt(1).x, 100.0);
+        QCOMPARE(decision.elementAt(1).y, 50.0);
+
+        // Annotation 1 is an open bracket (the stencil has no <close>).
+        const QPainterPath annotation = path(
+            QStringLiteral("shape=mxgraph.flowchart.annotation_1;"), 50, 100);
+        QCOMPARE(annotation.elementCount(), 4);
+        QCOMPARE(annotation.elementAt(0).x, 50.0);
+        QCOMPARE(annotation.elementAt(0).y, 0.0);
+        QCOMPARE(annotation.elementAt(2).y, 100.0);
+
+        // Transfer: the stencil's seven points plus a close.
+        const QPainterPath transfer = path(
+            QStringLiteral("shape=mxgraph.flowchart.transfer;"), 97.5, 70);
+        QCOMPARE(transfer.elementCount(), 8);
+        QCOMPARE(transfer.elementAt(0).x, 0.0);
+        QCOMPARE(transfer.elementAt(0).y, 20.0);
+        QCOMPARE(transfer.elementAt(3).x, 97.5);
+        QCOMPARE(transfer.elementAt(3).y, 35.0);
+
+        // Parallel Mode: three accent coloured diamonds, no outer outline.
+        const QPainterPath parallel = path(
+            QStringLiteral("shape=mxgraph.flowchart.parallel_mode;"), 94, 40);
+        QCOMPARE(parallel.elementCount(), 15);
+        QCOMPARE(parallel.elementAt(0).x, 47.0);
+        QCOMPARE(parallel.elementAt(0).y, 15.0);
+
+        // Off-page Reference: the notch sits at 50% of the height.
+        const QPainterPath offPage = path(
+            QStringLiteral("shape=mxgraph.flowchart.off-page_reference;"), 60, 60);
+        QCOMPARE(offPage.elementCount(), 6);
+        QCOMPARE(offPage.elementAt(2).x, 60.0);
+        QCOMPARE(offPage.elementAt(2).y, 30.0);
+
+        // Delay ends in a half circle whose radius is 33 stencil units; the
+        // stencil itself is a hair wider than 98.25 units.
+        const QPainterPath delay = path(
+            QStringLiteral("shape=mxgraph.flowchart.delay;"), 100, 60);
+        QVERIFY(qAbs(delay.boundingRect().width() - 100.0) < 0.05);
+        QCOMPARE(delay.boundingRect().height(), 60.0);
+    }
+
+    void flowchartStencilNamesMustBeRegistered()
+    {
+        // draw.io registers "off-page_reference" (flowchart.xml replaces the
+        // blanks of "Off-page Reference" by underscores); the all-underscore
+        // variant is not a stencil and falls back to a rectangle.
+        const QPainterPath fallback = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.flowchart.off_page_reference;")),
+            QRectF(0, 0, 60, 60));
+        QCOMPARE(fallback.elementCount(), 5);
+        QCOMPARE(fallback.elementAt(0).x, 0.0);
+        QCOMPARE(fallback.elementAt(1).x, 60.0);
+        QCOMPARE(fallback.elementAt(1).y, 0.0);
+
+        const QPainterPath stencil = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.flowchart.off-page_reference;")),
+            QRectF(0, 0, 60, 60));
+        QCOMPARE(stencil.elementAt(1).y, 0.0);
+        QCOMPARE(stencil.elementAt(2).y, 30.0);
+
+        // "Document" only exists as the registered document2 shape.
+        const QPainterPath document = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.flowchart.document2;size=0.25;")),
+            QRectF(0, 0, 100, 60));
+        QVERIFY(document.elementCount() > 10);
+        QCOMPARE(document.boundingRect().width(), 100.0);
+    }
+
+    void flowchartRegisteredShapesFollowShapesJs()
+    {
+        // OffPageConnectorShape: h * size is the notch height.
+        const QPainterPath offPage = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=offPageConnector;rounded=0;size=0.5;")),
+            QRectF(0, 0, 60, 60));
+        QCOMPARE(offPage.elementCount(), 6);
+        QCOMPARE(offPage.elementAt(2).y, 30.0);
+        QCOMPARE(offPage.elementAt(3).x, 30.0);
+
+        // HexagonShape: size is relative to the width unless fixedSize=1.
+        const QPainterPath hexagon = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=hexagon;size=0.27;")), QRectF(0, 0, 100, 60));
+        QCOMPARE(hexagon.elementAt(0).x, 27.0);
+
+        const QPainterPath fixed = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=hexagon;fixedSize=1;size=20;")),
+            QRectF(0, 0, 100, 60));
+        QCOMPARE(fixed.elementAt(0).x, 20.0);
+
+        // TrapezoidShape caps the offset at half the width; flipV mirrors it.
+        const QPainterPath trapezoid = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=trapezoid;size=0.23;")), QRectF(0, 0, 100, 60));
+        QCOMPARE(trapezoid.elementAt(1).x, 23.0);
+
+        // ManualInputShape starts at the bottom left corner.
+        const QPainterPath manual = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=manualInput;rounded=0;size=26;")),
+            QRectF(0, 0, 100, 60));
+        QCOMPARE(manual.elementCount(), 5);
+        QCOMPARE(manual.elementAt(0).x, 0.0);
+        QCOMPARE(manual.elementAt(0).y, 60.0);
+        QCOMPARE(manual.elementAt(1).y, 26.0);
+
+        // ProcessShape is an mxRectangleShape: absoluteArcSize makes the
+        // corner radius a fixed number of pixels.
+        const QPainterPath process = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("rounded=1;absoluteArcSize=1;arcSize=14;")),
+            QRectF(0, 0, 100, 100));
+        QCOMPARE(process.boundingRect(), QRectF(0, 0, 100, 100));
+        QCOMPARE(process.elementAt(0).y, 7.0);
+    }
 };
 
 QTEST_MAIN(TestModel)

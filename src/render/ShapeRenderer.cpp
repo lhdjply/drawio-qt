@@ -750,6 +750,14 @@ void paint(QPainter &painter, const Cell &cell)
     {
         fill = stroke;
     }
+
+    if (ShapeRegistry::canonicalKey(cell.style) == QLatin1String("flowchart.parallel_mode"))
+    {
+        // flowchart.xml paints the diamonds with
+        // <fillcolor color="accentColor" default="#ffff00"/>.
+        fill = Style::color(cell.style, QStringLiteral("accentColor"),
+                            QColor(0xff, 0xff, 0x00));
+    }
     const bool textShape = ShapeRegistry::isTextShape(cell);
     const bool imageShape = ShapeRegistry::isImageShape(cell);
     const bool lineArt = ShapeRegistry::isLineArt(cell);
@@ -965,7 +973,29 @@ void paint(QPainter &painter, const Cell &cell)
 
         if (key == QLatin1String("process"))
         {
-            const double inset = qMin(local.width() * 0.08, 12.0);
+            // ProcessShape.paintForeground: the two inset lines are derived
+            // from size (and pushed inwards by the corner radius when the
+            // body is rounded), then snapped to whole pixels like draw.io.
+            const bool fixed = cell.styleFlag(QStringLiteral("fixedSize"));
+            double inset = cell.styleNumber(QStringLiteral("size"), 0.1);
+
+            if (fixed)
+            {
+                inset = qBound(0.0, inset, local.width());
+            }
+            else
+            {
+                inset = local.width() * qBound(0.0, inset, 1.0);
+
+                if (cell.styleFlag(QStringLiteral("rounded")))
+                {
+                    const double f = qBound(0.0,
+                        cell.styleNumber(QStringLiteral("arcSize"), 15.0), 100.0) / 100.0;
+                    inset = qMax(inset, qMin(local.width() * f, local.height() * f));
+                }
+            }
+
+            inset = qRound(inset);
             painter.drawLine(QPointF(inset, 0), QPointF(inset, local.height()));
             painter.drawLine(QPointF(local.width() - inset, 0),
                              QPointF(local.width() - inset, local.height()));
@@ -1109,35 +1139,171 @@ void paint(QPainter &painter, const Cell &cell)
             const double startSize = cell.styleNumber(QStringLiteral("startSize"), 23.0);
             painter.drawLine(QPointF(0, startSize), QPointF(local.width(), startSize));
         }
-        else if (key == QLatin1String("mxgraph.flowchart.internal_storage"))
+        else if (key == QLatin1String("flowchart.annotation_2"))
         {
-            const double inset = local.width() * 0.14;
-            painter.drawLine(QPointF(inset, local.height() * 0.2),
-                             QPointF(local.width() - inset, local.height() * 0.2));
-            painter.drawLine(QPointF(inset, local.height() * 0.24),
-                             QPointF(local.width() - inset, local.height() * 0.24));
-            painter.drawLine(QPointF(inset, local.height() * 0.2),
-                             QPointF(inset, local.height() * 0.9));
+            // Annotation 2: divider between the label and the note text.
+            const double px = local.width() / 100.0;
+            const double py = local.height() / 98.0;
+
+            painter.drawLine(QPointF(0, 49 * py), QPointF(50 * px, 49 * py));
         }
-        else if (key == QLatin1String("mxgraph.flowchart.multi-document"))
+        else if (key == QLatin1String("flowchart.database"))
         {
-            painter.drawRect(QRectF(local.width() * 0.08, 0,
-                                    local.width() * 0.84, local.height() * 0.7));
-            painter.drawRect(QRectF(local.width() * 0.04, local.height() * 0.06,
-                                    local.width() * 0.84, local.height() * 0.7));
+            // Database: front half of the top lid (sweep-flag 0).
+            const double sx = local.width() / 60.0;
+            const double sy = local.height() / 60.0;
+            QPainterPath lid;
+            lid.moveTo(0, 10 * sy);
+            ShapeRegistry::appendSvgArc(lid, QPointF(0, 10 * sy), QPointF(60 * sx, 10 * sy),
+                                        30 * sx, 10 * sy, false, false);
+            painter.setBrush(Qt::NoBrush);
+            painter.drawPath(lid);
         }
-        else if (key == QLatin1String("mxgraph.flowchart.summing")
-                 || cell.styleValue(QStringLiteral("fcType")) == QLatin1String("summing"))
+        else if (key == QLatin1String("flowchart.direct_data"))
         {
-            painter.drawLine(QPointF(local.width() * 0.28, local.height() * 0.28),
-                             QPointF(local.width() * 0.72, local.height() * 0.72));
-            painter.drawLine(QPointF(local.width() * 0.72, local.height() * 0.28),
-                             QPointF(local.width() * 0.28, local.height() * 0.72));
+            // Direct Data: the right hand side is a full ellipse.
+            const double sx = local.width() / 98.0;
+            const double sy = local.height() / 60.0;
+            QPainterPath side;
+            side.moveTo(89 * sx, 0);
+            ShapeRegistry::appendSvgArc(side, QPointF(89 * sx, 0), QPointF(89 * sx, 60 * sy),
+                                        9 * sx, 30 * sy, true, false);
+            painter.setBrush(Qt::NoBrush);
+            painter.drawPath(side);
         }
-        else if (cell.styleValue(QStringLiteral("fcType")) == QLatin1String("sort"))
+        else if (key == QLatin1String("flowchart.internal_storage"))
         {
-            painter.drawLine(QPointF(local.width() * 0.25, local.height() / 2.0),
-                             QPointF(local.width() * 0.75, local.height() / 2.0));
+            // Internal Storage stencil: cross lines at 15 units.
+            const double px = local.width() / 70.0;
+            const double py = local.height() / 70.0;
+
+            painter.drawLine(QPointF(0, 15 * py), QPointF(70 * px, 15 * py));
+            painter.drawLine(QPointF(15 * px, 0), QPointF(15 * px, 70 * py));
+        }
+        else if (key == QLatin1String("flowchart.multi-document"))
+        {
+            // Multi-Document: two extra pages, filled like the front page.
+            const double sx = local.width() / 88.0;
+            const double sy = local.height() / 60.28;
+
+            const auto page = [&](double dx, double dy)
+            {
+                QPainterPath pagePath;
+                pagePath.moveTo(dx + 5 * sx, dy + 10 * sy);
+                ShapeRegistry::appendSvgArc(pagePath, QPointF(dx + 5 * sx, dy + 10 * sy),
+                                            QPointF(dx + 10 * sx, dy + 5 * sy),
+                                            5 * sx, 5 * sy, false, true);
+                pagePath.lineTo(dx + 78 * sx, dy + 5 * sy);
+                ShapeRegistry::appendSvgArc(pagePath, QPointF(dx + 78 * sx, dy + 5 * sy),
+                                            QPointF(dx + 83 * sx, dy + 10 * sy),
+                                            5 * sx, 5 * sy, false, true);
+                pagePath.lineTo(dx + 83 * sx, dy + 50 * sy);
+                ShapeRegistry::appendSvgArc(pagePath, QPointF(dx + 83 * sx, dy + 50 * sy),
+                                            QPointF(dx + 44 * sx, dy + 50 * sy),
+                                            50 * sx, 50 * sy, false, false);
+                ShapeRegistry::appendSvgArc(pagePath, QPointF(dx + 44 * sx, dy + 50 * sy),
+                                            QPointF(dx + 5 * sx, dy + 50 * sy),
+                                            50 * sx, 50 * sy, false, true);
+                pagePath.closeSubpath();
+                return pagePath;
+            };
+
+            painter.setBrush(fill);
+            painter.drawPath(page(0, 0));
+            painter.drawPath(page(-5 * sx, 5 * sy));
+            painter.setBrush(Qt::NoBrush);
+        }
+        else if (key == QLatin1String("flowchart.or"))
+        {
+            // Or: the two diagonals of the ellipse.
+            const double px = local.width() / 70.0;
+            const double py = local.height() / 70.0;
+
+            painter.drawLine(QPointF(10 * px, 60 * py), QPointF(60 * px, 10 * py));
+            painter.drawLine(QPointF(10 * px, 10 * py), QPointF(60 * px, 60 * py));
+        }
+        else if (key == QLatin1String("flowchart.or_2"))
+        {
+            // Or 2: a plus inside the ellipse.
+            const double px = local.width() / 70.0;
+            const double py = local.height() / 70.0;
+
+            painter.drawLine(QPointF(0, 35 * py), QPointF(70 * px, 35 * py));
+            painter.drawLine(QPointF(35 * px, 0), QPointF(35 * px, 70 * py));
+        }
+        else if (key == QLatin1String("flowchart.parallel_mode"))
+        {
+            // Parallel Mode: the accent filled diamonds are the fill path,
+            // the two horizontal bars are stroked on top.
+            const double px = local.width() / 94.0;
+            const double py = local.height() / 40.0;
+
+            painter.drawLine(QPointF(0, 0), QPointF(94 * px, 0));
+            painter.drawLine(QPointF(0, 40 * py), QPointF(94 * px, 40 * py));
+        }
+        else if (key == QLatin1String("flowchart.predefined_process"))
+        {
+            // Predefined Process: the two vertical bars.
+            const double px = local.width() / 98.0;
+            const double py = local.height() / 60.0;
+
+            painter.drawLine(QPointF(14 * px, 0), QPointF(14 * px, 60 * py));
+            painter.drawLine(QPointF(84 * px, 0), QPointF(84 * px, 60 * py));
+        }
+        else if (key == QLatin1String("flowchart.sequential_data"))
+        {
+            // Sequential Data: the flat bottom edge of the circle.
+            const double px = local.width() / 99.0;
+            const double py = local.height() / 99.0;
+
+            painter.drawLine(QPointF(49.5 * px, 99 * py), QPointF(99 * px, 99 * py));
+        }
+        else if (key == QLatin1String("flowchart.sort"))
+        {
+            // Sort: the horizontal divider.
+            const double px = local.width() / 98.0;
+            const double py = local.height() / 98.0;
+
+            painter.drawLine(QPointF(0, 49 * py), QPointF(98 * px, 49 * py));
+        }
+        else if (key == QLatin1String("flowchart.summing_function"))
+        {
+            // Summing Function: a plus inside the circle.
+            const double px = local.width() / 70.0;
+            const double py = local.height() / 70.0;
+
+            painter.drawLine(QPointF(0, 35 * py), QPointF(70 * px, 35 * py));
+            painter.drawLine(QPointF(35 * px, 0), QPointF(35 * px, 70 * py));
+        }
+        else if (key == QLatin1String("flowchart.summing_junction"))
+        {
+            // Summing Junction: the two diagonals of the circle.
+            const double px = local.width() / 70.0;
+            const double py = local.height() / 70.0;
+
+            painter.drawLine(QPointF(10 * px, 60 * py), QPointF(60 * px, 10 * py));
+            painter.drawLine(QPointF(10 * px, 10 * py), QPointF(60 * px, 60 * py));
+        }
+        else if (key == QLatin1String("internalStorage"))
+        {
+            // InternalStorageShape.paintForeground: cross lines at dx/dy,
+            // pushed inwards by the corner radius when the body is rounded.
+            double inset = 0.0;
+
+            if (cell.styleFlag(QStringLiteral("rounded")))
+            {
+                const double f = qBound(0.0,
+                    cell.styleNumber(QStringLiteral("arcSize"), 15.0), 100.0) / 100.0;
+                inset = qMin(local.width() * f, local.height() * f);
+            }
+
+            const double dx = qMax(inset, qMin(local.width(),
+                cell.styleNumber(QStringLiteral("dx"), 20.0)));
+            const double dy = qMax(inset, qMin(local.height(),
+                cell.styleNumber(QStringLiteral("dy"), 20.0)));
+
+            painter.drawLine(QPointF(0, dy), QPointF(local.width(), dy));
+            painter.drawLine(QPointF(dx, 0), QPointF(dx, local.height()));
         }
         else if (cell.styleValue(QStringLiteral("bpmnType")) == QLatin1String("exclusive"))
         {

@@ -61,6 +61,19 @@ QString normalizeStencilKey(const QString &shape)
         return it != arrows2.constEnd() ? it.value() : shape.toLower();
     }
 
+    // flowchart.xml registers every stencil as mxgraph.flowchart.<name> with
+    // blanks replaced by underscores and everything lower cased (Graph.js,
+    // mxStencilRegistry.loadStencilSet). Keep the stencil name verbatim so
+    // that only the names draw.io really registers resolve to a shape.
+    const QString flowchartPrefix = QStringLiteral("mxgraph.flowchart.");
+
+    if (shape.startsWith(flowchartPrefix, Qt::CaseInsensitive))
+    {
+        QString name = shape.mid(flowchartPrefix.size()).toLower();
+        name.replace(QLatin1Char(' '), QLatin1Char('_'));
+        return QStringLiteral("flowchart.") + name;
+    }
+
     const QString prefix = QStringLiteral("mxgraph.basic.");
 
     if (!shape.startsWith(prefix, Qt::CaseInsensitive))
@@ -152,6 +165,128 @@ double arcSizeFor(const StyleMap &style)
     return qBound(0.0, arcSize, 50.0) / 100.0;
 }
 
+/// Corner radius of mxRectangleShape.paintBackground(): either a percentage
+/// of the smaller side or, with absoluteArcSize=1, half of arcSize in pixels.
+double cornerRadiusFor(const StyleMap &style, double w, double h)
+{
+    if (Style::flag(style, QStringLiteral("absoluteArcSize")))
+    {
+        return qMin(qMin(w, h) / 2.0,
+                    Style::number(style, QStringLiteral("arcSize"), 15.0) / 2.0);
+    }
+
+    return qMin(w, h) * arcSizeFor(style);
+}
+
+/// Corner spacing used by mxShape.addPoints(): draw.io divides the style's
+/// arcSize by two (mxConstants.LINE_ARCSIZE is 20).
+double pointArcSizeFor(const StyleMap &style)
+{
+    return qMax(0.0, Style::number(style, QStringLiteral("arcSize"), 20.0) / 2.0);
+}
+
+/// Port of mxShape.addPoints(): draws the polygon \a pts, optionally with
+/// rounded corners (a virtual waypoint is inserted before the first point,
+/// exactly like draw.io does for closed shapes).
+void addPoints(QPainterPath &path, QVector<QPointF> pts, bool rounded,
+               double arcSize, bool close)
+{
+    if (pts.isEmpty())
+    {
+        return;
+    }
+
+    const QPointF last = pts.last();
+
+    if (close && rounded)
+    {
+        const QPointF first = pts.first();
+        pts.prepend(QPointF(last.x() + (first.x() - last.x()) / 2.0,
+                            last.y() + (first.y() - last.y()) / 2.0));
+    }
+
+    const int count = pts.size();
+    QPointF current = pts.first();
+    int index = 1;
+
+    path.moveTo(current);
+
+    while (index < (close ? count : count - 1))
+    {
+        QPointF tmp = pts.at(index % count);
+        double dx = current.x() - tmp.x();
+        double dy = current.y() - tmp.y();
+
+        if (rounded && (dx != 0.0 || dy != 0.0))
+        {
+            double distance = std::sqrt(dx * dx + dy * dy);
+            const double offset = qMin(arcSize, distance / 2.0);
+            path.lineTo(tmp.x() + dx * offset / distance,
+                        tmp.y() + dy * offset / distance);
+
+            QPointF next = pts.at((index + 1) % count);
+
+            while (index < count - 2 && qRound(next.x() - tmp.x()) == 0
+                   && qRound(next.y() - tmp.y()) == 0)
+            {
+                next = pts.at((index + 2) % count);
+                ++index;
+            }
+
+            dx = next.x() - tmp.x();
+            dy = next.y() - tmp.y();
+            distance = qMax(1.0, std::sqrt(dx * dx + dy * dy));
+            const double nextOffset = qMin(arcSize, distance / 2.0);
+            const QPointF end(tmp.x() + dx * nextOffset / distance,
+                              tmp.y() + dy * nextOffset / distance);
+            path.quadTo(tmp, end);
+            tmp = end;
+        }
+        else
+        {
+            path.lineTo(tmp);
+        }
+
+        current = tmp;
+        ++index;
+    }
+
+    if (close)
+    {
+        path.closeSubpath();
+    }
+    else
+    {
+        path.lineTo(last);
+    }
+}
+
+/// mxStencil.computeAspect() for an aspect="variable" stencil: the stencil's
+/// own coordinate system (<shape w= h=>) is scaled onto the cell rect.
+struct StencilFrame
+{
+    double x = 0.0;
+    double y = 0.0;
+    double sx = 1.0;
+    double sy = 1.0;
+
+    QPointF p(double px, double py) const
+    {
+        return QPointF(x + px * sx, y + py * sy);
+    }
+};
+
+StencilFrame stencilFrame(double x, double y, double w, double h,
+                          double stencilWidth, double stencilHeight)
+{
+    StencilFrame frame;
+    frame.x = x;
+    frame.y = y;
+    frame.sx = w / stencilWidth;
+    frame.sy = h / stencilHeight;
+    return frame;
+}
+
 } // namespace
 
 
@@ -209,7 +344,13 @@ void addSvgArc(QPainterPath &path, const QPointF &from, const QPointF &to,
             d -= 2.0 * M_PI;
         }
 
-        if ((qAbs(d) > M_PI) == largeArc)
+        // A half ellipse (|d| == pi) satisfies both flags, which is what
+        // draw.io's mxUtils.arcToCurves() produces for shapes such as
+        // "Direct Data" whose end points are diametrically opposed.
+        const double magnitude = qAbs(d);
+        const bool halfArc = qAbs(magnitude - M_PI) < 1e-9;
+
+        if ((magnitude > M_PI) == largeArc || halfArc)
         {
             center = candidate;
             startAngle = a0;
@@ -387,17 +528,6 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
                        "outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(60, 110), QStringLiteral("uml"));
-    add(QStringLiteral("process"), QStringLiteral("Process"),
-        QStringLiteral("shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;"
-                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
-        QSizeF(150, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("step"), QStringLiteral("Step"),
-        QStringLiteral("shape=step;perimeter=stepPerimeter;whiteSpace=wrap;html=1;fixedSize=1;"
-                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
-        QSizeF(150, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("terminator"), QStringLiteral("Terminator"),
-        QStringLiteral("rounded=1;arcSize=50;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
-        QSizeF(140, 60), QStringLiteral("flowchart"));
     const QString blue = QStringLiteral("fillColor=#dae8fc;strokeColor=#6c8ebf;");
     const QString green = QStringLiteral("fillColor=#d5e8d4;strokeColor=#82b366;");
     const QString orange = QStringLiteral("fillColor=#ffe6cc;strokeColor=#d79b00;");
@@ -678,80 +808,149 @@ QVector<ShapeDefinition> toolboxShapes()
         QSizeF(160, 240), QStringLiteral("advanced"));
 
     // --- flowchart -------------------------------------------------------
-    add(QStringLiteral("decision"), QStringLiteral("Decision"),
-        QStringLiteral("rhombus;") + plain + orange, QSizeF(130, 90), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.data"), QStringLiteral("Data"),
-        QStringLiteral("shape=parallelogram;perimeter=parallelogramPerimeter;fixedSize=1;")
-            + plain + purple, QSizeF(140, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.document"), QStringLiteral("Document"),
-        QStringLiteral("shape=document;boundedLbl=1;") + plain + blue,
-        QSizeF(140, 90), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.multidocument"), QStringLiteral("Multidocument"),
-        QStringLiteral("shape=mxgraph.flowchart.multi-document;") + plain + blue,
-        QSizeF(140, 90), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.predefined"), QStringLiteral("Predefined"),
-        QStringLiteral("shape=process;backgroundOutline=1;") + plain + blue,
-        QSizeF(150, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.preparation"), QStringLiteral("Preparation"),
-        QStringLiteral("shape=hexagon;perimeter=hexagonPerimeter2;fixedSize=1;") + plain + purple,
-        QSizeF(140, 80), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.manualinput"), QStringLiteral("Manualinput"),
-        QStringLiteral("shape=mxgraph.flowchart.manual_input;") + plain + yellow,
-        QSizeF(140, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.manualoperation"), QStringLiteral("Manualoperation"),
-        QStringLiteral("shape=mxgraph.flowchart.manual_operation;") + plain + yellow,
-        QSizeF(140, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.delay"), QStringLiteral("Delay"),
-        QStringLiteral("shape=mxgraph.flowchart.delay;") + plain + orange,
-        QSizeF(130, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.display"), QStringLiteral("Display"),
-        QStringLiteral("shape=mxgraph.flowchart.display;") + plain + blue,
-        QSizeF(150, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.connector"), QStringLiteral("Connector"),
-        QStringLiteral("shape=ellipse;") + plain + green,
-        QSizeF(60, 60), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.offpage"), QStringLiteral("Offpage"),
-        QStringLiteral("shape=mxgraph.flowchart.off_page_reference;") + plain + yellow,
+    // Exactly the palette of Sidebar-Flowchart.js, using its style strings
+    // verbatim: the stencil entries of flowchart.xml (mxgraph.flowchart.*)
+    // plus the registered shapes card, hexagon, internalStorage, manualInput,
+    // offPageConnector, parallelogram, process, tape and trapezoid, and the
+    // Transfer arrow.
+    add(QStringLiteral("flowchart.annotation1"), QStringLiteral("Annotation"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.annotation_1;"
+                       "align=left;pointerEvents=1;"),
+        QSizeF(50, 100), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.annotation2"), QStringLiteral("Annotation"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.annotation_2;"
+                       "align=left;labelPosition=right;pointerEvents=1;"),
+        QSizeF(50, 100), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.card"), QStringLiteral("Card"),
+        QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;shape=card;"
+                       "whiteSpace=wrap;size=20;arcSize=12;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.collate"), QStringLiteral("Collate"),
+        QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "shape=mxgraph.flowchart.collate;"),
         QSizeF(100, 100), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.merge"), QStringLiteral("Merge"),
-        QStringLiteral("shape=mxgraph.flowchart.merge_or_storage;") + plain + green,
-        QSizeF(100, 80), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.extract"), QStringLiteral("Extract"),
-        QStringLiteral("shape=mxgraph.flowchart.extract_or_measurement;") + plain + green,
-        QSizeF(100, 80), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.or"), QStringLiteral("Or"),
-        QStringLiteral("shape=ellipse;fcType=or;") + plain + green,
+    add(QStringLiteral("flowchart.data"), QStringLiteral("Data"),
+        QStringLiteral("shape=parallelogram;html=1;strokeWidth=2;"
+                       "perimeter=parallelogramPerimeter;whiteSpace=wrap;rounded=1;"
+                       "arcSize=12;size=0.23;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.database"), QStringLiteral("Database"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.database;"
+                       "whiteSpace=wrap;"),
+        QSizeF(60, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.decision"), QStringLiteral("Decision"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.decision;"
+                       "whiteSpace=wrap;"),
+        QSizeF(100, 100), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.delay"), QStringLiteral("Delay"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.delay;"
+                       "whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.directData"), QStringLiteral("Direct Data"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.direct_data;"
+                       "whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.display"), QStringLiteral("Display"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.display;"
+                       "whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.document"), QStringLiteral("Document"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.document2;"
+                       "whiteSpace=wrap;size=0.25;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.extract"), QStringLiteral("Extract or Measurement"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.extract_or_measurement;"
+                       "whiteSpace=wrap;"),
+        QSizeF(95, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.internalStorage"), QStringLiteral("Internal Storage"),
+        QStringLiteral("shape=internalStorage;whiteSpace=wrap;html=1;dx=15;dy=15;"
+                       "rounded=1;arcSize=8;strokeWidth=2;"),
         QSizeF(70, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.summing"), QStringLiteral("Summing"),
-        QStringLiteral("shape=ellipse;fcType=summing;") + plain + green,
+    add(QStringLiteral("flowchart.loopLimit"), QStringLiteral("Loop Limit"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.loop_limit;"
+                       "whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.manualInput"), QStringLiteral("Manual Input"),
+        QStringLiteral("html=1;strokeWidth=2;shape=manualInput;boundedLbl=1;"
+                       "whiteSpace=wrap;rounded=1;size=26;arcSize=11;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.manualOperation"), QStringLiteral("Manual Operation"),
+        QStringLiteral("verticalLabelPosition=middle;verticalAlign=middle;html=1;"
+                       "shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;"
+                       "size=0.23;arcSize=10;flipV=1;labelPosition=center;align=center;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.merge"), QStringLiteral("Merge or Storage"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.merge_or_storage;"
+                       "whiteSpace=wrap;"),
+        QSizeF(95, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.multiDocument"), QStringLiteral("Multi-Document"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.multi-document;"
+                       "whiteSpace=wrap;boundedLbl=1;"),
+        QSizeF(88, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.offPage"), QStringLiteral("Off-Page Reference"),
+        QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "shape=offPageConnector;rounded=0;size=0.5;"),
+        QSizeF(60, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.onPage"), QStringLiteral("On-Page Reference"),
+        QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "shape=mxgraph.flowchart.on-page_reference;"),
+        QSizeF(60, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.or"), QStringLiteral("Or"),
+        QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "shape=mxgraph.flowchart.or_2;"),
         QSizeF(70, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.collate"), QStringLiteral("Collate"),
-        QStringLiteral("shape=mxgraph.flowchart.collate;") + plain + purple,
-        QSizeF(90, 90), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.sort"), QStringLiteral("Sort"),
-        QStringLiteral("shape=rhombus;fcType=sort;") + plain + purple,
-        QSizeF(100, 90), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.storeddata"), QStringLiteral("Storeddata"),
-        QStringLiteral("shape=mxgraph.flowchart.stored_data;") + plain + blue,
-        QSizeF(140, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.internalstorage"), QStringLiteral("Internalstorage"),
-        QStringLiteral("shape=mxgraph.flowchart.internal_storage;") + plain + blue,
-        QSizeF(130, 80), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.annotation"), QStringLiteral("Annotation"),
-        QStringLiteral("shape=mxgraph.flowchart.annotation_1;align=left;verticalAlign=top;")
-            + plain, QSizeF(50, 100), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.looplimit"), QStringLiteral("Looplimit"),
-        QStringLiteral("shape=mxgraph.flowchart.loop_limit;") + plain + blue,
-        QSizeF(130, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.card"), QStringLiteral("Card"),
-        QStringLiteral("shape=mxgraph.flowchart.card;") + plain + blue,
-        QSizeF(130, 70), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.directdata"), QStringLiteral("Directdata"),
-        QStringLiteral("shape=cylinder3;boundedLbl=1;backgroundOutline=1;size=15;")
-            + plain + blue, QSizeF(120, 80), QStringLiteral("flowchart"));
-    add(QStringLiteral("fc.sequentialdata"), QStringLiteral("Sequentialdata"),
-        QStringLiteral("shape=mxgraph.flowchart.sequential_data;") + plain + blue,
-        QSizeF(120, 80), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.tape"), QStringLiteral("Tape"),
+        QStringLiteral("shape=tape;whiteSpace=wrap;html=1;strokeWidth=2;size=0.19"),
+        QSizeF(100, 65), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.parallelMode"), QStringLiteral("Parallel Mode"),
+        QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "shape=mxgraph.flowchart.parallel_mode;accentColor=#ffff00;"
+                       "pointerEvents=1"),
+        QSizeF(95, 40), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.predefinedProcess"), QStringLiteral("Predefined Process"),
+        QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "shape=process;whiteSpace=wrap;rounded=1;size=0.14;arcSize=6;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.preparation"), QStringLiteral("Preparation"),
+        QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "shape=hexagon;perimeter=hexagonPerimeter2;arcSize=6;size=0.27;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.process"), QStringLiteral("Process"),
+        QStringLiteral("rounded=1;whiteSpace=wrap;html=1;absoluteArcSize=1;arcSize=14;"
+                       "strokeWidth=2;"),
+        QSizeF(100, 100), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.sequentialData"), QStringLiteral("Sequential Data"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.sequential_data;"
+                       "whiteSpace=wrap;"),
+        QSizeF(100, 100), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.sort"), QStringLiteral("Sort"),
+        QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "shape=mxgraph.flowchart.sort;"),
+        QSizeF(100, 100), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.start1"), QStringLiteral("Start"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.start_1;"
+                       "whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.start2"), QStringLiteral("Start"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.start_2;"
+                       "whiteSpace=wrap;"),
+        QSizeF(100, 100), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.storedData"), QStringLiteral("Stored Data"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.stored_data;"
+                       "whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.summingJunction"), QStringLiteral("Summing Junction"),
+        QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "shape=mxgraph.flowchart.summing_junction;"),
+        QSizeF(70, 70), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.terminator"), QStringLiteral("Terminator"),
+        QStringLiteral("strokeWidth=2;html=1;shape=mxgraph.flowchart.terminator;"
+                       "whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("flowchart"));
+    add(QStringLiteral("flowchart.transfer"), QStringLiteral("Transfer"),
+        QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "strokeWidth=2;shape=mxgraph.arrows2.arrow;dy=0.6;dx=40;notch=0;"),
+        QSizeF(100, 70), QStringLiteral("flowchart"));
 
     // --- arrows ----------------------------------------------------------
     // Exactly the arrows2 palette of draw.io (shapes/mxArrows.js), using the
@@ -1397,36 +1596,47 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("hexagon"))
     {
-        const double inset = qMin(w * 0.2, h * 0.5);
-        path.moveTo(point(inset, 0));
-        path.lineTo(point(w - inset, 0));
-        path.lineTo(point(w, h / 2));
-        path.lineTo(point(w - inset, h));
-        path.lineTo(point(inset, h));
-        path.lineTo(point(0, h / 2));
-        path.closeSubpath();
+        // HexagonShape.redrawPath: size is a percentage unless fixedSize=1.
+        const bool fixed = probe.styleFlag(QStringLiteral("fixedSize"));
+        const double size = Style::number(probe.style, QStringLiteral("size"),
+                                          fixed ? 20.0 : 0.25);
+        const double s = fixed ? qBound(0.0, size, w * 0.5)
+                               : w * qBound(0.0, size, 1.0);
+
+        addPoints(path, {point(s, 0), point(w - s, 0), point(w, h * 0.5),
+                         point(w - s, h), point(s, h), point(0, h * 0.5)},
+                  probe.styleFlag(QStringLiteral("rounded")), pointArcSizeFor(probe.style),
+                  true);
         return path;
     }
 
     if (key == QLatin1String("parallelogram"))
     {
-        const double skew = qMin(w * 0.2, h * 0.8);
-        path.moveTo(point(skew, 0));
-        path.lineTo(point(w, 0));
-        path.lineTo(point(w - skew, h));
-        path.lineTo(point(0, h));
-        path.closeSubpath();
+        // ParallelogramShape.redrawPath
+        const bool fixed = probe.styleFlag(QStringLiteral("fixedSize"));
+        const double size = Style::number(probe.style, QStringLiteral("size"),
+                                          fixed ? 20.0 : 0.2);
+        const double dx = fixed ? qBound(0.0, size, w)
+                                : w * qBound(0.0, size, 1.0);
+
+        addPoints(path, {point(0, h), point(dx, 0), point(w, 0), point(w - dx, h)},
+                  probe.styleFlag(QStringLiteral("rounded")), pointArcSizeFor(probe.style),
+                  true);
         return path;
     }
 
     if (key == QLatin1String("trapezoid"))
     {
-        const double inset = qMin(w * 0.2, h * 0.8);
-        path.moveTo(point(inset, 0));
-        path.lineTo(point(w - inset, 0));
-        path.lineTo(point(w, h));
-        path.lineTo(point(0, h));
-        path.closeSubpath();
+        // TrapezoidShape.redrawPath: the offset is capped at half the width.
+        const bool fixed = probe.styleFlag(QStringLiteral("fixedSize"));
+        const double size = Style::number(probe.style, QStringLiteral("size"),
+                                          fixed ? 20.0 : 0.2);
+        const double dx = fixed ? qBound(0.0, size, w * 0.5)
+                                : w * qBound(0.0, size, 0.5);
+
+        addPoints(path, {point(0, h), point(dx, 0), point(w - dx, 0), point(w, h)},
+                  probe.styleFlag(QStringLiteral("rounded")), pointArcSizeFor(probe.style),
+                  true);
         return path;
     }
 
@@ -1521,12 +1731,18 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("document"))
     {
-        const double wave = qMin(h * 0.15, 20.0);
+        // DocumentShape.redrawPath: the bottom edge is a wave made of two
+        // quadratic curves whose height comes from size (0.3 by default).
+        const double dy = h * qBound(0.0,
+            Style::number(probe.style, QStringLiteral("size"), 0.3), 1.0);
+        const double fy = 1.4;
+
         path.moveTo(point(0, 0));
         path.lineTo(point(w, 0));
-        path.lineTo(point(w, h - wave));
-        path.cubicTo(point(w * 0.75, h - wave * 2.4), point(w * 0.25, h + wave * 0.6),
-                     point(0, h - wave));
+        path.lineTo(point(w, h - dy / 2.0));
+        path.quadTo(point(w * 3.0 / 4.0, h - dy * fy), point(w / 2.0, h - dy / 2.0));
+        path.quadTo(point(w / 4.0, h - dy * (1 - fy)), point(0, h - dy / 2.0));
+        path.lineTo(point(0, dy / 2.0));
         path.closeSubpath();
         return path;
     }
@@ -1688,7 +1904,19 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("process"))
     {
-        path.addRect(rect);
+        // ProcessShape extends mxRectangleShape, so the body is a plain or
+        // rounded rectangle; the two inset lines are decorations that
+        // ShapeRenderer.cpp strokes on top.
+        if (probe.styleFlag(QStringLiteral("rounded")))
+        {
+            const double r = cornerRadiusFor(probe.style, w, h);
+            path.addRoundedRect(rect, r, r);
+        }
+        else
+        {
+            path.addRect(rect);
+        }
+
         return path;
     }
 
@@ -1755,13 +1983,18 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("internalStorage"))
     {
-        path.addRect(rect);
-        const double dx = qBound(0.0, Style::number(probe.style, QStringLiteral("dx"), 20.0), w);
-        const double dy = qBound(0.0, Style::number(probe.style, QStringLiteral("dy"), 20.0), h);
-        path.moveTo(point(0, dy));
-        path.lineTo(point(w, dy));
-        path.moveTo(point(dx, 0));
-        path.lineTo(point(dx, h));
+        // InternalStorageShape extends mxRectangleShape; the two inset lines
+        // are decorations in ShapeRenderer.cpp so the fill stays solid.
+        if (probe.styleFlag(QStringLiteral("rounded")))
+        {
+            const double r = cornerRadiusFor(probe.style, w, h);
+            path.addRoundedRect(rect, r, r);
+        }
+        else
+        {
+            path.addRect(rect);
+        }
+
         return path;
     }
 
@@ -3279,158 +3512,551 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
     }
 
     // --- flowchart -------------------------------------------------------
-    if (key == QLatin1String("mxgraph.flowchart.manual_input"))
+    // Literal ports of the stencil set mxGraph.flowchart (flowchart.xml).
+    // The <move>/<line>/<arc>/<ellipse>/<roundrect>/<close> commands are
+    // replayed in document order and scaled from the stencil units
+    // (<shape w= h=>) to the cell rect, like mxStencil.computeAspect().
+    // Foreground paths that draw.io strokes on top of the outline are
+    // painted as decorations in ShapeRenderer.cpp so they cannot punch
+    // holes into the filled path.
+
+    // Annotation 1
+    if (key == QLatin1String("flowchart.annotation_1"))
     {
-        path.moveTo(point(0, h));
-        path.lineTo(point(0, h * 0.25));
-        path.lineTo(point(w, 0));
-        path.lineTo(point(w, h));
+        const StencilFrame f = stencilFrame(x, y, w, h, 50, 98);
+        path.moveTo(f.p(50, 0));
+        path.lineTo(f.p(0, 0));
+        path.lineTo(f.p(0, 98));
+        path.lineTo(f.p(50, 98));
+        return path;
+    }
+
+    // Annotation 2
+    if (key == QLatin1String("flowchart.annotation_2"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 100, 98);
+        path.moveTo(f.p(100, 0));
+        path.lineTo(f.p(50, 0));
+        path.lineTo(f.p(50, 98));
+        path.lineTo(f.p(100, 98));
+        return path;
+    }
+
+    // Card
+    if (key == QLatin1String("flowchart.card"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 98, 60);
+        path.moveTo(f.p(19, 0));
+        path.lineTo(f.p(93, 0));
+        addSvgArc(path, f.p(93, 0), f.p(98, 5), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(98, 55));
+        addSvgArc(path, f.p(98, 55), f.p(93, 60), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(5, 60));
+        addSvgArc(path, f.p(5, 60), f.p(0, 55), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(0, 20));
+        path.lineTo(f.p(19, 0));
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.manual_operation"))
+    // Collate
+    if (key == QLatin1String("flowchart.collate"))
     {
-        path.moveTo(point(0, 0));
-        path.lineTo(point(w, 0));
-        path.lineTo(point(w * 0.85, h));
-        path.lineTo(point(w * 0.15, h));
+        const StencilFrame f = stencilFrame(x, y, w, h, 96.82, 98);
+        path.moveTo(f.p(92.41, 0));
+        addSvgArc(path, f.p(92.41, 0), f.p(95.41, 5), 6 * f.sx, 3.5 * f.sy, false, true);
+        path.lineTo(f.p(1.41, 93));
+        addSvgArc(path, f.p(1.41, 93), f.p(4.41, 98), 6 * f.sx, 3.5 * f.sy, false, false);
+        path.lineTo(f.p(92.41, 98));
+        addSvgArc(path, f.p(92.41, 98), f.p(95.41, 93), 6 * f.sx, 3.5 * f.sy, false, false);
+        path.lineTo(f.p(1.41, 5));
+        addSvgArc(path, f.p(1.41, 5), f.p(4.41, 0), 6 * f.sx, 3.5 * f.sy, false, true);
+        path.lineTo(f.p(92.41, 0));
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.delay"))
+    // Data
+    if (key == QLatin1String("flowchart.data"))
     {
-        path.moveTo(point(0, 0));
-        path.lineTo(point(w - h / 2.0, 0));
-        path.arcTo(QRectF(x + w - h, y, h, h), 90, -180);
-        path.lineTo(point(0, h));
+        const StencilFrame f = stencilFrame(x, y, w, h, 98.77, 60.24);
+        path.moveTo(f.p(19.37, 5.12));
+        addSvgArc(path, f.p(19.37, 5.12), f.p(24.37, 0.12), 6 * f.sx, 12 * f.sy, false, true);
+        path.lineTo(f.p(93.37, 0.12));
+        addSvgArc(path, f.p(93.37, 0.12), f.p(98.37, 5.12), 5 * f.sx, 4 * f.sy, false, true);
+        path.lineTo(f.p(79.37, 55.12));
+        addSvgArc(path, f.p(79.37, 55.12), f.p(74.37, 60.12), 6 * f.sx, 12 * f.sy, false, true);
+        path.lineTo(f.p(4.37, 60.12));
+        addSvgArc(path, f.p(4.37, 60.12), f.p(0.37, 55.12), 5 * f.sx, 4 * f.sy, false, true);
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.display"))
+    // Database
+    if (key == QLatin1String("flowchart.database"))
     {
-        path.moveTo(point(w * 0.15, 0));
-        path.lineTo(point(w, 0));
-        path.lineTo(point(w, h));
-        path.lineTo(point(0, h));
-        path.lineTo(point(w * 0.15, 0));
+        const StencilFrame f = stencilFrame(x, y, w, h, 60, 60);
+        path.moveTo(f.p(0, 50));
+        path.lineTo(f.p(0, 10));
+        addSvgArc(path, f.p(0, 10), f.p(60, 10), 30 * f.sx, 10 * f.sy, false, true);
+        path.lineTo(f.p(60, 50));
+        addSvgArc(path, f.p(60, 50), f.p(0, 50), 30 * f.sx, 10 * f.sy, false, true);
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.off_page_reference"))
+    // Decision
+    if (key == QLatin1String("flowchart.decision"))
     {
-        path.moveTo(point(0, 0));
-        path.lineTo(point(w, 0));
-        path.lineTo(point(w, h * 0.72));
-        path.lineTo(point(w / 2.0, h));
-        path.lineTo(point(0, h * 0.72));
+        const StencilFrame f = stencilFrame(x, y, w, h, 100, 100);
+        path.moveTo(f.p(50, 0));
+        path.lineTo(f.p(100, 50));
+        path.lineTo(f.p(50, 100));
+        path.lineTo(f.p(0, 50));
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.merge_or_storage"))
+    // Delay
+    if (key == QLatin1String("flowchart.delay"))
     {
-        path.moveTo(point(0, 0));
-        path.lineTo(point(w, 0));
-        path.lineTo(point(w / 2.0, h));
+        const StencilFrame f = stencilFrame(x, y, w, h, 98.25, 60);
+        path.moveTo(f.p(0, 5));
+        addSvgArc(path, f.p(0, 5), f.p(5, 0), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(79, 0));
+        addSvgArc(path, f.p(79, 0), f.p(79, 60), 33 * f.sx, 33 * f.sy, false, true);
+        path.lineTo(f.p(5, 60));
+        addSvgArc(path, f.p(5, 60), f.p(0, 55), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(0, 5));
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.extract_or_measurement"))
+    // Direct Data
+    if (key == QLatin1String("flowchart.direct_data"))
     {
-        path.moveTo(point(w / 2.0, 0));
-        path.lineTo(point(w, h));
-        path.lineTo(point(0, h));
+        const StencilFrame f = stencilFrame(x, y, w, h, 98, 60);
+        path.moveTo(f.p(9, 0));
+        path.lineTo(f.p(89, 0));
+        addSvgArc(path, f.p(89, 0), f.p(89, 60), 9 * f.sx, 30 * f.sy, true, true);
+        path.lineTo(f.p(9, 60));
+        addSvgArc(path, f.p(9, 60), f.p(9, 0), 9 * f.sx, 30 * f.sy, true, true);
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.collate"))
+    // Display
+    if (key == QLatin1String("flowchart.display"))
     {
-        path.moveTo(point(0, 0));
-        path.lineTo(point(w, 0));
-        path.lineTo(point(w / 2.0, h / 2.0));
-        path.lineTo(point(w, h));
-        path.lineTo(point(0, h));
-        path.lineTo(point(w / 2.0, h / 2.0));
+        const StencilFrame f = stencilFrame(x, y, w, h, 98.25, 60);
+        path.moveTo(f.p(0, 30));
+        addSvgArc(path, f.p(0, 30), f.p(39, 0), 60 * f.sx, 60 * f.sy, false, true);
+        path.lineTo(f.p(79, 0));
+        addSvgArc(path, f.p(79, 0), f.p(79, 60), 33 * f.sx, 33 * f.sy, false, true);
+        path.lineTo(f.p(39, 60));
+        addSvgArc(path, f.p(39, 60), f.p(0, 30), 60 * f.sx, 60 * f.sy, false, true);
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.stored_data"))
+    // Document
+    if (key == QLatin1String("flowchart.document"))
     {
-        path.moveTo(point(0, 0));
-        path.lineTo(point(w * 0.82, 0));
-        path.quadTo(point(w, 0), point(w, h / 2.0));
-        path.quadTo(point(w, h), point(w * 0.82, h));
-        path.lineTo(point(0, h));
+        const StencilFrame f = stencilFrame(x, y, w, h, 98, 60.9);
+        path.moveTo(f.p(0, 5));
+        addSvgArc(path, f.p(0, 5), f.p(5, 0), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(93, 0));
+        addSvgArc(path, f.p(93, 0), f.p(98, 5), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(98, 55));
+        addSvgArc(path, f.p(98, 55), f.p(49, 55), 70 * f.sx, 70 * f.sy, false, false);
+        addSvgArc(path, f.p(49, 55), f.p(0, 55), 70 * f.sx, 70 * f.sy, false, true);
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.sequential_data"))
+    // Extract or Measurement
+    if (key == QLatin1String("flowchart.extract_or_measurement"))
     {
-        path.addRoundedRect(rect, h / 2.0, h / 2.0);
-        return path;
-    }
-
-    if (key == QLatin1String("mxgraph.flowchart.loop_limit"))
-    {
-        path.moveTo(point(0, 0));
-        path.lineTo(point(w * 0.8, 0));
-        path.lineTo(point(w, h * 0.2));
-        path.lineTo(point(w, h));
-        path.lineTo(point(0, h));
+        const StencilFrame f = stencilFrame(x, y, w, h, 95.01, 60.84);
+        path.moveTo(f.p(3.5, 60.84));
+        path.lineTo(f.p(91.5, 60.84));
+        addSvgArc(path, f.p(91.5, 60.84), f.p(94.5, 55.84), 3.5 * f.sx, 3.5 * f.sy, false, false);
+        path.lineTo(f.p(49.5, 0.84));
+        addSvgArc(path, f.p(49.5, 0.84), f.p(45.5, 0.84), 3.5 * f.sx, 3.5 * f.sy, false, false);
+        path.lineTo(f.p(0.5, 55.84));
+        addSvgArc(path, f.p(0.5, 55.84), f.p(3.5, 60.84), 3.5 * f.sx, 3.5 * f.sy, false, false);
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.card"))
+    // Internal Storage
+    if (key == QLatin1String("flowchart.internal_storage"))
     {
-        path.moveTo(point(w * 0.18, 0));
-        path.lineTo(point(w, 0));
-        path.lineTo(point(w, h));
-        path.lineTo(point(0, h));
-        path.lineTo(point(0, h * 0.18));
+        const StencilFrame f = stencilFrame(x, y, w, h, 70, 70);
+        const double r = qMin(70 * f.sx, 70 * f.sy) * 7.143 / 100.0;
+        path.addRoundedRect(QRectF(f.p(0, 0), QSizeF(70 * f.sx, 70 * f.sy)), r, r);
+        return path;
+    }
+
+    // Loop Limit
+    if (key == QLatin1String("flowchart.loop_limit"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 98, 60);
+        path.moveTo(f.p(19, 0));
+        path.lineTo(f.p(79, 0));
+        path.lineTo(f.p(98, 20));
+        path.lineTo(f.p(98, 55));
+        addSvgArc(path, f.p(98, 55), f.p(93, 60), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(5, 60));
+        addSvgArc(path, f.p(5, 60), f.p(0, 55), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(0, 20));
+        path.lineTo(f.p(19, 0));
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.internal_storage"))
+    // Manual Input
+    if (key == QLatin1String("flowchart.manual_input"))
     {
-        path.addRect(rect);
+        const StencilFrame f = stencilFrame(x, y, w, h, 98.05, 60);
+        path.moveTo(f.p(0, 28.73));
+        addSvgArc(path, f.p(0, 28.73), f.p(3.7, 24), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(91.7, 0.17));
+        addSvgArc(path, f.p(91.7, 0.17), f.p(98, 5), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(98, 55));
+        addSvgArc(path, f.p(98, 55), f.p(94, 60), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(5, 60));
+        addSvgArc(path, f.p(5, 60), f.p(0, 55), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(0, 28.73));
+        path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.annotation_1"))
+    // Manual Operation
+    if (key == QLatin1String("flowchart.manual_operation"))
     {
-        // draw.io "Annotation 1": open bracket (top, left, bottom).
-        path.moveTo(point(w, 0));
-        path.lineTo(point(0, 0));
-        path.lineTo(point(0, h));
-        path.lineTo(point(w, h));
+        const StencilFrame f = stencilFrame(x, y, w, h, 98.79, 60.04);
+        path.moveTo(f.p(0.39, 5.04));
+        addSvgArc(path, f.p(0.39, 5.04), f.p(5.39, 0.04), 5 * f.sx, 4 * f.sy, false, true);
+        path.lineTo(f.p(93.39, 0.04));
+        addSvgArc(path, f.p(93.39, 0.04), f.p(98.39, 5.04), 5 * f.sx, 4 * f.sy, false, true);
+        path.lineTo(f.p(79.39, 55.04));
+        addSvgArc(path, f.p(79.39, 55.04), f.p(74.39, 60.04), 6.5 * f.sx, 6.5 * f.sy, false, true);
+        path.lineTo(f.p(24.39, 60.04));
+        addSvgArc(path, f.p(24.39, 60.04), f.p(19.39, 55.04), 6.5 * f.sx, 6.5 * f.sy, false, true);
+        path.lineTo(f.p(0.39, 5.04));
+        path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.annotation_2"))
+    // Merge or Storage
+    if (key == QLatin1String("flowchart.merge_or_storage"))
     {
-        // draw.io "Annotation 2": bracket plus a horizontal divider.
-        path.moveTo(point(w, 0));
-        path.lineTo(point(w * 0.5, 0));
-        path.lineTo(point(w * 0.5, h));
-        path.lineTo(point(w, h));
-        path.moveTo(point(0, h * 0.5));
-        path.lineTo(point(w * 0.5, h * 0.5));
+        const StencilFrame f = stencilFrame(x, y, w, h, 95.01, 60.84);
+        path.moveTo(f.p(3.5, 0));
+        path.lineTo(f.p(91.5, 0));
+        addSvgArc(path, f.p(91.5, 0), f.p(94.5, 5), 3.5 * f.sx, 3.5 * f.sy, false, true);
+        path.lineTo(f.p(49.5, 60));
+        addSvgArc(path, f.p(49.5, 60), f.p(45.5, 60), 3.5 * f.sx, 3.5 * f.sy, false, true);
+        path.lineTo(f.p(0.5, 5));
+        addSvgArc(path, f.p(0.5, 5), f.p(3.5, 0), 3.5 * f.sx, 3.5 * f.sy, false, true);
+        path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.multi-document"))
+    // Multi-Document
+    if (key == QLatin1String("flowchart.multi-document"))
     {
-        path.addRect(QRectF(x, y + h * 0.12, w * 0.92, h * 0.8));
+        const StencilFrame f = stencilFrame(x, y, w, h, 88, 60.28);
+        path.moveTo(f.p(10, 5));
+        addSvgArc(path, f.p(10, 5), f.p(15, 0), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(83, 0));
+        addSvgArc(path, f.p(83, 0), f.p(88, 5), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(88, 45));
+        addSvgArc(path, f.p(88, 45), f.p(49, 45), 50 * f.sx, 50 * f.sy, false, false);
+        addSvgArc(path, f.p(49, 45), f.p(10, 45), 50 * f.sx, 50 * f.sy, false, true);
+        path.closeSubpath();
+        return path;
+    }
+
+    // Off-page Reference
+    if (key == QLatin1String("flowchart.off-page_reference"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 60, 60);
+        path.moveTo(f.p(0, 0));
+        path.lineTo(f.p(60, 0));
+        path.lineTo(f.p(60, 30));
+        path.lineTo(f.p(30, 60));
+        path.lineTo(f.p(0, 30));
+        path.closeSubpath();
+        return path;
+    }
+
+    // On-page Reference
+    if (key == QLatin1String("flowchart.on-page_reference"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 60, 60);
+        path.addEllipse(QRectF(f.p(0, 0), QSizeF(60 * f.sx, 60 * f.sy)));
+        return path;
+    }
+
+    // Or
+    if (key == QLatin1String("flowchart.or"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 70, 70);
+        path.addEllipse(QRectF(f.p(0, 0), QSizeF(70 * f.sx, 70 * f.sy)));
+        return path;
+    }
+
+    // Or 2
+    if (key == QLatin1String("flowchart.or_2"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 70, 70);
+        path.addEllipse(QRectF(f.p(0, 0), QSizeF(70 * f.sx, 70 * f.sy)));
+        return path;
+    }
+
+    // Paper Tape
+    if (key == QLatin1String("flowchart.paper_tape"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 98, 61.81);
+        path.moveTo(f.p(0, 5.9));
+        addSvgArc(path, f.p(0, 5.9), f.p(49, 5.9), 70 * f.sx, 70 * f.sy, false, false);
+        addSvgArc(path, f.p(49, 5.9), f.p(98, 5.9), 70 * f.sx, 70 * f.sy, false, true);
+        path.lineTo(f.p(98, 55.9));
+        addSvgArc(path, f.p(98, 55.9), f.p(49, 55.9), 70 * f.sx, 70 * f.sy, false, false);
+        addSvgArc(path, f.p(49, 55.9), f.p(0, 55.9), 70 * f.sx, 70 * f.sy, false, true);
+        path.lineTo(f.p(0, 5.9));
+        path.closeSubpath();
+        return path;
+    }
+
+    // Parallel Mode
+    if (key == QLatin1String("flowchart.parallel_mode"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 94, 40);
+        path.moveTo(f.p(47, 15));
+        path.lineTo(f.p(52, 20));
+        path.lineTo(f.p(47, 25));
+        path.lineTo(f.p(42, 20));
+        path.lineTo(f.p(47, 15));
+        path.closeSubpath();
+        path.moveTo(f.p(27, 15));
+        path.lineTo(f.p(32, 20));
+        path.lineTo(f.p(27, 25));
+        path.lineTo(f.p(22, 20));
+        path.lineTo(f.p(27, 15));
+        path.closeSubpath();
+        path.moveTo(f.p(67, 15));
+        path.lineTo(f.p(72, 20));
+        path.lineTo(f.p(67, 25));
+        path.lineTo(f.p(62, 20));
+        path.lineTo(f.p(67, 15));
+        path.closeSubpath();
+        return path;
+    }
+
+    // Predefined Process
+    if (key == QLatin1String("flowchart.predefined_process"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 98, 60);
+        const double r = qMin(98 * f.sx, 60 * f.sy) * 6.718 / 100.0;
+        path.addRoundedRect(QRectF(f.p(0, 0), QSizeF(98 * f.sx, 60 * f.sy)), r, r);
+        return path;
+    }
+
+    // Preparation
+    if (key == QLatin1String("flowchart.preparation"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 97.11, 60);
+        path.moveTo(f.p(20.56, 5));
+        addSvgArc(path, f.p(20.56, 5), f.p(31.56, 0), 15 * f.sx, 15 * f.sy, false, true);
+        path.lineTo(f.p(65.56, 0));
+        addSvgArc(path, f.p(65.56, 0), f.p(76.56, 5), 15 * f.sx, 15 * f.sy, false, true);
+        path.lineTo(f.p(96.56, 28));
+        addSvgArc(path, f.p(96.56, 28), f.p(96.56, 32), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(76.56, 55));
+        addSvgArc(path, f.p(76.56, 55), f.p(65.56, 60), 15 * f.sx, 15 * f.sy, false, true);
+        path.lineTo(f.p(31.56, 60));
+        addSvgArc(path, f.p(31.56, 60), f.p(20.56, 55), 15 * f.sx, 15 * f.sy, false, true);
+        path.lineTo(f.p(0.56, 32));
+        addSvgArc(path, f.p(0.56, 32), f.p(0.56, 28), 5 * f.sx, 5 * f.sy, false, true);
+        path.lineTo(f.p(20.56, 5));
+        path.closeSubpath();
+        return path;
+    }
+
+    // Process
+    if (key == QLatin1String("flowchart.process"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 100, 100);
+        const double r = qMin(100 * f.sx, 100 * f.sy) * 6 / 100.0;
+        path.addRoundedRect(QRectF(f.p(0, 0), QSizeF(100 * f.sx, 100 * f.sy)), r, r);
+        return path;
+    }
+
+    // Sequential Data
+    if (key == QLatin1String("flowchart.sequential_data"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 99, 99);
+        path.addEllipse(QRectF(f.p(0, 0), QSizeF(99 * f.sx, 99 * f.sy)));
+        return path;
+    }
+
+    // Sort
+    if (key == QLatin1String("flowchart.sort"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 98, 98);
+        path.moveTo(f.p(51, 1));
+        path.lineTo(f.p(97, 47));
+        addSvgArc(path, f.p(97, 47), f.p(97, 51), 2.5 * f.sx, 2.5 * f.sy, false, true);
+        path.lineTo(f.p(51, 97));
+        addSvgArc(path, f.p(51, 97), f.p(47, 97), 2.5 * f.sx, 2.5 * f.sy, false, true);
+        path.lineTo(f.p(1, 51));
+        addSvgArc(path, f.p(1, 51), f.p(1, 47), 2.5 * f.sx, 2.5 * f.sy, false, true);
+        path.lineTo(f.p(47, 1));
+        addSvgArc(path, f.p(47, 1), f.p(51, 1), 2.5 * f.sx, 2.5 * f.sy, false, true);
+        path.closeSubpath();
+        return path;
+    }
+
+    // Start 1
+    if (key == QLatin1String("flowchart.start_1"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 99, 60);
+        path.addEllipse(QRectF(f.p(0, 0), QSizeF(99 * f.sx, 60 * f.sy)));
+        return path;
+    }
+
+    // Start 2
+    if (key == QLatin1String("flowchart.start_2"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 99, 99);
+        path.addEllipse(QRectF(f.p(0, 0), QSizeF(99 * f.sx, 99 * f.sy)));
+        return path;
+    }
+
+    // Stored Data
+    if (key == QLatin1String("flowchart.stored_data"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 96.51, 60);
+        path.moveTo(f.p(10, 0));
+        path.lineTo(f.p(96, 0));
+        addSvgArc(path, f.p(96, 0), f.p(96, 2), 1.5 * f.sx, 1.5 * f.sy, false, true);
+        addSvgArc(path, f.p(96, 2), f.p(96, 58), 10 * f.sx, 30 * f.sy, false, false);
+        addSvgArc(path, f.p(96, 58), f.p(96, 60), 1.5 * f.sx, 1.5 * f.sy, false, true);
+        path.lineTo(f.p(10, 60));
+        addSvgArc(path, f.p(10, 60), f.p(10, 0), 10 * f.sx, 30 * f.sy, false, true);
+        path.closeSubpath();
+        return path;
+    }
+
+    // Summing Function
+    if (key == QLatin1String("flowchart.summing_function"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 70, 70);
+        path.addEllipse(QRectF(f.p(0, 0), QSizeF(70 * f.sx, 70 * f.sy)));
+        return path;
+    }
+
+    // Summing Junction
+    if (key == QLatin1String("flowchart.summing_junction"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 70, 70);
+        path.addEllipse(QRectF(f.p(0, 0), QSizeF(70 * f.sx, 70 * f.sy)));
+        return path;
+    }
+
+    // Terminator
+    if (key == QLatin1String("flowchart.terminator"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 98, 60);
+        path.moveTo(f.p(30, 0));
+        path.lineTo(f.p(68, 0));
+        addSvgArc(path, f.p(68, 0), f.p(68, 60), 30 * f.sx, 30 * f.sy, false, true);
+        path.lineTo(f.p(30, 60));
+        addSvgArc(path, f.p(30, 60), f.p(30, 0), 30 * f.sx, 30 * f.sy, false, true);
+        path.closeSubpath();
+        return path;
+    }
+
+    // Transfer
+    if (key == QLatin1String("flowchart.transfer"))
+    {
+        const StencilFrame f = stencilFrame(x, y, w, h, 97.5, 70);
+        path.moveTo(f.p(0, 20));
+        path.lineTo(f.p(59, 20));
+        path.lineTo(f.p(59, 0));
+        path.lineTo(f.p(97.5, 35));
+        path.lineTo(f.p(59, 70));
+        path.lineTo(f.p(59, 50));
+        path.lineTo(f.p(0, 50));
+        path.closeSubpath();
+        return path;
+    }
+
+    // Registered (non-stencil) flowchart shapes: shapes/mxFlowchart.js and
+    // js/grapheditor/Shapes.js. These are mxActor/mxRectangleShape ports, so
+    // their corners are rounded through mxShape.addPoints() when the style
+    // sets rounded=1.
+    //
+    // draw.io registers the stencil and the plain shape under different
+    // names (mxgraph.flowchart.card vs. card), which is why the stencil
+    // branches above carry the "flowchart." prefix.
+
+    // mxShapeFlowchartDocument2.paintVertexShape (shapes/mxFlowchart.js)
+    if (key == QLatin1String("flowchart.document2"))
+    {
+        const double dy = h * qBound(0.0,
+            Style::number(probe.style, QStringLiteral("size"), 0.25), 1.0);
+        const double fy = 1.4;
+        const double r = 5;
+
+        path.moveTo(point(w - r, 0));
+        addSvgArc(path, point(w - r, 0), point(w, r), r, r, false, true);
+        path.lineTo(point(w, h - dy / 2.0));
+        path.quadTo(point(w * 3.0 / 4.0, h - dy * fy), point(w / 2.0, h - dy / 2.0));
+        path.quadTo(point(w / 4.0, h - dy * (1 - fy)), point(0, h - dy / 2.0));
+        path.lineTo(point(0, dy / 2.0));
+        path.lineTo(point(0, r));
+        addSvgArc(path, point(0, r), point(r, 0), r, r, false, true);
+        path.closeSubpath();
+        return path;
+    }
+
+    // CardShape.redrawPath
+    if (key == QLatin1String("card"))
+    {
+        const double s = qBound(0.0,
+            Style::number(probe.style, QStringLiteral("size"), 30.0), qMin(w, h));
+
+        addPoints(path, {point(s, 0), point(w, 0), point(w, h), point(0, h), point(0, s)},
+                  probe.styleFlag(QStringLiteral("rounded")), pointArcSizeFor(probe.style),
+                  true);
+        return path;
+    }
+
+    // ManualInputShape.redrawPath
+    if (key == QLatin1String("manualInput"))
+    {
+        const double s = qMin(h, Style::number(probe.style, QStringLiteral("size"), 30.0));
+
+        addPoints(path, {point(0, h), point(0, s), point(w, 0), point(w, h)},
+                  probe.styleFlag(QStringLiteral("rounded")), pointArcSizeFor(probe.style),
+                  true);
+        return path;
+    }
+
+    // OffPageConnectorShape.redrawPath
+    if (key == QLatin1String("offPageConnector"))
+    {
+        const double s = h * qBound(0.0,
+            Style::number(probe.style, QStringLiteral("size"), 3.0 / 8.0), 1.0);
+
+        addPoints(path, {point(0, 0), point(w, 0), point(w, h - s), point(w / 2.0, h),
+                         point(0, h - s)},
+                  probe.styleFlag(QStringLiteral("rounded")), pointArcSizeFor(probe.style),
+                  true);
         return path;
     }
 
@@ -4055,7 +4681,7 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
     // Default: rectangle, optionally rounded.
     if (probe.styleFlag(QStringLiteral("rounded")) || key == QLatin1String("rounded"))
     {
-        const double radius = qMin(w, h) * arcSizeFor(style);
+        const double radius = cornerRadiusFor(style, w, h);
         path.addRoundedRect(rect, radius, radius);
         return path;
     }
