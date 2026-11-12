@@ -421,9 +421,20 @@ QVector<ShapeDefinition> ShapeCatalog::search(const QString &query, int limit) c
     {
         for (const ShapeDefinition &definition : category.shapes)
         {
+            // Match English names, keys, categories and the translated names so
+            // both "star" and "星" find the same shapes.
+            const QString zhName = I18n::textFor(I18n::Language::Chinese, definition.key);
+            const QString enName = I18n::textFor(I18n::Language::English, definition.key);
+            const QString zhCategory = I18n::textFor(I18n::Language::Chinese, category.id);
+            const QString enCategory = I18n::textFor(I18n::Language::English, category.id);
+
             if (definition.name.toLower().contains(needle)
                 || definition.key.toLower().contains(needle)
-                || category.name.toLower().contains(needle))
+                || category.name.toLower().contains(needle)
+                || zhName.toLower().contains(needle)
+                || enName.toLower().contains(needle)
+                || zhCategory.toLower().contains(needle)
+                || enCategory.toLower().contains(needle))
             {
                 result.append(definition);
 

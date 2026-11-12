@@ -240,6 +240,28 @@ private slots:
         QCOMPARE(path.boundingRect().height(), 80.0);
     }
 
+    void shapeSearchMatchesChinese()
+    {
+        const QVector<ShapeDefinition> stars = ShapeCatalog::instance().search(QStringLiteral("星"), 40);
+        QVERIFY(!stars.isEmpty());
+
+        bool foundHeart = false;
+
+        for (const ShapeDefinition &definition : ShapeCatalog::instance().search(QStringLiteral("心"), 40))
+        {
+            if (definition.key == QStringLiteral("heart")
+                || definition.key == QStringLiteral("basic.heart"))
+            {
+                foundHeart = true;
+            }
+        }
+
+        QVERIFY(foundHeart);
+
+        // English queries keep working.
+        QVERIFY(!ShapeCatalog::instance().search(QStringLiteral("star"), 40).isEmpty());
+    }
+
     void basicStencilShapes()
     {
         const auto path = [](const QString &style)

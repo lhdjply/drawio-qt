@@ -23,6 +23,10 @@ Language language();
 bool isEnglish();
 
 QString text(const QString &source);
+
+/// Looks a word up in a specific language table (used by the shape search so
+/// both Chinese and English names always match).
+QString textFor(Language language, const QString &source);
 QString shapeName(const QString &key, const QString &fallback);
 QString categoryName(const QString &id, const QString &fallback);
 QString imageText(const QString &section, const QString &key, const QString &fallback);

@@ -378,6 +378,14 @@ QString text(const QString &source)
     return translateText(source);
 }
 
+QString textFor(Language language, const QString &source)
+{
+    const QHash<QString, QString> &table = language == Language::English
+        ? englishTable() : chineseTable();
+    const auto it = table.constFind(source);
+    return it != table.constEnd() ? it.value() : source;
+}
+
 QString shapeName(const QString &key, const QString &fallback)
 {
     const QHash<QString, QString> &table = g_language == Language::English
