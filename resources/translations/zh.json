@@ -2809,5 +2809,6 @@
   "about.license": "本程序基于上游 draw.io 桌面版的项目结构重新实现，遵循 GNU General Public License v3.0。",
   "Version %1 · Qt %2": "版本 %1 · Qt %2",
   "This action cannot be undone.": "此操作不可撤销。",
-  "Cannot Delete Page": "无法删除页面"
+  "Cannot Delete Page": "无法删除页面",
+  "Float": "浮动"
 }

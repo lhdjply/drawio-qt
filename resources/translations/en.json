@@ -2809,5 +2809,6 @@
   "about.license": "Reimplemented from the upstream draw.io Desktop project structure under GNU General Public License v3.0.",
   "Version %1 · Qt %2": "Version %1 · Qt %2",
   "This action cannot be undone.": "This action cannot be undone.",
-  "Cannot Delete Page": "Cannot Delete Page"
+  "Cannot Delete Page": "Cannot Delete Page",
+  "Float": "Float"
 }
