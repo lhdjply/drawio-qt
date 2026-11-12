@@ -629,6 +629,17 @@ void paint(QPainter &painter, const Cell &cell)
 
     const QRectF local(QPointF(0, 0), cell.geometry.size());
     const QPointF center = cell.absolutePosition() + local.center();
+    const QString direction = cell.styleValue(QStringLiteral("direction")).toLower();
+
+    // mxShape.isPaintBoundsInverted(): north/south swap the paint box so the
+    // rotated shape fills the cell instead of sticking out sideways.
+    QRectF paintRect = local;
+
+    if (direction == QLatin1String("north") || direction == QLatin1String("south"))
+    {
+        const double t = (local.width() - local.height()) / 2.0;
+        paintRect = QRectF(t, -t, local.height(), local.width());
+    }
 
     double rotation = cell.rotation;
 
@@ -637,10 +648,34 @@ void paint(QPainter &painter, const Cell &cell)
         rotation = cell.styleNumber(QStringLiteral("rotation"), 0.0);
     }
 
-    if (!qFuzzyIsNull(rotation))
+    // mxShape.getShapeRotation(): the direction style adds a quarter turn.
+
+    if (direction == QLatin1String("north"))
+    {
+        rotation += 270.0;
+    }
+    else if (direction == QLatin1String("west"))
+    {
+        rotation += 180.0;
+    }
+    else if (direction == QLatin1String("south"))
+    {
+        rotation += 90.0;
+    }
+
+    const bool flipH = cell.styleFlag(QStringLiteral("flipH"));
+    const bool flipV = cell.styleFlag(QStringLiteral("flipV"));
+
+    if (!qFuzzyIsNull(rotation) || flipH || flipV)
     {
         painter.translate(center);
         painter.rotate(rotation);
+
+        if (flipH || flipV)
+        {
+            painter.scale(flipH ? -1.0 : 1.0, flipV ? -1.0 : 1.0);
+        }
+
         painter.translate(-center);
     }
 
@@ -706,7 +741,7 @@ void paint(QPainter &painter, const Cell &cell)
         return;
     }
 
-    const QPainterPath path = ShapeRegistry::pathFor(cell);
+    const QPainterPath path = ShapeRegistry::pathForStyle(cell.style, paintRect);
     QColor fill = fillColor(cell);
     const QColor stroke = strokeColor(cell);
     const QString cellShape = cell.styleValue(QStringLiteral("shape")).toLower();

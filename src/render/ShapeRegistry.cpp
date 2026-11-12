@@ -27,6 +27,40 @@ QString camelize(const QString &name)
 /// keys used by the renderer (cloudCallout).
 QString normalizeStencilKey(const QString &shape)
 {
+    // draw.io arrows2 shapes are registered under mxgraph.arrows2.*; the
+    // renderer keeps them as arrows2.<stencil> keys.
+    if (shape.startsWith(QLatin1String("mxgraph.arrows2."), Qt::CaseInsensitive))
+    {
+        // The complete set registered by shapes/mxArrows.js (Sidebar-Arrows2).
+        static const QHash<QString, QString> arrows2 = {
+            {QStringLiteral("arrow"), QStringLiteral("arrows2.arrow")},
+            {QStringLiteral("bendarrow"), QStringLiteral("arrows2.bendArrow")},
+            {QStringLiteral("benddoublearrow"), QStringLiteral("arrows2.bendDoubleArrow")},
+            {QStringLiteral("calloutarrow"), QStringLiteral("arrows2.calloutArrow")},
+            {QStringLiteral("calloutdoublearrow"), QStringLiteral("arrows2.calloutDoubleArrow")},
+            {QStringLiteral("calloutdouble90arrow"), QStringLiteral("arrows2.calloutDouble90Arrow")},
+            {QStringLiteral("calloutquadarrow"), QStringLiteral("arrows2.calloutQuadArrow")},
+            {QStringLiteral("jumpinarrow"), QStringLiteral("arrows2.jumpInArrow")},
+            {QStringLiteral("quadarrow"), QStringLiteral("arrows2.quadArrow")},
+            {QStringLiteral("sharparrow"), QStringLiteral("arrows2.sharpArrow")},
+            {QStringLiteral("sharparrow2"), QStringLiteral("arrows2.sharpArrow2")},
+            {QStringLiteral("stripedarrow"), QStringLiteral("arrows2.stripedArrow")},
+            {QStringLiteral("stylisedarrow"), QStringLiteral("arrows2.stylisedArrow")},
+            {QStringLiteral("tailedarrow"), QStringLiteral("arrows2.tailedArrow")},
+            {QStringLiteral("tailednotchedarrow"), QStringLiteral("arrows2.tailedNotchedArrow")},
+            {QStringLiteral("triadarrow"), QStringLiteral("arrows2.triadArrow")},
+            {QStringLiteral("twowayarrow"), QStringLiteral("arrows2.twoWayArrow")},
+            {QStringLiteral("uturnarrow"), QStringLiteral("arrows2.uTurnArrow")},
+            {QStringLiteral("wedgearrow"), QStringLiteral("arrows2.wedgeArrow")},
+            {QStringLiteral("wedgearrowdashed2"), QStringLiteral("arrows2.wedgeArrowDashed2")},
+        };
+
+        const QString suffix = shape.mid(QStringLiteral("mxgraph.arrows2.").size()).toLower();
+        const auto it = arrows2.constFind(suffix);
+
+        return it != arrows2.constEnd() ? it.value() : shape.toLower();
+    }
+
     const QString prefix = QStringLiteral("mxgraph.basic.");
 
     if (!shape.startsWith(prefix, Qt::CaseInsensitive))
@@ -42,6 +76,7 @@ QString normalizeStencilKey(const QString &shape)
     {
         return QStringLiteral("isoCube");
     }
+
     static const QRegularExpression star(QStringLiteral("^(\\d+)_point_star(_2)?$"));
     const QRegularExpressionMatch match = star.match(name);
 
@@ -352,9 +387,6 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
                        "outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
         QSizeF(60, 110), QStringLiteral("uml"));
-    add(QStringLiteral("arrow"), QStringLiteral("Arrow"),
-        QStringLiteral("shape=singleArrow;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
-        QSizeF(140, 70), QStringLiteral("arrows"));
     add(QStringLiteral("process"), QStringLiteral("Process"),
         QStringLiteral("shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;"
                        "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
@@ -706,8 +738,8 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=mxgraph.flowchart.internal_storage;") + plain + blue,
         QSizeF(130, 80), QStringLiteral("flowchart"));
     add(QStringLiteral("fc.annotation"), QStringLiteral("Annotation"),
-        QStringLiteral("shape=mxgraph.flowchart.annotation;align=left;verticalAlign=top;")
-            + plain, QSizeF(120, 60), QStringLiteral("flowchart"));
+        QStringLiteral("shape=mxgraph.flowchart.annotation_1;align=left;verticalAlign=top;")
+            + plain, QSizeF(50, 100), QStringLiteral("flowchart"));
     add(QStringLiteral("fc.looplimit"), QStringLiteral("Looplimit"),
         QStringLiteral("shape=mxgraph.flowchart.loop_limit;") + plain + blue,
         QSizeF(130, 70), QStringLiteral("flowchart"));
@@ -722,101 +754,88 @@ QVector<ShapeDefinition> toolboxShapes()
         QSizeF(120, 80), QStringLiteral("flowchart"));
 
     // --- arrows ----------------------------------------------------------
-    add(QStringLiteral("arrow.double"), QStringLiteral("Double"),
-        QStringLiteral("shape=doubleArrow;") + plain + green,
-        QSizeF(150, 60), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.left"), QStringLiteral("Left"),
-        QStringLiteral("shape=singleArrow;direction=west;") + plain + green,
-        QSizeF(140, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.up"), QStringLiteral("Up"),
-        QStringLiteral("shape=singleArrow;direction=north;") + plain + green,
-        QSizeF(80, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.down"), QStringLiteral("Down"),
-        QStringLiteral("shape=singleArrow;direction=south;") + plain + green,
-        QSizeF(80, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.chevron"), QStringLiteral("Chevron"),
-        QStringLiteral("shape=step;perimeter=stepPerimeter;fixedSize=1;") + plain + blue,
-        QSizeF(150, 60), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.notched"), QStringLiteral("Notched"),
-        QStringLiteral("shape=singleArrow;notch=0.3;") + plain + orange,
-        QSizeF(150, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.open"), QStringLiteral("Open"),
-        QStringLiteral("shape=singleArrow;arrowWidth=0.5;arrowSize=0.35;") + plain + yellow,
-        QSizeF(150, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.thin"), QStringLiteral("Thin"),
-        QStringLiteral("shape=singleArrow;arrowWidth=0.2;arrowSize=0.4;") + plain + green,
-        QSizeF(170, 50), QStringLiteral("arrows"));
-
-    add(QStringLiteral("arrow.tailed"), QStringLiteral("Tailed"),
-        QStringLiteral("shape=arrTailed;") + plain + green,
-        QSizeF(160, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.sharp"), QStringLiteral("Sharp"),
-        QStringLiteral("shape=arrSharp;") + plain + green,
-        QSizeF(150, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.slender"), QStringLiteral("Slender"),
-        QStringLiteral("shape=arrSlender;") + plain + green,
-        QSizeF(170, 50), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.slenderTwo"), QStringLiteral("Slender Two"),
-        QStringLiteral("shape=arrSlenderTwo;") + plain + green,
-        QSizeF(180, 50), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.wedge"), QStringLiteral("Wedge"),
-        QStringLiteral("shape=arrWedge;") + plain + orange,
-        QSizeF(120, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.chevronBand"), QStringLiteral("Chevron Band"),
-        QStringLiteral("shape=arrChevron;") + plain + blue,
-        QSizeF(150, 60), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.notched2"), QStringLiteral("Notched2"),
-        QStringLiteral("shape=arrNotched;") + plain + orange,
-        QSizeF(160, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.signalIn"), QStringLiteral("Signal In"),
-        QStringLiteral("shape=arrSignalIn;") + plain + yellow,
-        QSizeF(160, 80), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.notchedSignalIn"), QStringLiteral("Notched Signal In"),
-        QStringLiteral("shape=arrNotchedSignalIn;") + plain + yellow,
-        QSizeF(160, 80), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.jumpIn"), QStringLiteral("Jump In"),
-        QStringLiteral("shape=arrJumpIn;") + plain + blue,
-        QSizeF(160, 80), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.quad"), QStringLiteral("Quad"),
-        QStringLiteral("shape=arrQuad;") + plain + purple,
-        QSizeF(140, 140), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.triad"), QStringLiteral("Triad"),
-        QStringLiteral("shape=arrTriad;") + plain + purple,
-        QSizeF(140, 130), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.uturn"), QStringLiteral("Uturn"),
-        QStringLiteral("shape=arrUturn;") + plain + green,
-        QSizeF(140, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.bend"), QStringLiteral("Bend"),
-        QStringLiteral("shape=arrBend;") + plain + green,
-        QSizeF(140, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.bendDouble"), QStringLiteral("Bend Double"),
-        QStringLiteral("shape=arrBendDouble;") + plain + green,
-        QSizeF(140, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.striped"), QStringLiteral("Striped"),
-        QStringLiteral("shape=arrStriped;") + plain + yellow,
-        QSizeF(170, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.stylised"), QStringLiteral("Stylised"),
-        QStringLiteral("shape=arrStylised;") + plain + blue,
-        QSizeF(160, 70), QStringLiteral("arrows"));
-
-    add(QStringLiteral("arrow.callout"), QStringLiteral("Callout"),
-        QStringLiteral("shape=arrCalloutArrow;") + plain + blue,
-        QSizeF(150, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.calloutDouble"), QStringLiteral("Callout Double"),
-        QStringLiteral("shape=arrCalloutDouble;") + plain + blue,
-        QSizeF(150, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.calloutDouble90"), QStringLiteral("Callout Double90"),
-        QStringLiteral("shape=arrCalloutDouble90;") + plain + blue,
-        QSizeF(150, 120), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.calloutQuad"), QStringLiteral("Callout Quad"),
-        QStringLiteral("shape=arrCalloutQuad;") + plain + blue,
-        QSizeF(150, 130), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.wedgeDashed"), QStringLiteral("Wedge Dashed"),
-        QStringLiteral("shape=arrWedge;dashed=1;") + plain + orange,
-        QSizeF(120, 70), QStringLiteral("arrows"));
-    add(QStringLiteral("arrow.tailedNotch"), QStringLiteral("Tailed Notch"),
-        QStringLiteral("shape=arrTailed;") + plain + green,
-        QSizeF(160, 70), QStringLiteral("arrows"));
+    // Exactly the arrows2 palette of draw.io (shapes/mxArrows.js), using the
+    // style strings of Sidebar-Arrows2.js.
+    add(QStringLiteral("arrow.arrow"), QStringLiteral("Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.arrow;dy=0.6;dx=40;notch=0;")
+            + plain + green,
+        QSizeF(100, 70), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.twoWay"), QStringLiteral("Two Way Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.twoWayArrow;dy=0.6;dx=35;")
+            + plain + green,
+        QSizeF(100, 60), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.stylised"), QStringLiteral("Stylised Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.stylisedArrow;dy=0.6;dx=40;notch=15;feather=0.4;")
+            + plain + blue,
+        QSizeF(100, 60), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.sharp"), QStringLiteral("Sharp Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.sharpArrow;dy1=0.67;dx1=18;dx2=18;notch=0;")
+            + plain + green,
+        QSizeF(100, 60), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.sharp2"), QStringLiteral("Sharp Arrow 2"),
+        QStringLiteral("shape=mxgraph.arrows2.sharpArrow2;dy1=0.67;dx1=18;dx2=18;dy3=0.15;"
+                       "dx3=27;notch=0;") + plain + green,
+        QSizeF(100, 60), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.callout"), QStringLiteral("Callout with Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.calloutArrow;dy=10;dx=20;notch=60;arrowHead=10;")
+            + plain + blue,
+        QSizeF(100, 60), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.bend"), QStringLiteral("Bend Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.bendArrow;dy=15;dx=38;notch=0;arrowHead=55;"
+                       "rounded=0;") + plain + green,
+        QSizeF(100, 100), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.bendDouble"), QStringLiteral("Bend Double Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.bendDoubleArrow;dy=15;dx=38;arrowHead=55;"
+                       "rounded=0;") + plain + green,
+        QSizeF(100, 100), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.calloutDouble"), QStringLiteral("Callout with Double Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.calloutDoubleArrow;dy=10;dx=20;notch=24;"
+                       "arrowHead=10;") + plain + blue,
+        QSizeF(100, 50), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.calloutQuad"), QStringLiteral("Callout with Quad Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.calloutQuadArrow;dy=10;dx=20;notch=24;"
+                       "arrowHead=10;") + plain + blue,
+        QSizeF(100, 100), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.calloutDouble90"),
+        QStringLiteral("Callout with Double Arrow 90\u00b0"),
+        QStringLiteral("shape=mxgraph.arrows2.calloutDouble90Arrow;dy1=10;dx1=20;dx2=70;"
+                       "dy2=70;arrowHead=10;") + plain + blue,
+        QSizeF(100, 100), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.quad"), QStringLiteral("Quad Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.quadArrow;dy=10;dx=20;notch=24;arrowHead=10;")
+            + plain + purple,
+        QSizeF(100, 100), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.triad"), QStringLiteral("Triad Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.triadArrow;dy=10;dx=20;arrowHead=40;")
+            + plain + purple,
+        QSizeF(100, 70), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.tailed"), QStringLiteral("Tailed Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.tailedArrow;dy1=10;dx1=20;notch=0;arrowHead=20;"
+                       "dx2=25;dy2=30;") + plain + green,
+        QSizeF(100, 60), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.tailedNotch"), QStringLiteral("Tailed Arrow with Notch"),
+        QStringLiteral("shape=mxgraph.arrows2.tailedNotchedArrow;dy1=10;dx1=20;notch=20;"
+                       "arrowHead=20;dx2=25;dy2=30;") + plain + green,
+        QSizeF(100, 60), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.striped"), QStringLiteral("Striped Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.stripedArrow;dy=0.6;dx=40;notch=25;")
+            + plain + yellow,
+        QSizeF(100, 70), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.jumpIn"), QStringLiteral("Jump-In Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.jumpInArrow;dy=15;dx=38;arrowHead=55;")
+            + plain + blue,
+        QSizeF(100, 100), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.uturn"), QStringLiteral("U Turn Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.uTurnArrow;dy=11;arrowHead=43;dx2=25;")
+            + plain + green,
+        QSizeF(100, 100), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.wedge"), QStringLiteral("Wedge Arrow"),
+        QStringLiteral("shape=mxgraph.arrows2.wedgeArrow;startWidth=50;") + plain + orange,
+        QSizeF(100, 100), QStringLiteral("arrows"));
+    add(QStringLiteral("arrow.wedgeDashed"), QStringLiteral("Wedge Arrow Dashed"),
+        QStringLiteral("shape=mxgraph.arrows2.wedgeArrowDashed2;startWidth=50;stepSize=15;")
+            + plain + orange,
+        QSizeF(100, 100), QStringLiteral("arrows"));
 
     // --- UML -------------------------------------------------------------
     add(QStringLiteral("uml.class"), QStringLiteral("Class"),
@@ -935,8 +954,8 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("rounded=1;dashed=1;fillColor=none;strokeColor=#666666;"),
         QSizeF(200, 140), QStringLiteral("bpmn"));
     add(QStringLiteral("bpmn.annotation"), QStringLiteral("Annotation"),
-        QStringLiteral("shape=mxgraph.flowchart.annotation;align=left;verticalAlign=top;")
-            + plain, QSizeF(130, 60), QStringLiteral("bpmn"));
+        QStringLiteral("shape=mxgraph.flowchart.annotation_1;align=left;verticalAlign=top;")
+            + plain, QSizeF(50, 100), QStringLiteral("bpmn"));
 
     // --- network ---------------------------------------------------------
     add(QStringLiteral("net.server"), QStringLiteral("Server"),
@@ -1977,222 +1996,578 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
-    if (key == QLatin1String("arrCalloutArrow") || key == QLatin1String("arrCalloutDouble")
-        || key == QLatin1String("arrCalloutDouble90") || key == QLatin1String("arrCalloutQuad"))
+    // --- draw.io arrows2 shapes (shapes/mxArrows.js) ----------------------
+    // Each block is a literal port of the matching
+    // mxShapeArrows2*.paintVertexShape: the same clamping, the same order of
+    // moveTo/lineTo/arcTo calls, and the shape constructor's values
+    // (this.dy = 0.5, this.dx = 0.5, ...) as fallback for missing style keys.
+    const auto param = [&](const char *name, double fallback, double maxValue)
     {
-        const double bodyH = h * 0.68;
-        path.addRoundedRect(QRectF(x, y, w, bodyH), 8, 8);
+        return qBound(0.0,
+            Style::number(probe.style, QString::fromLatin1(name), fallback), maxValue);
+    };
+    const auto ratio = [&](const char *name, double fallback)
+    {
+        return qBound(0.0,
+            Style::number(probe.style, QString::fromLatin1(name), fallback), 1.0);
+    };
+    // c.arcTo(rx, ry, 0, largeArc, sweep, px, py), starting at the current point.
+    const auto arcTo = [&](double rx, double ry, bool largeArc, bool sweep,
+                           double px, double py)
+    {
+        if (rx <= 0.0 || ry <= 0.0)
+        {
+            // SVG treats an arc with a zero radius as a straight line.
+            path.lineTo(point(px, py));
+            return;
+        }
 
-        QPolygonF tail;
-        tail << QPointF(x + w * 0.28, y + bodyH * 0.94)
-             << QPointF(x + w * 0.16, y + h)
-             << QPointF(x + w * 0.46, y + bodyH * 0.9);
-        path.addPolygon(tail);
+        appendSvgArc(path, path.currentPosition(), point(px, py), rx, ry, largeArc, sweep);
+    };
+    const bool roundedArrow = Style::flag(probe.style, QStringLiteral("rounded"))
+        || Style::value(probe.style, QStringLiteral("rounded")) == QLatin1String("1");
+
+    if (key == QLatin1String("arrows2.arrow"))
+    {
+        const double dy = h * 0.5 * ratio("dy", 0.5);
+        const double dx = param("dx", 0.5, w);
+        const double notch = param("notch", 0.0, w);
+
+        path.moveTo(point(0, dy));
+        path.lineTo(point(w - dx, dy));
+        path.lineTo(point(w - dx, 0));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w - dx, h));
+        path.lineTo(point(w - dx, h - dy));
+        path.lineTo(point(0, h - dy));
+        path.lineTo(point(notch, h * 0.5));
         path.closeSubpath();
 
-        if (key != QLatin1String("arrCalloutArrow"))
+        // Head and tail crosslines are stroked on their own in draw.io; as
+        // degenerate subpaths they stay invisible when the shape is filled.
+        if (Style::flag(probe.style, QStringLiteral("headCrossline")))
         {
-            QPolygonF second;
-            second << QPointF(x + w * 0.62, y + bodyH * 0.94)
-                   << QPointF(x + w * 0.74, y + h)
-                   << QPointF(x + w * 0.44, y + bodyH * 0.9);
-            path.addPolygon(second);
-            path.closeSubpath();
+            path.moveTo(point(w - dx, dy));
+            path.lineTo(point(w - dx, h - dy));
         }
 
-        if (key == QLatin1String("arrCalloutDouble90"))
+        if (Style::flag(probe.style, QStringLiteral("tailCrossline")))
         {
-            QPolygonF side;
-            side << QPointF(x + w * 0.92, y + bodyH * 0.5)
-                 << QPointF(x + w, y + bodyH * 0.72)
-                 << QPointF(x + w * 0.84, y + bodyH * 0.72);
-            path.addPolygon(side);
-            path.closeSubpath();
-        }
-
-        if (key == QLatin1String("arrCalloutQuad"))
-        {
-            QPolygonF top;
-            top << QPointF(x + w * 0.5, y - h * 0.02)
-                << QPointF(x + w * 0.62, y + h * 0.16)
-                << QPointF(x + w * 0.38, y + h * 0.16);
-            path.addPolygon(top);
-            path.closeSubpath();
+            path.moveTo(point(notch, dy));
+            path.lineTo(point(notch, h - dy));
         }
 
         return path;
     }
 
-    if (key == QLatin1String("arrTriad"))
+    if (key == QLatin1String("arrows2.twoWayArrow"))
     {
-        const QPointF center(w / 2.0, h / 2.0);
+        const double dy = h * 0.5 * ratio("dy", 0.5);
+        const double dx = param("dx", 0.5, w);
 
-        for (int i = 0; i < 3; ++i)
-        {
-            const double angle = -M_PI / 2.0 + i * 2.0 * M_PI / 3.0;
-            const QPointF tip(center.x() + std::cos(angle) * w * 0.46,
-                              center.y() + std::sin(angle) * h * 0.46);
-            const QPointF back(center.x() + std::cos(angle) * w * 0.18,
-                               center.y() + std::sin(angle) * h * 0.18);
-            const QPointF normal(-std::sin(angle), std::cos(angle));
-            QPolygonF head;
-            head << tip << back + normal * w * 0.12 << back - normal * w * 0.12;
-            path.addPolygon(head);
-            path.closeSubpath();
-        }
-
-        path.addEllipse(center, w * 0.1, h * 0.1);
-        return path;
-    }
-
-    if (key == QLatin1String("arrTailed") || key == QLatin1String("arrSharp")
-        || key == QLatin1String("arrSlender") || key == QLatin1String("arrSlenderTwo")
-        || key == QLatin1String("arrNotched") || key == QLatin1String("arrSignalIn")
-        || key == QLatin1String("arrNotchedSignalIn") || key == QLatin1String("arrJumpIn")
-        || key == QLatin1String("arrQuad")
-        || key == QLatin1String("arrUturn") || key == QLatin1String("arrBend")
-        || key == QLatin1String("arrBendDouble") || key == QLatin1String("arrStriped")
-        || key == QLatin1String("arrStylised"))
-    {
-        if (key == QLatin1String("arrQuad"))
-        {
-            const QPointF c(w / 2.0, h / 2.0);
-            const double dx = w * 0.5;
-            const double dy = h * 0.5;
-            const double s = qMin(dx, dy) * 0.28;
-            QPolygonF p;
-            p << QPointF(c.x(), c.y() - s) << QPointF(c.x() + s, c.y() - s)
-              << QPointF(c.x() + s, c.y() - dy) << QPointF(c.x() + 2 * s, c.y() - dy)
-              << QPointF(c.x(), c.y() - 2 * s)
-              << QPointF(c.x() - 2 * s, c.y() - dy) << QPointF(c.x() - s, c.y() - dy)
-              << QPointF(c.x() - s, c.y() - s) << QPointF(c.x() - dx, c.y() - s)
-              << QPointF(c.x() - dx, c.y() + s) << QPointF(c.x() - s, c.y() + s)
-              << QPointF(c.x() - s, c.y() + dy) << QPointF(c.x() - 2 * s, c.y() + dy)
-              << QPointF(c.x(), c.y() + 2 * s)
-              << QPointF(c.x() + 2 * s, c.y() + dy) << QPointF(c.x() + s, c.y() + dy)
-              << QPointF(c.x() + s, c.y() + s) << QPointF(c.x() + dx, c.y() + s);
-            path.addPolygon(p);
-            path.closeSubpath();
-            return path;
-        }
-
-        if (key == QLatin1String("arrUturn"))
-        {
-            const double band = qMin(w, h) * 0.22;
-            path.moveTo(point(0, 0));
-            path.lineTo(point(w * 0.35, 0));
-            path.lineTo(point(w * 0.35, h - band));
-            path.lineTo(point(w * 0.75, h - band));
-            path.lineTo(point(w * 0.75, h * 0.35));
-            path.lineTo(point(w, h * 0.35));
-            path.lineTo(point(w * 0.6, h * 0.05));
-            path.lineTo(point(w * 0.2, h * 0.35));
-            path.lineTo(point(w * 0.45, h * 0.35));
-            path.lineTo(point(w * 0.45, h));
-            path.lineTo(point(0, h));
-            path.closeSubpath();
-            return path;
-        }
-
-        if (key == QLatin1String("arrBend") || key == QLatin1String("arrBendDouble"))
-        {
-            path.moveTo(point(0, h * 0.2));
-            path.lineTo(point(w * 0.6, h * 0.2));
-            path.lineTo(point(w * 0.6, h * 0.55));
-            path.lineTo(point(w * 0.85, h * 0.55));
-            path.lineTo(point(w * 0.55, h));
-            path.lineTo(point(w * 0.25, h * 0.55));
-            path.lineTo(point(w * 0.4, h * 0.55));
-            path.lineTo(point(w * 0.4, h * 0.4));
-            path.lineTo(point(0, h * 0.4));
-            path.closeSubpath();
-
-            if (key == QLatin1String("arrBendDouble"))
-            {
-                path.moveTo(point(0, h * 0.05));
-                path.lineTo(point(w * 0.2, h * 0.3));
-                path.lineTo(point(0, h * 0.55));
-                path.closeSubpath();
-            }
-
-            return path;
-        }
-
-        const double head = w * (key == QLatin1String("arrSlender") ? 0.25 : 0.3);
-        const double shaft = h * (key == QLatin1String("arrSlender") ? 0.18 : 0.32);
-        const double top = (h - shaft) / 2.0;
-
-        path.moveTo(point(0, top));
-        path.lineTo(point(w - head, top));
-        path.lineTo(point(w - head, 0));
-        path.lineTo(point(w, h / 2.0));
-        path.lineTo(point(w - head, h));
-        path.lineTo(point(w - head, h - top));
-        path.lineTo(point(0, h - top));
-        path.closeSubpath();
-
-        if (key == QLatin1String("arrTailed") || key == QLatin1String("arrTailed"))
-        {
-            path.moveTo(point(0, top));
-            path.lineTo(point(w * 0.15, h * 0.5));
-            path.lineTo(point(0, h - top));
-        }
-
-        if (key == QLatin1String("arrNotched") || key == QLatin1String("arrNotchedSignalIn"))
-        {
-            path.moveTo(point(w * 0.15, top));
-            path.lineTo(point(w * 0.05, h * 0.5));
-            path.lineTo(point(w * 0.15, h - top));
-        }
-
-        if (key == QLatin1String("arrSlenderTwo"))
-        {
-            path.moveTo(point(head, top));
-            path.lineTo(point(0, h / 2.0));
-            path.lineTo(point(head, h - top));
-            path.closeSubpath();
-        }
-
-        if (key == QLatin1String("arrStriped"))
-        {
-            for (int i = 0; i < 3; ++i)
-            {
-                path.moveTo(point(w * (0.2 + i * 0.12), top));
-                path.lineTo(point(w * (0.2 + i * 0.12), h - top));
-            }
-        }
-
-        if (key == QLatin1String("arrStylised"))
-        {
-            path.moveTo(point(0, top));
-            path.lineTo(point(w * 0.2, h * 0.5));
-            path.lineTo(point(0, h - top));
-        }
-
-        return path;
-    }
-
-    if (key == QLatin1String("arrWedge"))
-    {
-        path.moveTo(point(0, h));
-        path.lineTo(point(w, h / 2.0));
-        path.lineTo(point(0, 0));
-        path.lineTo(point(w * 0.25, h / 2.0));
+        path.moveTo(point(dx, dy));
+        path.lineTo(point(w - dx, dy));
+        path.lineTo(point(w - dx, 0));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w - dx, h));
+        path.lineTo(point(w - dx, h - dy));
+        path.lineTo(point(dx, h - dy));
+        path.lineTo(point(dx, h));
+        path.lineTo(point(0, h * 0.5));
+        path.lineTo(point(dx, 0));
         path.closeSubpath();
         return path;
     }
 
-    if (key == QLatin1String("arrChevron"))
+    if (key == QLatin1String("arrows2.stylisedArrow"))
     {
+        const double dy = h * 0.5 * ratio("dy", 0.5);
+        const double dx = param("dx", 0.5, w);
+        const double notch = param("notch", 0.0, w);
+        const double feather = h * 0.5 * ratio("feather", 0.5);
+
+        path.moveTo(point(0, feather));
+        path.lineTo(point(w - dx, dy));
+        path.lineTo(point(w - dx - 10, 0));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w - dx - 10, h));
+        path.lineTo(point(w - dx, h - dy));
+        path.lineTo(point(0, h - feather));
+        path.lineTo(point(notch, h * 0.5));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.sharpArrow"))
+    {
+        const double dy1 = h * 0.5 * ratio("dy1", 0.5);
+        const double dx1 = param("dx1", 0.5, w);
+        const double dx2 = param("dx2", 0.5, w);
+        const double notch = param("notch", 0.0, w);
+        const double dx1a = param("dx1", 0.5, w);
+        const double dy1a = h * 0.5 * qBound(0.0,
+            Style::number(probe.style, QStringLiteral("dy1"), 0.5), h);
+        const double x2 = (h != 0.0) ? dx1a + dx2 * dy1a * 2.0 / h : 0.0;
+
+        path.moveTo(point(0, dy1));
+        path.lineTo(point(w - dx1, dy1));
+        path.lineTo(point(w - x2, 0));
+        path.lineTo(point(w - dx2, 0));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w - dx2, h));
+        path.lineTo(point(w - x2, h));
+        path.lineTo(point(w - dx1, h - dy1));
+        path.lineTo(point(0, h - dy1));
+        path.lineTo(point(notch, h * 0.5));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.sharpArrow2"))
+    {
+        const double dy1 = h * 0.5 * ratio("dy1", 0.5);
+        const double dx1 = param("dx1", 0.5, w);
+        const double dx2 = param("dx2", 0.5, w);
+        const double dy3 = h * 0.5 * ratio("dy3", 0.5);
+        const double dx3 = param("dx3", 0.5, w);
+        const double notch = param("notch", 0.0, w);
+
+        path.moveTo(point(0, dy1));
+        path.lineTo(point(w - dx1, dy1));
+        path.lineTo(point(w - dx3, dy3));
+        path.lineTo(point(w - dx2, 0));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w - dx2, h));
+        path.lineTo(point(w - dx3, h - dy3));
+        path.lineTo(point(w - dx1, h - dy1));
+        path.lineTo(point(0, h - dy1));
+        path.lineTo(point(notch, h * 0.5));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.calloutArrow"))
+    {
+        const double dy = param("dy", 0.5, h);
+        const double dx = param("dx", 0.5, w);
+        const double notch = param("notch", 0.0, w);
+        const double arrowHead = param("arrowHead", 0.0, h);
+
         path.moveTo(point(0, 0));
-        path.lineTo(point(w * 0.5, 0));
-        path.lineTo(point(w, h / 2.0));
-        path.lineTo(point(w * 0.5, h));
+        path.lineTo(point(notch, 0));
+        path.lineTo(point(notch, h * 0.5 - dy));
+        path.lineTo(point(w - dx, h * 0.5 - dy));
+        path.lineTo(point(w - dx, h * 0.5 - dy - arrowHead));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w - dx, h * 0.5 + dy + arrowHead));
+        path.lineTo(point(w - dx, h * 0.5 + dy));
+        path.lineTo(point(notch, h * 0.5 + dy));
+        path.lineTo(point(notch, h));
         path.lineTo(point(0, h));
-        path.lineTo(point(w * 0.4, h / 2.0));
         path.closeSubpath();
         return path;
     }
+
+    if (key == QLatin1String("arrows2.bendArrow"))
+    {
+        const double dy = param("dy", 0.5, h);
+        const double dx = param("dx", 0.5, w);
+        const double notch = param("notch", 0.0, h);
+        const double arrowHead = param("arrowHead", 40.0, h);
+
+        path.moveTo(point(w - dx, 0));
+        path.lineTo(point(w, arrowHead * 0.5));
+        path.lineTo(point(w - dx, arrowHead));
+        path.lineTo(point(w - dx, arrowHead / 2.0 + dy));
+
+        if (roundedArrow)
+        {
+            path.lineTo(point(dy * 2.2, arrowHead / 2.0 + dy));
+            arcTo(dy * 0.2, dy * 0.2, false, false, dy * 2.0, arrowHead / 2.0 + dy * 1.2);
+        }
+        else
+        {
+            path.lineTo(point(dy * 2.0, arrowHead / 2.0 + dy));
+        }
+
+        path.lineTo(point(dy * 2.0, h));
+        path.lineTo(point(dy, h - notch));
+        path.lineTo(point(0, h));
+
+        if (roundedArrow)
+        {
+            path.lineTo(point(0, arrowHead / 2.0 + dy));
+            arcTo(dy * 2.0, dy * 2.0, false, true, dy * 2.0, arrowHead / 2.0 - dy);
+        }
+        else
+        {
+            path.lineTo(point(0, arrowHead / 2.0 - dy));
+        }
+
+        path.lineTo(point(w - dx, arrowHead / 2.0 - dy));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.bendDoubleArrow"))
+    {
+        const double dy = param("dy", 0.5, h);
+        const double dx = param("dx", 0.5, w);
+        const double arrowHead = param("arrowHead", 40.0, w);
+
+        path.moveTo(point(w - dx, 0));
+        path.lineTo(point(w, arrowHead * 0.5));
+        path.lineTo(point(w - dx, arrowHead));
+        path.lineTo(point(w - dx, arrowHead / 2.0 + dy));
+
+        if (roundedArrow)
+        {
+            path.lineTo(point(arrowHead / 2.0 + dy * 1.2, arrowHead / 2.0 + dy));
+            arcTo(dy * 0.2, dy * 0.2, false, false,
+                  arrowHead / 2.0 + dy, arrowHead / 2.0 + dy * 1.2);
+        }
+        else
+        {
+            path.lineTo(point(arrowHead / 2.0 + dy, arrowHead / 2.0 + dy));
+        }
+
+        path.lineTo(point(arrowHead / 2.0 + dy, h - dx));
+        path.lineTo(point(arrowHead, h - dx));
+        path.lineTo(point(arrowHead / 2.0, h));
+        path.lineTo(point(0, h - dx));
+        path.lineTo(point(arrowHead / 2.0 - dy, h - dx));
+
+        if (roundedArrow)
+        {
+            path.lineTo(point(arrowHead / 2.0 - dy, arrowHead / 2.0 + dy));
+            arcTo(dy * 2.0, dy * 2.0, false, true,
+                  arrowHead / 2.0 + dy, arrowHead / 2.0 - dy);
+        }
+        else
+        {
+            path.lineTo(point(arrowHead / 2.0 - dy, arrowHead / 2.0 - dy));
+        }
+
+        path.lineTo(point(w - dx, arrowHead / 2.0 - dy));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.calloutDoubleArrow"))
+    {
+        const double dy = param("dy", 0.5, h);
+        const double dx = param("dx", 0.5, w);
+        const double notch = param("notch", 0.0, w);
+        const double arrowHead = param("arrowHead", 0.0, h);
+
+        path.moveTo(point(w / 2.0 - notch, 0));
+        path.lineTo(point(w / 2.0 + notch, 0));
+        path.lineTo(point(w / 2.0 + notch, h * 0.5 - dy));
+        path.lineTo(point(w - dx, h * 0.5 - dy));
+        path.lineTo(point(w - dx, h * 0.5 - dy - arrowHead));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w - dx, h * 0.5 + dy + arrowHead));
+        path.lineTo(point(w - dx, h * 0.5 + dy));
+        path.lineTo(point(w / 2.0 + notch, h * 0.5 + dy));
+        path.lineTo(point(w / 2.0 + notch, h));
+        path.lineTo(point(w / 2.0 - notch, h));
+        path.lineTo(point(w / 2.0 - notch, h * 0.5 + dy));
+        path.lineTo(point(dx, h * 0.5 + dy));
+        path.lineTo(point(dx, h * 0.5 + dy + arrowHead));
+        path.lineTo(point(0, h * 0.5));
+        path.lineTo(point(dx, h * 0.5 - dy - arrowHead));
+        path.lineTo(point(dx, h * 0.5 - dy));
+        path.lineTo(point(w / 2.0 - notch, h * 0.5 - dy));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.calloutQuadArrow"))
+    {
+        const double dy = param("dy", 0.5, h);
+        const double dx = param("dx", 0.5, w);
+        const double notch = param("notch", 0.0, w);
+        const double arrowHead = param("arrowHead", 0.0, h);
+
+        path.moveTo(point(w * 0.5 + dy, h * 0.5 - notch));
+        path.lineTo(point(w * 0.5 + notch, h * 0.5 - notch));
+        path.lineTo(point(w * 0.5 + notch, h * 0.5 - dy));
+        path.lineTo(point(w - dx, h * 0.5 - dy));
+        path.lineTo(point(w - dx, h * 0.5 - dy - arrowHead));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w - dx, h * 0.5 + dy + arrowHead));
+        path.lineTo(point(w - dx, h * 0.5 + dy));
+        path.lineTo(point(w * 0.5 + notch, h * 0.5 + dy));
+        path.lineTo(point(w * 0.5 + notch, h * 0.5 + notch));
+        path.lineTo(point(w * 0.5 + dy, h * 0.5 + notch));
+        path.lineTo(point(w * 0.5 + dy, h - dx));
+        path.lineTo(point(w * 0.5 + dy + arrowHead, h - dx));
+        path.lineTo(point(w * 0.5, h));
+        path.lineTo(point(w * 0.5 - dy - arrowHead, h - dx));
+        path.lineTo(point(w * 0.5 - dy, h - dx));
+        path.lineTo(point(w * 0.5 - dy, h * 0.5 + notch));
+        path.lineTo(point(w * 0.5 - notch, h * 0.5 + notch));
+        path.lineTo(point(w * 0.5 - notch, h * 0.5 + dy));
+        path.lineTo(point(dx, h * 0.5 + dy));
+        path.lineTo(point(dx, h * 0.5 + dy + arrowHead));
+        path.lineTo(point(0, h * 0.5));
+        path.lineTo(point(dx, h * 0.5 - dy - arrowHead));
+        path.lineTo(point(dx, h * 0.5 - dy));
+        path.lineTo(point(w * 0.5 - notch, h * 0.5 - dy));
+        path.lineTo(point(w * 0.5 - notch, h * 0.5 - notch));
+        path.lineTo(point(w * 0.5 - dy, h * 0.5 - notch));
+        path.lineTo(point(w * 0.5 - dy, dx));
+        path.lineTo(point(w * 0.5 - dy - arrowHead, dx));
+        path.lineTo(point(w * 0.5, 0));
+        path.lineTo(point(w * 0.5 + dy + arrowHead, dx));
+        path.lineTo(point(w * 0.5 + dy, dx));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.calloutDouble90Arrow"))
+    {
+        const double dy1 = param("dy1", 0.5, h);
+        const double dx1 = param("dx1", 0.5, w);
+        const double dx2 = param("dx2", 0.0, w);
+        const double dy2 = param("dy2", 0.0, w);
+        const double arrowHead = param("arrowHead", 0.0, h);
+
+        path.moveTo(point(0, 0));
+        path.lineTo(point(dx2, 0));
+        path.lineTo(point(dx2, dy2 * 0.5 - dy1));
+        path.lineTo(point(w - dx1, dy2 * 0.5 - dy1));
+        path.lineTo(point(w - dx1, dy2 * 0.5 - dy1 - arrowHead));
+        path.lineTo(point(w, dy2 * 0.5));
+        path.lineTo(point(w - dx1, dy2 * 0.5 + dy1 + arrowHead));
+        path.lineTo(point(w - dx1, dy2 * 0.5 + dy1));
+        path.lineTo(point(dx2, dy2 * 0.5 + dy1));
+        path.lineTo(point(dx2, dy2));
+        path.lineTo(point(dx2 / 2.0 + dy1, dy2));
+        path.lineTo(point(dx2 / 2.0 + dy1, h - dx1));
+        path.lineTo(point(dx2 / 2.0 + dy1 + arrowHead, h - dx1));
+        path.lineTo(point(dx2 / 2.0, h));
+        path.lineTo(point(dx2 / 2.0 - dy1 - arrowHead, h - dx1));
+        path.lineTo(point(dx2 / 2.0 - dy1, h - dx1));
+        path.lineTo(point(dx2 / 2.0 - dy1, dy2));
+        path.lineTo(point(0, dy2));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.quadArrow"))
+    {
+        const double dy = param("dy", 0.5, h);
+        const double dx = param("dx", 0.5, w);
+        const double arrowHead = param("arrowHead", 0.0, h);
+
+        path.moveTo(point(w * 0.5 + dy, h * 0.5 - dy));
+        path.lineTo(point(w - dx, h * 0.5 - dy));
+        path.lineTo(point(w - dx, h * 0.5 - dy - arrowHead));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w - dx, h * 0.5 + dy + arrowHead));
+        path.lineTo(point(w - dx, h * 0.5 + dy));
+        path.lineTo(point(w * 0.5 + dy, h * 0.5 + dy));
+        path.lineTo(point(w * 0.5 + dy, h - dx));
+        path.lineTo(point(w * 0.5 + dy + arrowHead, h - dx));
+        path.lineTo(point(w * 0.5, h));
+        path.lineTo(point(w * 0.5 - dy - arrowHead, h - dx));
+        path.lineTo(point(w * 0.5 - dy, h - dx));
+        path.lineTo(point(w * 0.5 - dy, h * 0.5 + dy));
+        path.lineTo(point(dx, h * 0.5 + dy));
+        path.lineTo(point(dx, h * 0.5 + dy + arrowHead));
+        path.lineTo(point(0, h * 0.5));
+        path.lineTo(point(dx, h * 0.5 - dy - arrowHead));
+        path.lineTo(point(dx, h * 0.5 - dy));
+        path.lineTo(point(w * 0.5 - dy, h * 0.5 - dy));
+        path.lineTo(point(w * 0.5 - dy, dx));
+        path.lineTo(point(w * 0.5 - dy - arrowHead, dx));
+        path.lineTo(point(w * 0.5, 0));
+        path.lineTo(point(w * 0.5 + dy + arrowHead, dx));
+        path.lineTo(point(w * 0.5 + dy, dx));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.triadArrow"))
+    {
+        const double dy = param("dy", 0.5, h);
+        const double dx = param("dx", 0.5, w);
+        const double arrowHead = param("arrowHead", 0.0, h);
+
+        path.moveTo(point(w * 0.5 + arrowHead * 0.5 - dy, h - arrowHead + dy));
+        path.lineTo(point(w - dx, h - arrowHead + dy));
+        path.lineTo(point(w - dx, h - arrowHead));
+        path.lineTo(point(w, h - arrowHead * 0.5));
+        path.lineTo(point(w - dx, h));
+        path.lineTo(point(w - dx, h - dy));
+        path.lineTo(point(dx, h - dy));
+        path.lineTo(point(dx, h));
+        path.lineTo(point(0, h - arrowHead * 0.5));
+        path.lineTo(point(dx, h - arrowHead));
+        path.lineTo(point(dx, h - arrowHead + dy));
+        path.lineTo(point(w * 0.5 - arrowHead * 0.5 + dy, h - arrowHead + dy));
+        path.lineTo(point(w * 0.5 - arrowHead * 0.5 + dy, dx));
+        path.lineTo(point(w * 0.5 - arrowHead * 0.5, dx));
+        path.lineTo(point(w * 0.5, 0));
+        path.lineTo(point(w * 0.5 + arrowHead * 0.5, dx));
+        path.lineTo(point(w * 0.5 + arrowHead * 0.5 - dy, dx));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.tailedArrow")
+        || key == QLatin1String("arrows2.tailedNotchedArrow"))
+    {
+        const bool notched = key == QLatin1String("arrows2.tailedNotchedArrow");
+        const double dy1 = param("dy1", 10.0, h);
+        const double dx1 = param("dx1", 20.0, w);
+        const double dy2 = param("dy2", 30.0, h);
+        const double dx2 = param("dx2", 25.0, w);
+        const double notch = param("notch", 0.0, w);
+        const double arrowHead = param("arrowHead", 0.0, h);
+        // The tail taper ends at the notch, or at the tail length itself.
+        const double x2 = (dy2 != 0.0)
+            ? dx2 + (notched ? notch : dy2) * (dy2 - dy1) / dy2 : 0.0;
+
+        path.moveTo(point(0, h * 0.5 - dy2));
+        path.lineTo(point(dx2, h * 0.5 - dy2));
+        path.lineTo(point(x2, h * 0.5 - dy1));
+        path.lineTo(point(w - dx1, h * 0.5 - dy1));
+        path.lineTo(point(w - dx1, h * 0.5 - dy1 - arrowHead));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w - dx1, h * 0.5 + dy1 + arrowHead));
+        path.lineTo(point(w - dx1, h * 0.5 + dy1));
+        path.lineTo(point(x2, h * 0.5 + dy1));
+        path.lineTo(point(dx2, h * 0.5 + dy2));
+        path.lineTo(point(0, h * 0.5 + dy2));
+        path.lineTo(point(notch, h * 0.5));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.stripedArrow"))
+    {
+        const double dy = h * 0.5 * ratio("dy", 0.5);
+        const double dx = param("dx", 0.5, w);
+        const double notch = param("notch", 0.0, w);
+
+        path.moveTo(point(notch, dy));
+        path.lineTo(point(w - dx, dy));
+        path.lineTo(point(w - dx, 0));
+        path.lineTo(point(w, h * 0.5));
+        path.lineTo(point(w - dx, h));
+        path.lineTo(point(w - dx, h - dy));
+        path.lineTo(point(notch, h - dy));
+        path.closeSubpath();
+        path.moveTo(point(0, h - dy));
+        path.lineTo(point(notch * 0.16, h - dy));
+        path.lineTo(point(notch * 0.16, dy));
+        path.lineTo(point(0, dy));
+        path.closeSubpath();
+        path.moveTo(point(notch * 0.32, h - dy));
+        path.lineTo(point(notch * 0.8, h - dy));
+        path.lineTo(point(notch * 0.8, dy));
+        path.lineTo(point(notch * 0.32, dy));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.jumpInArrow"))
+    {
+        const double dy = param("dy", 0.5, h);
+        const double dx = param("dx", 0.5, w);
+        const double arrowHead = param("arrowHead", 40.0, h);
+
+        path.moveTo(point(w - dx, 0));
+        path.lineTo(point(w, arrowHead * 0.5));
+        path.lineTo(point(w - dx, arrowHead));
+        path.lineTo(point(w - dx, arrowHead / 2.0 + dy));
+        arcTo(w - dx, h - arrowHead / 2.0 - dy, false, false, 0, h);
+        arcTo(w - dx, h - arrowHead / 2.0 + dy, false, true, w - dx, arrowHead / 2.0 - dy);
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.uTurnArrow"))
+    {
+        const double dy = param("dy", 0.5, h);
+        const double arrowHead = param("arrowHead", 40.0, h);
+        const double dx = (h - arrowHead / 2.0 + dy) / 2.0;
+        // getArrowheadLength(): any length up to 1e7 keeps the tip finite.
+        const double dx2 = qMin(qMax(0.0,
+            Style::number(probe.style, QStringLiteral("dx2"), 25.0)), 1e7);
+
+        path.moveTo(point(dx, 0));
+        path.lineTo(point(dx + dx2, arrowHead * 0.5));
+        path.lineTo(point(dx, arrowHead));
+        path.lineTo(point(dx, arrowHead / 2.0 + dy));
+        arcTo(dx - 2.0 * dy, dx - 2.0 * dy, false, false, dx, h - 2.0 * dy);
+        path.lineTo(point(qMax(w, dx), h - 2.0 * dy));
+        path.lineTo(point(qMax(w, dx), h));
+        path.lineTo(point(dx, h));
+        arcTo(dx, dx, false, true, dx, arrowHead / 2.0 - dy);
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.wedgeArrow"))
+    {
+        // mxShapeArrowsWedgeArrow.paintEdgeShape for the palette's edge, which
+        // runs from the left middle of the bounds to the right middle.
+        const double startWidth = qMax(0.0,
+            Style::number(probe.style, QStringLiteral("startWidth"), 20.0));
+        const double dist = w; // pe.x - p0.x with dy = 0
+
+        if (dist > 0.0)
+        {
+            const double nx = w * startWidth / dist;
+            path.moveTo(point(0, h * 0.5 - nx));
+            path.lineTo(point(0, h * 0.5 + nx));
+            path.lineTo(point(w, h * 0.5));
+            path.closeSubpath();
+        }
+
+        return path;
+    }
+
+    if (key == QLatin1String("arrows2.wedgeArrowDashed2"))
+    {
+        // mxShapeArrowsWedgeArrowDashed2.paintEdgeShape: one rung per step,
+        // narrowing towards the tip (the rungs are the dashed pattern).
+        const double startWidth = qMax(0.0,
+            Style::number(probe.style, QStringLiteral("startWidth"), 20.0));
+        const double stepSize = qMax(0.0,
+            Style::number(probe.style, QStringLiteral("stepSize"), 10.0));
+        const double dist = w;
+        const double maxSteps = 10000.0;
+        int steps = (stepSize > 0.0)
+            ? static_cast<int>(qMin(std::floor(dist / stepSize), maxSteps)) : 0;
+
+        if (steps <= 0)
+        {
+            // draw.io divides by the step count; a single base rung keeps the
+            // shape visible instead of producing NaN coordinates.
+            steps = 1;
+        }
+
+        for (int i = 0; i <= steps; ++i)
+        {
+            double half = startWidth * (steps - i) / steps;
+
+            if (i == steps)
+            {
+                half = startWidth * (steps - i * 0.98) / steps;
+            }
+
+            const double px = w * i / steps;
+            path.moveTo(point(px, h * 0.5 - half));
+            path.lineTo(point(px, h * 0.5 + half));
+        }
+
+        return path;
+    }
+
 
     if (key == QLatin1String("advTreeH") || key == QLatin1String("advTreeV")
         || key == QLatin1String("advTreeBalloon"))
@@ -3031,12 +3406,25 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
-    if (key == QLatin1String("mxgraph.flowchart.annotation"))
+    if (key == QLatin1String("mxgraph.flowchart.annotation_1"))
     {
-        path.moveTo(point(0, 0));
+        // draw.io "Annotation 1": open bracket (top, left, bottom).
+        path.moveTo(point(w, 0));
+        path.lineTo(point(0, 0));
         path.lineTo(point(0, h));
-        path.moveTo(point(0, 0));
-        path.lineTo(point(w, 0));
+        path.lineTo(point(w, h));
+        return path;
+    }
+
+    if (key == QLatin1String("mxgraph.flowchart.annotation_2"))
+    {
+        // draw.io "Annotation 2": bracket plus a horizontal divider.
+        path.moveTo(point(w, 0));
+        path.lineTo(point(w * 0.5, 0));
+        path.lineTo(point(w * 0.5, h));
+        path.lineTo(point(w, h));
+        path.moveTo(point(0, h * 0.5));
+        path.lineTo(point(w * 0.5, h * 0.5));
         return path;
     }
 

@@ -660,7 +660,16 @@ Cell *DiagramView::cellAt(const QPointF &scenePoint, bool includeEdges) const
                 const QPointF closest = a + ab * t;
                 const double distance = QLineF(closest, scenePoint).length();
 
-                if (distance <= qMax(4.0, 6.0 / m_zoom))
+                double tolerance = qMax(4.0, 6.0 / m_zoom);
+
+                if (!cell->styleValue(QStringLiteral("shape")).isEmpty())
+                {
+                    // Edge shapes such as the wedge arrows paint a wide band.
+                    tolerance = qMax(tolerance,
+                                     cell->styleNumber(QStringLiteral("startWidth"), 0.0));
+                }
+
+                if (distance <= tolerance)
                 {
                     return cell;
                 }
@@ -1473,6 +1482,14 @@ void DiagramView::mousePressEvent(QMouseEvent *event)
 
             if (segmentIndex > 0)
             {
+                // Free floating edges have no endpoints to drag, so moving the
+                // body should translate the whole shape instead.
+                if (edge->sourceId.isEmpty() && edge->targetId.isEmpty())
+                {
+                    beginMove(scenePoint);
+                    return;
+                }
+
                 beginSegmentDrag(edge, route, segmentIndex,
                                  route.points.at(segmentIndex - 1),
                                  route.points.at(segmentIndex), scenePoint);
@@ -4246,8 +4263,23 @@ Cell *DiagramView::addShape(const ShapeDefinition &definition, const QPointF &sc
                           qRound(topLeft.y() / grid) * grid);
     }
 
-    Cell *cell = m_page->addVertex(QRectF(topLeft, size), Style::parse(definition.style),
-                                   QStringLiteral(""));
+    const StyleMap style = Style::parse(definition.style);
+    Cell *cell = nullptr;
+
+    // draw.io's wedge arrows are edge shapes; inserting them as vertices would
+    // save a cell the original editor cannot paint. Create a floating edge.
+    if (Style::value(style, QStringLiteral("shape")).startsWith(
+            QLatin1String("mxgraph.arrows2.wedgeArrow")))
+    {
+        cell = m_page->addEdge(QString(), QString(), style);
+        cell->sourcePoint = topLeft;
+        cell->targetPoint = topLeft + QPointF(size.width(), 0);
+    }
+    else
+    {
+        cell = m_page->addVertex(QRectF(topLeft, size), style, QStringLiteral(""));
+    }
+
     m_selection = {cell->id};
     commitSnapshot();
     notifyModified();

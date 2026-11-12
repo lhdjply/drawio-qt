@@ -240,6 +240,113 @@ private slots:
         QCOMPARE(path.boundingRect().height(), 80.0);
     }
 
+    void arrows2UseStencilNames()
+    {
+        // Bare arr* names are not registered in draw.io, so they fall back.
+        const QPainterPath bare = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=arrQuad;")), QRectF(0, 0, 100, 100));
+        QCOMPARE(bare.elementCount(), 5);
+
+        // The stencil name maps to the internal arrows2 key.
+        const QPainterPath quad = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.arrows2.quadArrow;"
+                                        "dy=10;dx=20;arrowHead=10;")),
+            QRectF(0, 0, 100, 100));
+        QCOMPARE(quad.elementCount(), 25);
+        QCOMPARE(quad.elementAt(0).x, 60.0);
+        QCOMPARE(quad.elementAt(0).y, 40.0);
+
+        // Without dy/dx/arrowHead draw.io's constructor defaults (0.5/0.5/0)
+        // collapse the shape into a thin cross; match that exactly.
+        const QPainterPath noParams = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.arrows2.quadArrow;")),
+            QRectF(0, 0, 100, 100));
+        QVERIFY(noParams.elementCount() > 10);
+        QCOMPARE(noParams.elementAt(0).x, 50.5);
+        QCOMPARE(noParams.elementAt(0).y, 49.5);
+    }
+
+    void arrows2LibraryMatchesOfficialSet()
+    {
+        // Sidebar-Arrows2.js offers exactly these 20 shapes; the library must
+        // not carry any other arrow.
+        QStringList official = {
+            QStringLiteral("arrow"), QStringLiteral("twoWayArrow"),
+            QStringLiteral("stylisedArrow"), QStringLiteral("sharpArrow"),
+            QStringLiteral("sharpArrow2"), QStringLiteral("calloutArrow"),
+            QStringLiteral("bendArrow"), QStringLiteral("bendDoubleArrow"),
+            QStringLiteral("calloutDoubleArrow"), QStringLiteral("calloutQuadArrow"),
+            QStringLiteral("calloutDouble90Arrow"), QStringLiteral("quadArrow"),
+            QStringLiteral("triadArrow"), QStringLiteral("tailedArrow"),
+            QStringLiteral("tailedNotchedArrow"), QStringLiteral("stripedArrow"),
+            QStringLiteral("jumpInArrow"), QStringLiteral("uTurnArrow"),
+            QStringLiteral("wedgeArrow"), QStringLiteral("wedgeArrowDashed2"),
+        };
+        official.sort();
+
+        QStringList library;
+        QStringList keys;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category != QLatin1String("arrows"))
+            {
+                continue;
+            }
+
+            keys.append(definition.key);
+
+            const QString shape = Style::value(Style::parse(definition.style),
+                                               QStringLiteral("shape"));
+            QVERIFY2(shape.startsWith(QLatin1String("mxgraph.arrows2.")), qPrintable(shape));
+            library.append(shape.mid(int(QStringLiteral("mxgraph.arrows2.").size())));
+        }
+
+        library.sort();
+        QCOMPARE(library, official);
+        QCOMPARE(keys.size(), 20);
+    }
+
+    void arrows2VertexCountsMatchDrawio()
+    {
+        // mxShapeArrows2Arrow.paintVertexShape: one moveTo, seven lineTo and
+        // a close; the head tip sits at the right middle.
+        const QPainterPath arrow = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.arrows2.arrow;dy=0.6;dx=40;notch=0;")),
+            QRectF(0, 0, 100, 70));
+        QCOMPARE(arrow.elementCount(), 9);
+        QCOMPARE(arrow.elementAt(0).x, 0.0);
+        QCOMPARE(arrow.elementAt(0).y, 21.0);  // h * 0.5 * dy
+        QCOMPARE(arrow.elementAt(1).x, 60.0);  // w - dx
+        QCOMPARE(arrow.elementAt(3).x, 100.0);
+        QCOMPARE(arrow.elementAt(3).y, 35.0);
+
+        // mxShapeArrows2TwoWayArrow.paintVertexShape: one moveTo, nine lineTo
+        // and a close.
+        const QPainterPath twoWay = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.arrows2.twoWayArrow;dy=0.6;dx=35;")),
+            QRectF(0, 0, 100, 60));
+        QCOMPARE(twoWay.elementCount(), 11);
+        QCOMPARE(twoWay.elementAt(0).x, 35.0);
+        QCOMPARE(twoWay.elementAt(0).y, 18.0);  // h * 0.5 * dy
+        QCOMPARE(twoWay.elementAt(4).y, 60.0);
+    }
+
+    void annotationFallsBackLikeDrawio()
+    {
+        // draw.io only registers "Annotation 1/2"; the bare name is a rectangle.
+        const QPainterPath bare = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.flowchart.annotation;")),
+            QRectF(0, 0, 100, 80));
+        QCOMPARE(bare.elementCount(), 5);
+
+        const QPainterPath annotation = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=mxgraph.flowchart.annotation_1;")),
+            QRectF(0, 0, 100, 80));
+        QCOMPARE(annotation.elementCount(), 4);
+        QCOMPARE(annotation.elementAt(0).x, 100.0);
+    }
+
     void shapeSearchMatchesChinese()
     {
         const QVector<ShapeDefinition> stars = ShapeCatalog::instance().search(QStringLiteral("星"), 40);

@@ -4,6 +4,8 @@
 
 #include <QLineF>
 #include <QPainter>
+
+#include <cmath>
 #include <QPolygonF>
 #include <QtMath>
 
@@ -521,6 +523,97 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
                                                          Qt::CaseInsensitive) == 0)
     {
         paintFlexArrow(painter, edge, route);
+        paintLabel(painter, page, edge, route);
+        return;
+    }
+
+    const QString shapeName = edge.styleValue(QStringLiteral("shape")).toLower();
+
+    if (shapeName == QLatin1String("mxgraph.arrows2.wedgearrow")
+        || shapeName == QLatin1String("mxgraph.arrows2.wedgearrowdashed2")
+        || shapeName == QLatin1String("mxgraph.arrows2.wedgearrowdashed"))
+    {
+        // mxShapeArrowsWedgeArrow*: the wedge is built from the edge endpoints.
+        const QPointF p0 = route.points.first();
+        const QPointF pe = route.points.last();
+        const double dx = pe.x() - p0.x();
+        const double dy = pe.y() - p0.y();
+        const double dist = std::hypot(dx, dy);
+        const double startWidth = qMax(0.0, edge.styleNumber(QStringLiteral("startWidth"), 20.0));
+
+        painter.save();
+        const QColor color = edgeColor(edge);
+        painter.setPen(edgePen(edge));
+        painter.setBrush(Qt::NoBrush);
+
+        if (dist > 0.0)
+        {
+            const double nx = dx * startWidth / dist;
+            const double ny = dy * startWidth / dist;
+
+            if (shapeName == QLatin1String("mxgraph.arrows2.wedgearrow"))
+            {
+                QPolygonF wedge;
+                wedge << QPointF(p0.x() + ny, p0.y() - nx)
+                      << QPointF(p0.x() - ny, p0.y() + nx)
+                      << pe;
+                QColor fill = color;
+                const QString fillValue = edge.styleValue(QStringLiteral("fillColor"));
+
+                if (fillValue.compare(QLatin1String("strokeColor"), Qt::CaseInsensitive) == 0)
+                {
+                    fill = color;
+                }
+                else if (!fillValue.isEmpty() && !Style::isNoneColor(fillValue))
+                {
+                    fill = Style::parseColorValue(fillValue);
+                }
+
+                painter.setBrush(fill);
+                painter.drawPolygon(wedge);
+            }
+            else
+            {
+                const double stepSize = qMax(0.0, edge.styleNumber(QStringLiteral("stepSize"),
+                                                                   shapeName.endsWith(QLatin1Char('2'))
+                                                                       ? 10.0 : 20.0));
+                int steps = 8;
+
+                if (shapeName.endsWith(QLatin1Char('2')))
+                {
+                    steps = stepSize > 0.0 ? qMin(int(dist / stepSize), 10000) : 0;
+                }
+
+                if (steps > 0)
+                {
+                    double pcx = p0.x();
+                    double pcy = p0.y();
+
+                    for (int i = 0; i <= steps; ++i)
+                    {
+                        double cnx = nx * (steps - i) / steps;
+                        double cny = ny * (steps - i) / steps;
+
+                        if (i == steps)
+                        {
+                            cnx = nx * (steps - i * 0.98) / steps;
+                            cny = ny * (steps - i * 0.98) / steps;
+                        }
+
+                        painter.drawLine(QPointF(pcx + cny, pcy - cnx),
+                                         QPointF(pcx - cny, pcy + cnx));
+                        pcx += dx / steps;
+                        pcy += dy / steps;
+                    }
+                }
+                else
+                {
+                    painter.drawLine(p0, pe);
+                }
+            }
+        }
+
+        painter.restore();
         paintLabel(painter, page, edge, route);
         return;
     }

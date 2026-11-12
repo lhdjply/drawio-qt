@@ -859,6 +859,68 @@ private slots:
         QCOMPARE(shape->styleValue(QStringLiteral("fontFamily")), family->itemData(0).toString());
     }
 
+    void floatingEdgeCanBeDragged()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *cell = view->addShape(
+            ShapeRegistry::definition(QStringLiteral("arrow.wedge")), QPointF(200, 200));
+        QVERIFY(cell != nullptr);
+        QVERIFY(cell->isEdge());
+
+        const QPointF startPoint = cell->sourcePoint;
+        const QPointF targetPoint = cell->targetPoint;
+        view->selectCell(cell->id);
+
+        const QPoint mid = view->toView((startPoint + targetPoint) / 2.0).toPoint();
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, mid);
+        QTest::mouseMove(view, mid + QPoint(40, 30));
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, mid + QPoint(40, 30));
+
+        QVERIFY(cell->sourcePoint != startPoint);
+        QVERIFY(cell->targetPoint != targetPoint);
+    }
+
+    void directionAndFlipAreApplied()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("arrow.arrow")),
+                                     QPointF(200, 200));
+        QVERIFY(shape != nullptr);
+
+        // direction=north rotates the paint box and the shape by 90 degrees.
+        shape->setStyleValue(QStringLiteral("direction"), QStringLiteral("north"));
+        const QImage north = view->grab().toImage();
+
+        shape->setStyleValue(QStringLiteral("direction"), QString());
+        shape->setStyleValue(QStringLiteral("flipH"), QStringLiteral("1"));
+        const QImage flipped = view->grab().toImage();
+
+        QVERIFY(north != flipped);
+    }
+
+    void wedgeArrowInsertsAsEdge()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        const int before = view->page()->cells().size();
+
+        Cell *cell = view->addShape(
+            ShapeRegistry::definition(QStringLiteral("arrow.wedge")), QPointF(200, 200));
+        QVERIFY(cell != nullptr);
+        QVERIFY(cell->isEdge());
+        QCOMPARE(view->page()->cells().size(), before + 1);
+        QVERIFY(!cell->sourcePoint.isNull());
+        QVERIFY(!cell->targetPoint.isNull());
+    }
+
     void layerCanBeDeletedFromPanel()
     {
         MainWindow window;
