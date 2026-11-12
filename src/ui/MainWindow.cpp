@@ -26,10 +26,12 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QDockWidget>
+#include <QMouseEvent>
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QAbstractButton>
 #include <QDialog>
+#include <QPushButton>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
@@ -61,6 +63,106 @@
 namespace dq {
 namespace {
 
+class DockTitleBar : public QWidget
+{
+public:
+    DockTitleBar(QDockWidget *dock, const QString &title, QWidget *parent)
+        : QWidget(parent), m_dock(dock)
+    {
+        setObjectName(QStringLiteral("dockTitleBar"));
+        setAttribute(Qt::WA_StyledBackground, true);
+        setFixedHeight(34);
+        setStyleSheet(QStringLiteral(
+            "QWidget#dockTitleBar { background: palette(window);"
+            " border-bottom: 1px solid palette(mid); }"));
+
+        auto *layout = new QHBoxLayout(this);
+        layout->setContentsMargins(10, 0, 4, 0);
+        layout->setSpacing(2);
+
+        auto *label = new QLabel(title, this);
+        QFont font = label->font();
+        font.setPointSizeF(10.5);
+        font.setBold(true);
+        label->setFont(font);
+        layout->addWidget(label, 1);
+
+        auto *floatButton = new QToolButton(this);
+        floatButton->setObjectName(QStringLiteral("dockFloatButton"));
+        floatButton->setIcon(QIcon(QStringLiteral(":/icons/fit.svg")));
+        floatButton->setIconSize(QSize(18, 18));
+        floatButton->setFixedSize(30, 30);
+        floatButton->setAutoRaise(true);
+        floatButton->setToolTip(QStringLiteral("Float"));
+        layout->addWidget(floatButton);
+
+        auto *closeButton = new QToolButton(this);
+        closeButton->setObjectName(QStringLiteral("dockCloseButton"));
+        closeButton->setIcon(QIcon(QStringLiteral(":/icons/tab-close.svg")));
+        closeButton->setIconSize(QSize(18, 18));
+        closeButton->setFixedSize(30, 30);
+        closeButton->setAutoRaise(true);
+        closeButton->setToolTip(QStringLiteral("Close"));
+        layout->addWidget(closeButton);
+
+        connect(floatButton, &QToolButton::clicked, dock, [dock]()
+        {
+            dock->setFloating(!dock->isFloating());
+        });
+        connect(closeButton, &QToolButton::clicked, dock, &QDockWidget::close);
+    }
+
+protected:
+    void mousePressEvent(QMouseEvent *event) override
+    {
+        if (event->button() == Qt::LeftButton)
+        {
+            m_dragging = true;
+            m_offset = m_dock->isFloating()
+                ? event->globalPosition().toPoint() - m_dock->frameGeometry().topLeft()
+                : QPoint(m_dock->width() / 2, 16);
+            event->accept();
+        }
+    }
+
+    void mouseMoveEvent(QMouseEvent *event) override
+    {
+        if (!m_dragging || !(event->buttons() & Qt::LeftButton))
+        {
+            return;
+        }
+
+        if (!m_dock->isFloating())
+        {
+            m_dock->setFloating(true);
+        }
+
+        m_dock->move(event->globalPosition().toPoint() - m_offset);
+        event->accept();
+    }
+
+    void mouseReleaseEvent(QMouseEvent *event) override
+    {
+        m_dragging = false;
+        QWidget::mouseReleaseEvent(event);
+    }
+
+    void mouseDoubleClickEvent(QMouseEvent *event) override
+    {
+        if (event->button() == Qt::LeftButton)
+        {
+            m_dock->setFloating(!m_dock->isFloating());
+            event->accept();
+        }
+    }
+
+private:
+    QDockWidget *m_dock = nullptr;
+    QPoint m_offset;
+    bool m_dragging = false;
+};
+
+
 QKeySequence key(const QString &text)
 {
     return QKeySequence(text);
@@ -71,6 +173,147 @@ QIcon iconFor(const QString &name)
     return QIcon(QStringLiteral(":/icons/%1.svg").arg(name));
 }
 
+
+
+QPixmap messageIcon(const QColor &color, const QString &glyph)
+{
+    QPixmap pixmap(38, 38);
+    pixmap.fill(Qt::transparent);
+    QPainter painter(&pixmap);
+    painter.setRenderHint(QPainter::Antialiasing, true);
+    painter.setPen(Qt::NoPen);
+    painter.setBrush(color);
+    painter.drawEllipse(QRectF(1, 1, 36, 36));
+    QFont font = painter.font();
+    font.setPointSizeF(17);
+    font.setBold(true);
+    painter.setFont(font);
+    painter.setPen(Qt::white);
+    painter.drawText(pixmap.rect(), Qt::AlignCenter, glyph);
+    return pixmap;
+}
+
+QString dialogStyle()
+{
+    return QStringLiteral(
+        "QLabel#dialogMessage { color: palette(mid); font-size: 12px; }"
+        "QPushButton { min-width: 88px; min-height: 32px; padding: 0 14px; }"
+        "QPushButton#primaryButton { background: #1a73e8; color: white;"
+        " border: none; border-radius: 4px; font-weight: 600; }"
+        "QPushButton#primaryButton:hover { background: #1765cc; }"
+        "QPushButton#primaryButton:pressed { background: #12539f; }");
+}
+
+void addDialogHeader(QVBoxLayout *layout, QWidget *parent, const QPixmap &icon,
+                     const QString &heading, const QString &message)
+{
+    auto *content = new QHBoxLayout();
+    content->setSpacing(14);
+
+    auto *iconLabel = new QLabel(parent);
+    iconLabel->setFixedSize(38, 38);
+    iconLabel->setPixmap(icon);
+    content->addWidget(iconLabel, 0, Qt::AlignTop);
+
+    auto *texts = new QVBoxLayout();
+    texts->setSpacing(6);
+
+    auto *title = new QLabel(heading, parent);
+    QFont font = title->font();
+    font.setPointSizeF(12);
+    font.setBold(true);
+    title->setFont(font);
+    texts->addWidget(title);
+
+    auto *body = new QLabel(message, parent);
+    body->setObjectName(QStringLiteral("dialogMessage"));
+    body->setWordWrap(true);
+    texts->addWidget(body);
+
+    content->addLayout(texts, 1);
+    layout->addLayout(content);
+}
+
+void showInfoDialog(QWidget *parent, const QString &title, const QString &heading,
+                    const QString &message)
+{
+    QDialog dialog(parent);
+    dialog.setWindowTitle(title);
+    dialog.setMinimumWidth(420);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(24, 22, 24, 18);
+    layout->setSpacing(18);
+    addDialogHeader(layout, &dialog, messageIcon(QColor(0xE6, 0x9C, 0x00), QStringLiteral("!")),
+                    heading, message);
+
+    auto *buttons = new QHBoxLayout();
+    buttons->addStretch(1);
+    auto *ok = new QPushButton(I18n::text(QStringLiteral("OK")), &dialog);
+    ok->setObjectName(QStringLiteral("primaryButton"));
+    ok->setDefault(true);
+    buttons->addWidget(ok);
+    layout->addLayout(buttons);
+
+    QObject::connect(ok, &QPushButton::clicked, &dialog, &QDialog::accept);
+    dialog.setStyleSheet(dialogStyle());
+    dialog.exec();
+}
+
+enum class SaveChoice
+{
+    Save,
+    Discard,
+    Cancel
+};
+
+SaveChoice askSaveChanges(QWidget *parent, const QString &documentName)
+{
+    QDialog dialog(parent);
+    dialog.setWindowTitle(I18n::text(QStringLiteral("Unsaved Changes")));
+    dialog.setMinimumWidth(480);
+
+    auto *layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(24, 22, 24, 18);
+    layout->setSpacing(18);
+    addDialogHeader(layout, &dialog, messageIcon(QColor(0xE6, 0x9C, 0x00), QStringLiteral("!")),
+                    I18n::text(QStringLiteral("Unsaved Changes")),
+                    I18n::text(QStringLiteral("Document “%1” has unsaved changes. Save it?"))
+                        .arg(I18n::text(documentName)));
+
+    auto *buttons = new QHBoxLayout();
+    buttons->addStretch(1);
+    auto *cancel = new QPushButton(I18n::text(QStringLiteral("Cancel")), &dialog);
+    auto *discard = new QPushButton(I18n::text(QStringLiteral("Don't Save")), &dialog);
+    auto *save = new QPushButton(I18n::text(QStringLiteral("Save")), &dialog);
+    save->setObjectName(QStringLiteral("primaryButton"));
+    save->setDefault(true);
+    buttons->addWidget(save);
+    buttons->addWidget(discard);
+    buttons->addWidget(cancel);
+    layout->addLayout(buttons);
+
+    SaveChoice choice = SaveChoice::Cancel;
+    QObject::connect(cancel, &QPushButton::clicked, &dialog, [&dialog, &choice]()
+    {
+        choice = SaveChoice::Cancel;
+        dialog.reject();
+    });
+    QObject::connect(discard, &QPushButton::clicked, &dialog, [&dialog, &choice]()
+    {
+        choice = SaveChoice::Discard;
+        dialog.accept();
+    });
+    QObject::connect(save, &QPushButton::clicked, &dialog, [&dialog, &choice]()
+    {
+        choice = SaveChoice::Save;
+        dialog.accept();
+    });
+
+    dialog.setStyleSheet(dialogStyle());
+    dialog.exec();
+    return dialog.result() == QDialog::Accepted ? choice : SaveChoice::Cancel;
+}
 
 } // namespace
 
@@ -1273,6 +1516,8 @@ void MainWindow::createDocks()
     shapesDock->setObjectName(QStringLiteral("shapesDock"));
     shapesDock->setWidget(m_toolbox);
     shapesDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    shapesDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetClosable
+                            | QDockWidget::DockWidgetFloatable);
     addDockWidget(Qt::LeftDockWidgetArea, shapesDock);
 
     m_formatPanel = new FormatPanel(this);
@@ -1281,6 +1526,8 @@ void MainWindow::createDocks()
     formatDock->setObjectName(QStringLiteral("formatDock"));
     formatDock->setWidget(m_formatPanel);
     formatDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    formatDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetClosable
+                            | QDockWidget::DockWidgetFloatable);
     formatDock->setMinimumWidth(290);
     addDockWidget(Qt::RightDockWidgetArea, formatDock);
 
@@ -1293,7 +1540,14 @@ void MainWindow::createDocks()
     layerDock->setObjectName(QStringLiteral("layerDock"));
     layerDock->setWidget(m_layerPanel);
     layerDock->setAllowedAreas(Qt::LeftDockWidgetArea | Qt::RightDockWidgetArea);
+    layerDock->setFeatures(QDockWidget::DockWidgetMovable | QDockWidget::DockWidgetClosable
+                           | QDockWidget::DockWidgetFloatable);
     addDockWidget(Qt::RightDockWidgetArea, layerDock);
+
+    shapesDock->setTitleBarWidget(new DockTitleBar(shapesDock, shapesDock->windowTitle(), shapesDock));
+    formatDock->setTitleBarWidget(new DockTitleBar(formatDock, formatDock->windowTitle(), formatDock));
+    layerDock->setTitleBarWidget(new DockTitleBar(layerDock, layerDock->windowTitle(), layerDock));
+
     m_layerPanel->setView(m_view);
 
     if (QMenu *viewMenu = findChild<QMenu *>(QStringLiteral("viewMenu")))
@@ -1996,8 +2250,9 @@ void MainWindow::removePage(int index)
 {
     if (m_document->pageCount() <= 1)
     {
-        QMessageBox::information(this, QStringLiteral("Delete Page"),
-                                 QStringLiteral("A document must keep at least one page."));
+        showInfoDialog(this, I18n::text(QStringLiteral("Delete Page")),
+                       I18n::text(QStringLiteral("Cannot Delete Page")),
+                       I18n::text(QStringLiteral("A document must keep at least one page.")));
         return;
     }
 
@@ -2008,14 +2263,78 @@ void MainWindow::removePage(int index)
         return;
     }
 
-    QMessageBox box(this);
-    box.setWindowTitle(QStringLiteral("Delete Page"));
-    box.setText(I18n::text(QStringLiteral("Delete page “%1”?")).arg(page->name));
-    box.setStandardButtons(QMessageBox::Yes | QMessageBox::No);
-    box.button(QMessageBox::Yes)->setText(QStringLiteral("Delete"));
-    box.button(QMessageBox::No)->setText(QStringLiteral("Cancel"));
+    QDialog dialog(this);
+    dialog.setWindowTitle(I18n::text(QStringLiteral("Delete Page")));
+    dialog.setMinimumWidth(430);
 
-    if (box.exec() != QMessageBox::Yes)
+    auto *layout = new QVBoxLayout(&dialog);
+    layout->setContentsMargins(24, 22, 24, 18);
+    layout->setSpacing(18);
+
+    auto *content = new QHBoxLayout();
+    content->setSpacing(14);
+
+    auto *icon = new QLabel(&dialog);
+    icon->setFixedSize(38, 38);
+    QPixmap warning(38, 38);
+    warning.fill(Qt::transparent);
+    {
+        QPainter painter(&warning);
+        painter.setRenderHint(QPainter::Antialiasing, true);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(QColor(0xD9, 0x30, 0x25));
+        painter.drawEllipse(QRectF(1, 1, 36, 36));
+        QFont font = dialog.font();
+        font.setPointSizeF(17);
+        font.setBold(true);
+        painter.setFont(font);
+        painter.setPen(Qt::white);
+        painter.drawText(warning.rect(), Qt::AlignCenter, QStringLiteral("!"));
+    }
+    icon->setPixmap(warning);
+    content->addWidget(icon, 0, Qt::AlignTop);
+
+    auto *texts = new QVBoxLayout();
+    texts->setSpacing(6);
+    auto *heading = new QLabel(I18n::text(QStringLiteral("Delete Page")), &dialog);
+    QFont headingFont = heading->font();
+    headingFont.setPointSizeF(12);
+    headingFont.setBold(true);
+    heading->setFont(headingFont);
+    texts->addWidget(heading);
+
+    auto *message = new QLabel(
+        I18n::text(QStringLiteral("Delete page “%1”?")).arg(I18n::text(page->name))
+            + QLatin1Char('\n') + I18n::text(QStringLiteral("This action cannot be undone.")),
+        &dialog);
+    message->setObjectName(QStringLiteral("dialogMessage"));
+    message->setWordWrap(true);
+    texts->addWidget(message);
+    content->addLayout(texts, 1);
+    layout->addLayout(content);
+
+    auto *buttons = new QHBoxLayout();
+    buttons->addStretch(1);
+    auto *cancel = new QPushButton(I18n::text(QStringLiteral("Cancel")), &dialog);
+    auto *remove = new QPushButton(I18n::text(QStringLiteral("Delete")), &dialog);
+    cancel->setDefault(true);
+    remove->setObjectName(QStringLiteral("dangerButton"));
+    buttons->addWidget(remove);
+    buttons->addWidget(cancel);
+    layout->addLayout(buttons);
+
+    QObject::connect(cancel, &QPushButton::clicked, &dialog, &QDialog::reject);
+    QObject::connect(remove, &QPushButton::clicked, &dialog, &QDialog::accept);
+
+    dialog.setStyleSheet(QStringLiteral(
+        "QLabel#dialogMessage { color: palette(mid); font-size: 12px; }"
+        "QPushButton { min-width: 88px; min-height: 32px; padding: 0 14px; }"
+        "QPushButton#dangerButton { background: #d93025; color: white;"
+        " border: none; border-radius: 4px; font-weight: 600; }"
+        "QPushButton#dangerButton:hover { background: #b3261e; }"
+        "QPushButton#dangerButton:pressed { background: #8c1d18; }"));
+
+    if (dialog.exec() != QDialog::Accepted)
     {
         return;
     }
@@ -2117,12 +2436,38 @@ void MainWindow::updateTabStyle()
     const QString closeIcon = dark ? QStringLiteral(":/icons/tab-close-dark.svg")
                                    : QStringLiteral(":/icons/tab-close.svg");
 
+    if (QWidget *container = m_pageTabs->parentWidget())
+    {
+        container->setStyleSheet(
+            dark ? QStringLiteral("#pageTabContainer { background: #1a1d21;"
+                                  " border-top: 1px solid #33383f; }")
+                 : QStringLiteral("#pageTabContainer { background: #f3f5f8;"
+                                  " border-top: 1px solid #dde2e8; }"));
+    }
+
     m_pageTabs->setStyleSheet(
-        QStringLiteral("QTabBar::tab { padding: 3px 14px; margin-right: 2px; }"
-                       "QTabBar::close-button { image: url(%1);"
-                       " subcontrol-position: right; margin-left: 4px; }"
-                       "QTabBar::close-button:hover { background: rgba(127,127,127,0.25);"
-                       " border-radius: 2px; }")
+        dark ? QStringLiteral(
+                   "QTabBar::tab { background: transparent; color: #9aa4b0;"
+                   " border: 1px solid transparent; border-radius: 6px;"
+                   " padding: 6px 14px; margin: 3px 2px; }"
+                   "QTabBar::tab:selected { background: #262b31; color: #8ab4f8;"
+                   " border-color: #4a5563; font-weight: 600; }"
+                   "QTabBar::tab:hover:!selected { background: #2d333a; color: #c7d0da; }"
+                   "QTabBar::close-button { image: url(%1); subcontrol-position: right;"
+                   " margin-left: 6px; }"
+                   "QTabBar::close-button:hover { background: rgba(255,255,255,0.12);"
+                   " border-radius: 3px; }")
+             : QStringLiteral(
+                   "QTabBar::tab { background: transparent; color: #5b6573;"
+                   " border: 1px solid transparent; border-radius: 6px;"
+                   " padding: 6px 14px; margin: 3px 2px; }"
+                   "QTabBar::tab:selected { background: #ffffff; color: #1a73e8;"
+                   " border-color: #d8dee6; font-weight: 600; }"
+                   "QTabBar::tab:hover:!selected { background: #e8edf4; color: #374151; }"
+                   "QTabBar::close-button { image: url(%1); subcontrol-position: right;"
+                   " margin-left: 6px; }"
+                   "QTabBar::close-button:hover { background: rgba(0,0,0,0.08);"
+                   " border-radius: 3px; }")
             .arg(closeIcon));
 
     if (m_fileTabs != nullptr)
@@ -2343,25 +2688,14 @@ bool MainWindow::maybeSave()
         return true;
     }
 
-    QMessageBox box(this);
-    box.setIcon(QMessageBox::Question);
-    box.setWindowTitle(QStringLiteral("Unsaved Changes"));
-    box.setText(I18n::text(QStringLiteral("Document “%1” has unsaved changes. Save it?"))
-                    .arg(m_document->displayName()));
-    box.setStandardButtons(QMessageBox::Save | QMessageBox::Discard | QMessageBox::Cancel);
-    box.button(QMessageBox::Save)->setText(QStringLiteral("Save"));
-    box.button(QMessageBox::Discard)->setText(QStringLiteral("Don't Save"));
-    box.button(QMessageBox::Cancel)->setText(QStringLiteral("Cancel"));
-    box.setDefaultButton(QMessageBox::Save);
+    const SaveChoice choice = askSaveChanges(this, m_document->displayName());
 
-    const int result = box.exec();
-
-    if (result == QMessageBox::Save)
+    if (choice == SaveChoice::Save)
     {
         return save();
     }
 
-    if (result == QMessageBox::Discard)
+    if (choice == SaveChoice::Discard)
     {
         removeDraft();
         return true;

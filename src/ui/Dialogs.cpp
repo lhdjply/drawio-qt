@@ -507,8 +507,8 @@ ShortcutDialog::ShortcutDialog(const QVector<ShortcutSetting> &settings, QWidget
     auto *ok = new QPushButton(QStringLiteral("OK"), this);
     ok->setDefault(true);
     buttons->addStretch(1);
-    buttons->addWidget(cancel);
     buttons->addWidget(ok);
+    buttons->addWidget(cancel);
     layout->addLayout(buttons);
 
     connect(reset, &QPushButton::clicked, this, &ShortcutDialog::restoreDefaults);
@@ -615,18 +615,28 @@ SettingsDialog::SettingsDialog(const QVector<ShortcutSetting> &shortcuts,
     : QDialog(parent), m_shortcuts(shortcuts)
 {
     setWindowTitle(QStringLiteral("Settings"));
-    resize(620, 680);
+    resize(680, 600);
 
     auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(20, 18, 20, 16);
+    layout->setSpacing(12);
+
     auto *tabs = new QTabWidget(this);
+    tabs->setDocumentMode(true);
 
     auto *general = new QWidget(tabs);
-    auto *form = new QFormLayout(general);
+    auto *generalLayout = new QVBoxLayout(general);
+    generalLayout->setContentsMargins(22, 20, 22, 20);
+    generalLayout->setSpacing(14);
+
+    auto *form = new QFormLayout();
+    form->setSpacing(12);
+    form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
+
     m_theme = new QComboBox(general);
     m_theme->addItem(QStringLiteral("Light"), QStringLiteral("light"));
     m_theme->addItem(QStringLiteral("Dark"), QStringLiteral("dark"));
     m_theme->addItem(QStringLiteral("Follow System"), QStringLiteral("system"));
-
     const int themeIndex = m_theme->findData(theme);
     m_theme->setCurrentIndex(themeIndex >= 0 ? themeIndex : 2);
     form->addRow(QStringLiteral("Appearance"), m_theme);
@@ -635,23 +645,29 @@ SettingsDialog::SettingsDialog(const QVector<ShortcutSetting> &shortcuts,
     m_language->addItem(QStringLiteral("Simplified Chinese"), QStringLiteral("zh"));
     m_language->addItem(QStringLiteral("English"), QStringLiteral("en"));
     m_language->addItem(QStringLiteral("Follow System"), QStringLiteral("system"));
-
     const int languageIndex = m_language->findData(language);
     m_language->setCurrentIndex(languageIndex >= 0 ? languageIndex : 2);
     form->addRow(QStringLiteral("Language"), m_language);
-    form->addRow(QString(), new QLabel(QStringLiteral("Shortcuts can be edited on the Shortcuts tab."), general));
+    generalLayout->addLayout(form);
+
+    generalLayout->addStretch(1);
     tabs->addTab(general, QStringLiteral("General"));
 
     auto *shortcutPage = new QWidget(tabs);
     auto *shortcutLayout = new QVBoxLayout(shortcutPage);
+    shortcutLayout->setContentsMargins(14, 14, 14, 14);
     auto *table = new QTableWidget(m_shortcuts.size(), 2, shortcutPage);
     table->setHorizontalHeaderLabels({I18n::text(QStringLiteral("Action")),
                                       I18n::text(QStringLiteral("Shortcut"))});
     table->horizontalHeader()->setStretchLastSection(true);
     table->horizontalHeader()->setSectionResizeMode(0, QHeaderView::ResizeToContents);
+    table->horizontalHeader()->setMinimumHeight(34);
     table->verticalHeader()->setVisible(false);
+    table->verticalHeader()->setDefaultSectionSize(36);
+    table->setShowGrid(false);
     table->setSelectionMode(QAbstractItemView::NoSelection);
     table->setEditTriggers(QAbstractItemView::NoEditTriggers);
+    table->setAlternatingRowColors(true);
 
     for (int row = 0; row < m_shortcuts.size(); ++row)
     {
@@ -666,6 +682,7 @@ SettingsDialog::SettingsDialog(const QVector<ShortcutSetting> &shortcuts,
     shortcutLayout->addWidget(table, 1);
 
     auto *reset = new QPushButton(QStringLiteral("Restore Default Shortcuts"), shortcutPage);
+    reset->setObjectName(QStringLiteral("linkButton"));
     auto *resetRow = new QHBoxLayout();
     resetRow->addWidget(reset);
     resetRow->addStretch(1);
@@ -677,11 +694,45 @@ SettingsDialog::SettingsDialog(const QVector<ShortcutSetting> &shortcuts,
     auto *buttons = new QHBoxLayout();
     auto *cancel = new QPushButton(QStringLiteral("Cancel"), this);
     auto *ok = new QPushButton(QStringLiteral("OK"), this);
+    ok->setObjectName(QStringLiteral("primaryButton"));
     ok->setDefault(true);
     buttons->addStretch(1);
-    buttons->addWidget(cancel);
     buttons->addWidget(ok);
+    buttons->addWidget(cancel);
     layout->addLayout(buttons);
+
+    setStyleSheet(QStringLiteral(
+        "QDialog { background: palette(window); }"
+        "QTabWidget::pane { border: 1px solid palette(mid); border-radius: 8px;"
+        " background: palette(base); top: -1px; }"
+        "QTabBar::tab { background: transparent; color: palette(window-text);"
+        " padding: 8px 18px; margin-right: 4px; border: 1px solid transparent;"
+        " border-radius: 6px; }"
+        "QTabBar::tab:selected { background: palette(base); border-color: palette(mid);"
+        " font-weight: 600; }"
+        "QTabBar::tab:hover:!selected { background: palette(midlight); }"
+        "QComboBox { min-height: 30px; padding-left: 8px; }"
+        "QComboBox::drop-down { width: 24px; border: none; }"
+        "QComboBox QAbstractItemView { background: palette(base);"
+        " border: 1px solid palette(mid); outline: 0; padding: 4px;"
+        " selection-background-color: palette(highlight);"
+        " selection-color: palette(highlighted-text); }"
+        "QComboBox QAbstractItemView::item { min-height: 28px; padding: 4px 8px; }"
+        "QTableWidget { border: 1px solid palette(mid); border-radius: 6px;"
+        " background: palette(base); alternate-background-color: palette(alternate-base); }"
+        "QHeaderView::section { background: palette(window); padding: 8px; border: none;"
+        " border-bottom: 1px solid palette(mid); font-weight: 600; }"
+        "QPushButton { min-height: 32px; min-width: 84px; padding: 0 16px;"
+        " border: 1px solid palette(mid); border-radius: 4px; background: palette(button); }"
+        "QPushButton:hover { background: palette(midlight); }"
+        "QPushButton#primaryButton { background: #1a73e8; color: white; border: none;"
+        " font-weight: 600; }"
+        "QPushButton#primaryButton:hover { background: #1765cc; }"
+        "QPushButton#linkButton { border: none; background: transparent; color: #1a73e8;"
+        " min-width: 0; padding: 0 6px; }"
+        "QPushButton#linkButton:hover { text-decoration: underline; }"
+        "QKeySequenceEdit, QLineEdit { min-height: 30px; border: 1px solid palette(mid);"
+        " border-radius: 4px; padding: 0 8px; background: palette(base); }"));
 
     connect(reset, &QPushButton::clicked, this, &SettingsDialog::restoreDefaults);
     connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
@@ -749,15 +800,62 @@ void SettingsDialog::acceptIfValid()
 
 void showAboutDialog(QWidget *parent)
 {
-    const QString html = QStringLiteral("<h3>drawio-qt %1</h3>")
-        + I18n::text(QStringLiteral("about.body"))
-              .arg(QStringLiteral(DRAWIO_QT_VERSION), QString::fromLatin1(qVersion()));
+    QDialog dialog(parent);
+    dialog.setWindowTitle(I18n::text(QStringLiteral("About drawio-qt")));
+    dialog.setMinimumWidth(520);
 
-    QMessageBox box(parent);
-    box.setWindowTitle(QStringLiteral("About drawio-qt"));
-    box.setTextFormat(Qt::RichText);
-    box.setText(html);
-    box.exec();
+    auto *outer = new QVBoxLayout(&dialog);
+    outer->setContentsMargins(24, 22, 24, 18);
+    outer->setSpacing(14);
+
+    auto *header = new QHBoxLayout();
+    header->setSpacing(16);
+
+    auto *icon = new QLabel(&dialog);
+    const QPixmap pixmap(QStringLiteral(":/icons/app.png"));
+
+    if (!pixmap.isNull())
+    {
+        icon->setPixmap(pixmap.scaled(64, 64, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        icon->setFixedSize(64, 64);
+        icon->setScaledContents(true);
+    }
+
+    header->addWidget(icon, 0, Qt::AlignTop);
+
+    auto *titles = new QVBoxLayout();
+    titles->setSpacing(2);
+    auto *title = new QLabel(QStringLiteral("drawio-qt"), &dialog);
+    title->setObjectName(QStringLiteral("aboutTitle"));
+    auto *version = new QLabel(I18n::text(QStringLiteral("Version %1 · Qt %2"))
+                                   .arg(QStringLiteral(DRAWIO_QT_VERSION),
+                                        QString::fromLatin1(qVersion())),
+                               &dialog);
+    version->setObjectName(QStringLiteral("aboutVersion"));
+    titles->addWidget(title);
+    titles->addWidget(version);
+    header->addLayout(titles, 1);
+    outer->addLayout(header);
+
+    auto *summary = new QLabel(I18n::text(QStringLiteral("about.summary")), &dialog);
+    summary->setWordWrap(true);
+    outer->addWidget(summary);
+
+    auto *features = new QLabel(I18n::text(QStringLiteral("about.features")), &dialog);
+    features->setWordWrap(true);
+    features->setTextFormat(Qt::RichText);
+    outer->addWidget(features);
+
+    auto *license = new QLabel(I18n::text(QStringLiteral("about.license")), &dialog);
+    license->setObjectName(QStringLiteral("aboutLicense"));
+    license->setWordWrap(true);
+    outer->addWidget(license);
+
+    dialog.setStyleSheet(QStringLiteral(
+        "QLabel#aboutTitle { font-size: 24px; font-weight: 600; }"
+        "QLabel#aboutVersion { color: palette(mid); }"
+        "QLabel#aboutLicense { color: palette(mid); font-size: 11px; }"));
+    dialog.exec();
 }
 
 } // namespace dq

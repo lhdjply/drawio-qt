@@ -2803,5 +2803,11 @@
   "Effects": "Effects",
   "Sketch": "Sketch",
   "Glass": "Glass",
-  "Multiple": "Multiple"
+  "Multiple": "Multiple",
+  "about.summary": "A native Qt6 / C++ port of draw.io Desktop (Electron).",
+  "about.features": "<ul style='margin-left: -20px;'><li>mxGraph data model and native shape libraries</li><li>Orthogonal connectors and waypoint editing</li><li>Undo/redo, layers, PNG/SVG/PDF/HTML/XML export and printing</li><li>Opens and saves .drawio files compatible with draw.io</li></ul>",
+  "about.license": "Reimplemented from the upstream draw.io Desktop project structure under GNU General Public License v3.0.",
+  "Version %1 · Qt %2": "Version %1 · Qt %2",
+  "This action cannot be undone.": "This action cannot be undone.",
+  "Cannot Delete Page": "Cannot Delete Page"
 }

@@ -19,16 +19,34 @@ ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
     : QDialog(parent)
 {
     setWindowTitle(QStringLiteral("Shape Libraries"));
-    setMinimumSize(380, 520);
+    setMinimumSize(420, 560);
 
     auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(20, 18, 20, 16);
+    layout->setSpacing(12);
+
+    auto *title = new QLabel(QStringLiteral("Shape Libraries"), this);
+    QFont titleFont = title->font();
+    titleFont.setPointSizeF(14);
+    titleFont.setBold(true);
+    title->setFont(titleFont);
+    layout->addWidget(title);
 
     auto *hint = new QLabel(QStringLiteral("Select the libraries to show in the left panel:"), this);
     hint->setWordWrap(true);
+    hint->setStyleSheet(QStringLiteral("color: palette(mid);"));
     layout->addWidget(hint);
 
     m_list = new QListWidget(this);
-    m_list->setAlternatingRowColors(true);
+    m_list->setAlternatingRowColors(false);
+    m_list->setSelectionMode(QAbstractItemView::SingleSelection);
+    m_list->setStyleSheet(QStringLiteral(
+        "QListWidget { border: 1px solid palette(mid); border-radius: 6px;"
+        " background: palette(base); padding: 4px; }"
+        "QListWidget::item { padding: 7px 10px; border-bottom: 1px solid palette(alternate-base); }"
+        "QListWidget::item:selected { background: palette(highlight);"
+        " color: palette(highlighted-text); border-radius: 4px; }"
+        "QListWidget::indicator { width: 16px; height: 16px; }"));
     layout->addWidget(m_list, 1);
 
     const QStringList configured = configuredCategories();
@@ -39,7 +57,10 @@ ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
     builtinHeader->setFlags(Qt::NoItemFlags);
     QFont builtinFont = builtinHeader->font();
     builtinFont.setBold(true);
+    builtinFont.setPointSizeF(10);
     builtinHeader->setFont(builtinFont);
+    builtinHeader->setForeground(QBrush(QColor(0x7A, 0x82, 0x8E)));
+    builtinHeader->setSizeHint(QSize(0, 30));
 
     for (const ShapeCategory &category : categories)
     {
@@ -50,7 +71,10 @@ ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
             header->setFlags(Qt::NoItemFlags);
             QFont headerFont = header->font();
             headerFont.setBold(true);
+            headerFont.setPointSizeF(10);
             header->setFont(headerFont);
+            header->setForeground(QBrush(QColor(0x7A, 0x82, 0x8E)));
+            header->setSizeHint(QSize(0, 30));
         }
 
         m_allIds.append(category.id);
@@ -61,6 +85,7 @@ ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
                           .arg(category.shapes.size()));
         item->setData(Qt::UserRole, category.id);
         item->setFlags(item->flags() | Qt::ItemIsUserCheckable);
+        item->setSizeHint(QSize(0, 32));
         const bool enabled = configured.isEmpty() || configured.contains(category.id);
         item->setCheckState(enabled ? Qt::Checked : Qt::Unchecked);
 
@@ -75,15 +100,34 @@ ShapeLibraryDialog::ShapeLibraryDialog(QWidget *parent)
     auto *buttonsRow = new QHBoxLayout();
     auto *selectAllButton = new QPushButton(QStringLiteral("Select All"), this);
     auto *selectNoneButton = new QPushButton(QStringLiteral("Deselect All"), this);
+    selectAllButton->setObjectName(QStringLiteral("linkButton"));
+    selectNoneButton->setObjectName(QStringLiteral("linkButton"));
     buttonsRow->addWidget(selectAllButton);
     buttonsRow->addWidget(selectNoneButton);
     buttonsRow->addStretch(1);
-    layout->addLayout(buttonsRow);
 
     auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("OK"));
-    buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("Cancel"));
-    layout->addWidget(buttons);
+    auto *ok = buttons->button(QDialogButtonBox::Ok);
+    auto *cancel = buttons->button(QDialogButtonBox::Cancel);
+    ok->setText(QStringLiteral("OK"));
+    cancel->setText(QStringLiteral("Cancel"));
+    ok->setIcon(QIcon());
+    cancel->setIcon(QIcon());
+    ok->setObjectName(QStringLiteral("primaryButton"));
+    ok->setDefault(true);
+    buttonsRow->addWidget(buttons);
+    layout->addLayout(buttonsRow);
+
+    setStyleSheet(QStringLiteral(
+        "QPushButton { min-height: 32px; min-width: 84px; padding: 0 14px;"
+        " border: 1px solid palette(mid); border-radius: 4px; background: palette(button); }"
+        "QPushButton:hover { background: palette(midlight); }"
+        "QPushButton#primaryButton { background: #1a73e8; color: white;"
+        " border: none; font-weight: 600; }"
+        "QPushButton#primaryButton:hover { background: #1765cc; }"
+        "QPushButton#linkButton { border: none; background: transparent;"
+        " color: #1a73e8; min-width: 0; padding: 0 6px; }"
+        "QPushButton#linkButton:hover { text-decoration: underline; }"));
 
     connect(selectAllButton, &QPushButton::clicked, this, [this]()
     {

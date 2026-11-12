@@ -2803,5 +2803,11 @@
   "Effects": "效果",
   "Sketch": "草图",
   "Glass": "玻璃",
-  "Multiple": "多重"
+  "Multiple": "多重",
+  "about.summary": "draw.io 桌面版（Electron）的原生 Qt6 / C++ 移植版本。",
+  "about.features": "<ul style='margin-left: -20px;'><li>mxGraph 数据模型与原生形状库</li><li>正交连线路由与控制点编辑</li><li>撤销重做、图层、PNG/SVG/PDF/HTML/XML 导出与打印</li><li>兼容 draw.io 的 .drawio 文件读写</li></ul>",
+  "about.license": "本程序基于上游 draw.io 桌面版的项目结构重新实现，遵循 GNU General Public License v3.0。",
+  "Version %1 · Qt %2": "版本 %1 · Qt %2",
+  "This action cannot be undone.": "此操作不可撤销。",
+  "Cannot Delete Page": "无法删除页面"
 }
