@@ -283,6 +283,19 @@ void translateWidget(QWidget *widget)
         }
     }
 
+    QString toolTipSource = widget->property("i18n.tooltip").toString();
+
+    if (toolTipSource.isEmpty())
+    {
+        toolTipSource = widget->toolTip();
+        widget->setProperty("i18n.tooltip", toolTipSource);
+    }
+
+    if (!toolTipSource.isEmpty())
+    {
+        widget->setToolTip(translateText(toolTipSource));
+    }
+
     QString titleSource = widget->property("i18n.windowTitle").toString();
 
     if (titleSource.isEmpty())

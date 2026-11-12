@@ -1507,10 +1507,10 @@ void MainWindow::saveAs()
         m_document->filePath().isEmpty()
             ? (m_document->suggestedSavePath().isEmpty()
                    ? AppSettings::instance().lastSaveDir() + QLatin1Char('/')
-                         + QStringLiteral("Untitled.drawio")
+                         + I18n::text(QStringLiteral("Untitled")) + QStringLiteral(".drawio")
                    : m_document->suggestedSavePath())
             : m_document->filePath(),
-        QStringLiteral("draw.io Files (*.drawio);;XML Files (*.xml)"));
+        I18n::text(QStringLiteral("draw.io Files (*.drawio);;XML Files (*.xml)")));
 
     if (path.isEmpty())
     {
@@ -1530,8 +1530,8 @@ void MainWindow::openDialog()
     const QStringList paths = QFileDialog::getOpenFileNames(
         this, QStringLiteral("Open"),
         AppSettings::instance().lastOpenDir(),
-        QStringLiteral("draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;"
-                       "All Files (*)"));
+        I18n::text(QStringLiteral("draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;"
+                                  "All Files (*)")));
 
     if (!paths.isEmpty())
     {
