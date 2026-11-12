@@ -2788,5 +2788,12 @@
   "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)": "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)",
   "Press shortcut": "Press shortcut",
   "Enable fill": "Enable fill",
-  "Enable border": "Enable border"
+  "Enable border": "Enable border",
+  "Gradient": "Gradient",
+  "Enable gradient": "Enable gradient",
+  "Direction": "Direction",
+  "South": "South",
+  "North": "North",
+  "East": "East",
+  "West": "West"
 }

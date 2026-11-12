@@ -51,11 +51,13 @@ private:
     QSpinBox *m_opacity = nullptr;
 
     QCheckBox *m_fillEnabled = nullptr;
+    QCheckBox *m_gradientEnabled = nullptr;
     QCheckBox *m_strokeEnabled = nullptr;
     QCheckBox *m_dashed = nullptr;
     QCheckBox *m_rounded = nullptr;
     QCheckBox *m_shadow = nullptr;
 
+    QComboBox *m_gradientDirection = nullptr;
     QComboBox *m_edgeStyle = nullptr;
     QComboBox *m_startArrow = nullptr;
     QComboBox *m_endArrow = nullptr;
@@ -65,6 +67,7 @@ private:
     QComboBox *m_verticalAlign = nullptr;
 
     ColorButton *m_fill = nullptr;
+    ColorButton *m_gradient = nullptr;
     ColorButton *m_stroke = nullptr;
     ColorButton *m_fontColor = nullptr;
 

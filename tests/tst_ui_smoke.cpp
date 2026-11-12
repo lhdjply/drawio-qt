@@ -800,6 +800,38 @@ private slots:
         QCOMPARE(stroke->text(), QStringLiteral("#4B33FF"));
     }
 
+    void gradientCanBeToggled()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(120, 120));
+        QVERIFY(shape != nullptr);
+        shape->setStyleValue(QStringLiteral("gradientColor"), QStringLiteral("#FFFF33"));
+        view->selectCell(shape->id);
+
+        auto *panel = window.findChild<FormatPanel *>();
+        QVERIFY(panel != nullptr);
+        auto *gradient = panel->findChild<QCheckBox *>(QStringLiteral("gradientEnabled"));
+        QVERIFY(gradient != nullptr);
+        QVERIFY(gradient->isChecked());
+
+        gradient->setChecked(false);
+        QVERIFY(shape->styleValue(QStringLiteral("gradientColor")).isEmpty());
+
+        gradient->setChecked(true);
+        QVERIFY(!shape->styleValue(QStringLiteral("gradientColor")).isEmpty());
+
+        auto *direction = panel->findChild<QComboBox *>(QStringLiteral("gradientDirection"));
+        QVERIFY(direction != nullptr);
+        const int east = direction->findData(QStringLiteral("east"));
+        QVERIFY(east >= 0);
+        direction->setCurrentIndex(east);
+        QCOMPARE(shape->styleValue(QStringLiteral("gradientDirection")), QStringLiteral("east"));
+    }
+
     void layerCanBeDeletedFromPanel()
     {
         MainWindow window;

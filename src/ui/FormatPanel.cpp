@@ -389,6 +389,26 @@ void FormatPanel::buildUi()
     fillLayout->addWidget(m_fill, 1);
     styleForm->addRow(QStringLiteral("Fill"), fillRow);
 
+    m_gradient = new ColorButton(styleGroup);
+    m_gradient->setObjectName(QStringLiteral("gradientColor"));
+    m_gradientEnabled = new QCheckBox(styleGroup);
+    m_gradientEnabled->setObjectName(QStringLiteral("gradientEnabled"));
+    m_gradientEnabled->setToolTip(I18n::text(QStringLiteral("Enable gradient")));
+    auto *gradientRow = new QWidget(styleGroup);
+    auto *gradientLayout = new QHBoxLayout(gradientRow);
+    gradientLayout->setContentsMargins(0, 0, 0, 0);
+    gradientLayout->addWidget(m_gradientEnabled);
+    gradientLayout->addWidget(m_gradient, 1);
+    styleForm->addRow(QStringLiteral("Gradient"), gradientRow);
+
+    m_gradientDirection = new QComboBox(styleGroup);
+    m_gradientDirection->setObjectName(QStringLiteral("gradientDirection"));
+    m_gradientDirection->addItem(QStringLiteral("South"), QStringLiteral("south"));
+    m_gradientDirection->addItem(QStringLiteral("North"), QStringLiteral("north"));
+    m_gradientDirection->addItem(QStringLiteral("East"), QStringLiteral("east"));
+    m_gradientDirection->addItem(QStringLiteral("West"), QStringLiteral("west"));
+    styleForm->addRow(QStringLiteral("Direction"), m_gradientDirection);
+
     m_strokeEnabled = new QCheckBox(styleGroup);
     m_strokeEnabled->setObjectName(QStringLiteral("strokeEnabled"));
     m_strokeEnabled->setToolTip(I18n::text(QStringLiteral("Enable border")));
@@ -456,6 +476,49 @@ void FormatPanel::buildUi()
         }
 
         m_fill->setEnabled(enabled);
+        m_gradientEnabled->setEnabled(enabled);
+        m_gradient->setEnabled(enabled && m_gradientEnabled->isChecked());
+    });
+    connect(m_gradient, &ColorButton::valueChanged, this, [this](const QString &value)
+    {
+        if (!m_updating && !value.isEmpty())
+        {
+            m_view->applyStyle(QStringLiteral("gradientColor"), value);
+        }
+    });
+    connect(m_gradientDirection, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int)
+    {
+        if (!m_updating && m_gradientEnabled->isChecked())
+        {
+            m_view->applyStyle(QStringLiteral("gradientDirection"),
+                               m_gradientDirection->currentData().toString());
+        }
+    });
+    connect(m_gradientEnabled, &QCheckBox::toggled, this, [this](bool enabled)
+    {
+        if (m_updating)
+        {
+            return;
+        }
+
+        if (enabled)
+        {
+            QString value = m_gradient->styleValue();
+
+            if (value.isEmpty() || value == QLatin1String("none"))
+            {
+                value = QStringLiteral("#ffffff");
+            }
+
+            m_view->applyStyle(QStringLiteral("gradientColor"), value);
+        }
+        else
+        {
+            m_view->clearStyle(QStringLiteral("gradientColor"));
+        }
+
+        m_gradient->setEnabled(enabled);
+        m_gradientDirection->setEnabled(enabled);
     });
     connect(m_strokeEnabled, &QCheckBox::toggled, this, [this](bool enabled)
     {
@@ -871,6 +934,17 @@ void FormatPanel::updateFromSelection()
     m_stroke->setStyleValue(cell->styleValue(QStringLiteral("strokeColor")));
     m_fontColor->setStyleValue(cell->styleValue(QStringLiteral("fontColor")));
 
+    const QString gradientValue = cell->styleValue(QStringLiteral("gradientColor"));
+    const bool gradientEnabled = !gradientValue.isEmpty()
+        && gradientValue != QLatin1String("none");
+    m_gradient->setStyleValue(gradientValue);
+    m_gradientEnabled->setChecked(gradientEnabled);
+    m_gradient->setEnabled(gradientEnabled);
+    m_gradientDirection->setEnabled(gradientEnabled);
+    const int directionIndex = m_gradientDirection->findData(
+        cell->styleValue(QStringLiteral("gradientDirection"), QStringLiteral("south")));
+    m_gradientDirection->setCurrentIndex(directionIndex >= 0 ? directionIndex : 0);
+
     const bool fillEnabled = cell->styleValue(QStringLiteral("fillColor")) != QLatin1String("none");
     const bool strokeEnabled = cell->styleValue(QStringLiteral("strokeColor")) != QLatin1String("none");
     m_fillEnabled->setChecked(fillEnabled);
@@ -993,6 +1067,11 @@ void FormatPanel::updateEnabled(bool hasSelection, bool hasVertex, bool hasEdge)
     m_rotation->setEnabled(hasVertex);
 
     m_fillEnabled->setEnabled(hasVertex);
+    m_gradientEnabled->setEnabled(hasVertex && m_fillEnabled->isChecked());
+    m_gradient->setEnabled(hasVertex && m_fillEnabled->isChecked()
+                           && m_gradientEnabled->isChecked());
+    m_gradientDirection->setEnabled(hasVertex && m_fillEnabled->isChecked()
+                                    && m_gradientEnabled->isChecked());
     m_strokeEnabled->setEnabled(hasSelection);
     m_fill->setEnabled(hasVertex && m_fillEnabled->isChecked());
     m_stroke->setEnabled(hasSelection && m_strokeEnabled->isChecked());

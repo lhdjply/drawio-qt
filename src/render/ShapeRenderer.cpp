@@ -800,9 +800,30 @@ void paint(QPainter &painter, const Cell &cell)
 
             if (!gradientColor.isEmpty() && !Style::isNoneColor(gradientColor))
             {
-                QLinearGradient gradient(local.topLeft(), local.bottomLeft());
+                const QString direction = cell.styleValue(QStringLiteral("gradientDirection"),
+                                                          QStringLiteral("south"));
+                QPointF from = local.topLeft();
+                QPointF to = local.bottomLeft();
+
+                if (direction == QLatin1String("north"))
+                {
+                    from = local.bottomLeft();
+                    to = local.topLeft();
+                }
+                else if (direction == QLatin1String("east"))
+                {
+                    from = local.topLeft();
+                    to = local.topRight();
+                }
+                else if (direction == QLatin1String("west"))
+                {
+                    from = local.topRight();
+                    to = local.topLeft();
+                }
+
+                QLinearGradient gradient(from, to);
                 gradient.setColorAt(0.0, fill);
-                gradient.setColorAt(1.0, QColor(gradientColor));
+                gradient.setColorAt(1.0, Style::parseColorValue(gradientColor));
                 painter.setBrush(gradient);
             }
             else

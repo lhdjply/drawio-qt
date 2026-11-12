@@ -2788,5 +2788,12 @@
   "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)": "draw.io 文件 (*.drawio *.dio *.xml *.svg *.png *.pdf);;所有文件 (*)",
   "Press shortcut": "按下快捷键",
   "Enable fill": "启用填充",
-  "Enable border": "启用边框"
+  "Enable border": "启用边框",
+  "Gradient": "渐变",
+  "Enable gradient": "启用渐变",
+  "Direction": "方向",
+  "South": "向下",
+  "North": "向上",
+  "East": "向右",
+  "West": "向左"
 }
