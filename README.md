@@ -66,6 +66,10 @@ PNG/SVG/PDF/HTML/XML 导出、打印以及命令行批量导出。
 - **命令行导出**：与 Electron 版一致的核心参数（`-x/-f/-o/-s/-b/-t/-e/-a/-p/-g/-k/-r` 等），
   可在无显示器的服务器上以 `offscreen` 模式批量转换。
 
+![设置对话框](docs/screenshot-settings.png)
+
+![形状库](docs/screenshot-shape-libraries.png)
+
 ![导出效果](docs/screenshot-export.png)
 
 内置电气符号库（原生 `QPainter` 绘制）：
