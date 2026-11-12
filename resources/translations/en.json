@@ -2786,5 +2786,7 @@
   "Later": "Later",
   "Open Download Page": "Open Download Page",
   "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)": "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)",
-  "Press shortcut": "Press shortcut"
+  "Press shortcut": "Press shortcut",
+  "Enable fill": "Enable fill",
+  "Enable border": "Enable border"
 }

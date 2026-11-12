@@ -2786,5 +2786,7 @@
   "Later": "以后再说",
   "Open Download Page": "打开下载页",
   "draw.io Files (*.drawio *.dio *.xml *.svg *.png *.pdf);;All Files (*)": "draw.io 文件 (*.drawio *.dio *.xml *.svg *.png *.pdf);;所有文件 (*)",
-  "Press shortcut": "按下快捷键"
+  "Press shortcut": "按下快捷键",
+  "Enable fill": "启用填充",
+  "Enable border": "启用边框"
 }

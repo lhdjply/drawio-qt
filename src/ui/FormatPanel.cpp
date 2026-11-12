@@ -1,5 +1,7 @@
 #include "ui/FormatPanel.h"
 
+#include "app/I18n.h"
+
 #include "core/Page.h"
 #include "ui/DiagramView.h"
 
@@ -366,8 +368,26 @@ void FormatPanel::buildUi()
     m_fill = new ColorButton(styleGroup);
     m_stroke = new ColorButton(styleGroup);
     m_fontColor = new ColorButton(styleGroup);
-    styleForm->addRow(QStringLiteral("Fill"), m_fill);
-    styleForm->addRow(QStringLiteral("Border"), m_stroke);
+
+    m_fillEnabled = new QCheckBox(styleGroup);
+    m_fillEnabled->setObjectName(QStringLiteral("fillEnabled"));
+    m_fillEnabled->setToolTip(I18n::text(QStringLiteral("Enable fill")));
+    auto *fillRow = new QWidget(styleGroup);
+    auto *fillLayout = new QHBoxLayout(fillRow);
+    fillLayout->setContentsMargins(0, 0, 0, 0);
+    fillLayout->addWidget(m_fillEnabled);
+    fillLayout->addWidget(m_fill, 1);
+    styleForm->addRow(QStringLiteral("Fill"), fillRow);
+
+    m_strokeEnabled = new QCheckBox(styleGroup);
+    m_strokeEnabled->setObjectName(QStringLiteral("strokeEnabled"));
+    m_strokeEnabled->setToolTip(I18n::text(QStringLiteral("Enable border")));
+    auto *strokeRow = new QWidget(styleGroup);
+    auto *strokeLayout = new QHBoxLayout(strokeRow);
+    strokeLayout->setContentsMargins(0, 0, 0, 0);
+    strokeLayout->addWidget(m_strokeEnabled);
+    strokeLayout->addWidget(m_stroke, 1);
+    styleForm->addRow(QStringLiteral("Border"), strokeRow);
 
     m_strokeWidth = new QSpinBox(styleGroup);
     m_strokeWidth->setRange(0, 40);
@@ -401,6 +421,56 @@ void FormatPanel::buildUi()
     {
         value.isEmpty() ? m_view->clearStyle(QStringLiteral("strokeColor"))
                         : m_view->applyStyle(QStringLiteral("strokeColor"), value);
+    });
+    connect(m_fillEnabled, &QCheckBox::toggled, this, [this](bool enabled)
+    {
+        if (m_updating)
+        {
+            return;
+        }
+
+        if (!enabled)
+        {
+            m_view->applyStyle(QStringLiteral("fillColor"), QStringLiteral("none"));
+        }
+        else
+        {
+            QString value = m_fill->styleValue();
+
+            if (value.isEmpty() || value == QLatin1String("none"))
+            {
+                value = QStringLiteral("#ffffff");
+            }
+
+            m_view->applyStyle(QStringLiteral("fillColor"), value);
+        }
+
+        m_fill->setEnabled(enabled);
+    });
+    connect(m_strokeEnabled, &QCheckBox::toggled, this, [this](bool enabled)
+    {
+        if (m_updating)
+        {
+            return;
+        }
+
+        if (!enabled)
+        {
+            m_view->applyStyle(QStringLiteral("strokeColor"), QStringLiteral("none"));
+        }
+        else
+        {
+            QString value = m_stroke->styleValue();
+
+            if (value.isEmpty() || value == QLatin1String("none"))
+            {
+                value = QStringLiteral("#000000");
+            }
+
+            m_view->applyStyle(QStringLiteral("strokeColor"), value);
+        }
+
+        m_stroke->setEnabled(enabled);
     });
     connect(m_strokeWidth, qOverload<int>(&QSpinBox::valueChanged), this, [this](int value)
     {
@@ -791,6 +861,13 @@ void FormatPanel::updateFromSelection()
     m_stroke->setStyleValue(cell->styleValue(QStringLiteral("strokeColor")));
     m_fontColor->setStyleValue(cell->styleValue(QStringLiteral("fontColor")));
 
+    const bool fillEnabled = cell->styleValue(QStringLiteral("fillColor")) != QLatin1String("none");
+    const bool strokeEnabled = cell->styleValue(QStringLiteral("strokeColor")) != QLatin1String("none");
+    m_fillEnabled->setChecked(fillEnabled);
+    m_strokeEnabled->setChecked(strokeEnabled);
+    m_fill->setEnabled(fillEnabled);
+    m_stroke->setEnabled(strokeEnabled);
+
     m_strokeWidth->setValue(static_cast<int>(cell->styleNumber(QStringLiteral("strokeWidth"), 1.0)));
     m_opacity->setValue(static_cast<int>(cell->styleNumber(QStringLiteral("opacity"), 100.0)));
     m_fontSize->setValue(static_cast<int>(cell->styleNumber(QStringLiteral("fontSize"), 11.0)));
@@ -905,8 +982,10 @@ void FormatPanel::updateEnabled(bool hasSelection, bool hasVertex, bool hasEdge)
     m_h->setEnabled(hasVertex);
     m_rotation->setEnabled(hasVertex);
 
-    m_fill->setEnabled(hasVertex);
-    m_stroke->setEnabled(hasSelection);
+    m_fillEnabled->setEnabled(hasVertex);
+    m_strokeEnabled->setEnabled(hasSelection);
+    m_fill->setEnabled(hasVertex && m_fillEnabled->isChecked());
+    m_stroke->setEnabled(hasSelection && m_strokeEnabled->isChecked());
     m_fontColor->setEnabled(hasSelection);
     m_strokeWidth->setEnabled(hasSelection);
     m_opacity->setEnabled(hasSelection);

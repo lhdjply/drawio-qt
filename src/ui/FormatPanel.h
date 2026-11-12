@@ -50,6 +50,8 @@ private:
     QSpinBox *m_fontSize = nullptr;
     QSpinBox *m_opacity = nullptr;
 
+    QCheckBox *m_fillEnabled = nullptr;
+    QCheckBox *m_strokeEnabled = nullptr;
     QCheckBox *m_dashed = nullptr;
     QCheckBox *m_rounded = nullptr;
     QCheckBox *m_shadow = nullptr;

@@ -12,6 +12,7 @@
 #include "ui/MainWindow.h"
 #include "ui/LayerPanel.h"
 #include "ui/Dialogs.h"
+#include "ui/FormatPanel.h"
 #include "app/I18n.h"
 
 #include <QApplication>
@@ -27,11 +28,13 @@
 #include <QTimer>
 #include <QUndoStack>
 #include <QListWidget>
+#include <QCheckBox>
 #include <QTabBar>
 #include <QTreeWidget>
 #include <QToolButton>
 #include <QSettings>
 #include "ui/Dialogs.h"
+#include "ui/FormatPanel.h"
 #include <QTabWidget>
 #include <QTemporaryDir>
 #include <QtTest>
@@ -744,6 +747,33 @@ private slots:
 
         QVERIFY(menuTexts.contains(QStringLiteral("File")));
         QVERIFY(menuTexts.contains(QStringLiteral("Edit")));
+    }
+
+    void fillAndBorderCanBeDisabled()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(120, 120));
+        QVERIFY(shape != nullptr);
+
+        auto *panel = window.findChild<FormatPanel *>();
+        QVERIFY(panel != nullptr);
+        auto *fill = panel->findChild<QCheckBox *>(QStringLiteral("fillEnabled"));
+        auto *stroke = panel->findChild<QCheckBox *>(QStringLiteral("strokeEnabled"));
+        QVERIFY(fill != nullptr && stroke != nullptr);
+        QVERIFY(fill->isChecked() && stroke->isChecked());
+
+        fill->setChecked(false);
+        QCOMPARE(shape->styleValue(QStringLiteral("fillColor")), QStringLiteral("none"));
+        stroke->setChecked(false);
+        QCOMPARE(shape->styleValue(QStringLiteral("strokeColor")), QStringLiteral("none"));
+
+        fill->setChecked(true);
+        QVERIFY(!shape->styleValue(QStringLiteral("fillColor")).isEmpty());
+        QVERIFY(shape->styleValue(QStringLiteral("fillColor")) != QStringLiteral("none"));
     }
 
     void layerCanBeDeletedFromPanel()
