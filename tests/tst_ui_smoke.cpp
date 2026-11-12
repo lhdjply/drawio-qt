@@ -883,6 +883,19 @@ private slots:
         QVERIFY(cell->targetPoint != targetPoint);
     }
 
+    void newShapesUseTwoPixelStroke()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(150, 150));
+        QVERIFY(shape != nullptr);
+        QCOMPARE(shape->styleValue(QStringLiteral("strokeWidth")), QStringLiteral("2"));
+        QCOMPARE(shape->styleValue(QStringLiteral("fillColor")), QStringLiteral("#ffffff"));
+    }
+
     void directionAndFlipAreApplied()
     {
         MainWindow window;

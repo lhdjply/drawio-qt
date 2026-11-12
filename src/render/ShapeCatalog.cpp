@@ -483,6 +483,12 @@ QIcon ShapeCatalog::iconFor(const ShapeDefinition &definition, int size) const
         Cell cell(Cell::Kind::Vertex, QStringLiteral("preview"));
         cell.style = Style::parse(definition.style);
 
+        // Palette previews use the same 2px outline as newly inserted shapes.
+        if (!cell.style.contains(QStringLiteral("strokeWidth")))
+        {
+            cell.style.insert(QStringLiteral("strokeWidth"), QStringLiteral("2"));
+        }
+
         const QSizeF target = definition.size.isEmpty() ? QSizeF(80, 50) : definition.size;
         const double scale = (size - 8.0) / qMax(target.width(), target.height());
         cell.geometry = QRectF(0, 0, target.width(), target.height());

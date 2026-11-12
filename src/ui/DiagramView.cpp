@@ -4263,7 +4263,14 @@ Cell *DiagramView::addShape(const ShapeDefinition &definition, const QPointF &sc
                           qRound(topLeft.y() / grid) * grid);
     }
 
-    const StyleMap style = Style::parse(definition.style);
+    StyleMap style = Style::parse(definition.style);
+
+    // New shapes default to a 2px outline, matching the shape palette previews.
+    if (!style.contains(QStringLiteral("strokeWidth")))
+    {
+        style.insert(QStringLiteral("strokeWidth"), QStringLiteral("2"));
+    }
+
     Cell *cell = nullptr;
 
     // draw.io's wedge arrows are edge shapes; inserting them as vertices would

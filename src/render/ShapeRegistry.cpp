@@ -402,119 +402,119 @@ QVector<ShapeDefinition> toolboxShapes()
     };
 
     add(QStringLiteral("basic.waypoint"), QStringLiteral("Waypoint"),
-        QStringLiteral("shape=waypoint;size=8;fillColor=#000000;strokeColor=#000000;"),
+        QStringLiteral("shape=waypoint;size=8;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(20, 20), QStringLiteral("basic"));
     add(QStringLiteral("rectangle"), QStringLiteral("Rectangle"),
-        QStringLiteral("rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QStringLiteral("rounded=0;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(140, 70), QStringLiteral("basic"));
     add(QStringLiteral("rounded"), QStringLiteral("Rounded Rectangle"),
-        QStringLiteral("rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;arcSize=20;"),
+        QStringLiteral("rounded=1;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;arcSize=20;"),
         QSizeF(140, 70), QStringLiteral("basic"));
     add(QStringLiteral("ellipse"), QStringLiteral("Ellipse"),
-        QStringLiteral("ellipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
+        QStringLiteral("ellipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(140, 80), QStringLiteral("basic"));
     add(QStringLiteral("circle"), QStringLiteral("Circle"),
-        QStringLiteral("ellipse;aspect=fixed;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
+        QStringLiteral("ellipse;aspect=fixed;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(90, 90), QStringLiteral("basic"));
     add(QStringLiteral("diamond"), QStringLiteral("Diamond"),
-        QStringLiteral("rhombus;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;"),
+        QStringLiteral("rhombus;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(120, 90), QStringLiteral("basic"));
     add(QStringLiteral("triangle"), QStringLiteral("Triangle"),
         QStringLiteral("shape=mxgraph.basic.acute_triangle;dx=0.5;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffe6cc;strokeColor=#d79b00;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(110, 90), QStringLiteral("basic"));
     add(QStringLiteral("basic.orthogonalTriangle"), QStringLiteral("Orthogonal Triangle"),
         QStringLiteral("shape=mxgraph.basic.orthogonal_triangle;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffe6cc;strokeColor=#d79b00;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(110, 90), QStringLiteral("basic"));
     add(QStringLiteral("basic.obtuseTriangle"), QStringLiteral("Obtuse Triangle"),
         QStringLiteral("shape=mxgraph.basic.obtuse_triangle;dx=0.25;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffe6cc;strokeColor=#d79b00;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(130, 90), QStringLiteral("basic"));
     add(QStringLiteral("hexagon"), QStringLiteral("Hexagon"),
         QStringLiteral("shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;fixedSize=1;"
-                       "fillColor=#e1d5e7;strokeColor=#9673a6;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(140, 80), QStringLiteral("basic"));
     add(QStringLiteral("parallelogram"), QStringLiteral("Parallelogram"),
         QStringLiteral("shape=parallelogram;perimeter=parallelogramPerimeter;whiteSpace=wrap;html=1;"
-                       "fixedSize=1;fillColor=#fff2cc;strokeColor=#d6b656;"),
+                       "fixedSize=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(140, 70), QStringLiteral("basic"));
     add(QStringLiteral("trapezoid"), QStringLiteral("Trapezoid"),
         QStringLiteral("shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;html=1;"
-                       "fixedSize=1;fillColor=#fff2cc;strokeColor=#d6b656;"),
+                       "fixedSize=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(140, 70), QStringLiteral("basic"));
     add(QStringLiteral("pentagon"), QStringLiteral("Pentagon"),
         QStringLiteral("shape=pentagon;perimeter=pentagonPerimeter;whiteSpace=wrap;html=1;"
-                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(110, 100), QStringLiteral("basic"));
     add(QStringLiteral("octagon"), QStringLiteral("Octagon"),
         QStringLiteral("shape=octagon;perimeter=octagonPerimeter;whiteSpace=wrap;html=1;"
-                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(110, 100), QStringLiteral("basic"));
     add(QStringLiteral("star"), QStringLiteral("Star"),
         QStringLiteral("shape=star;perimeter=starPerimeter;whiteSpace=wrap;html=1;"
-                       "fillColor=#fff2cc;strokeColor=#d6b656;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(110, 100), QStringLiteral("basic"));
     add(QStringLiteral("cross"), QStringLiteral("Cross"),
-        QStringLiteral("shape=cross;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;"),
+        QStringLiteral("shape=cross;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(100, 100), QStringLiteral("basic"));
     add(QStringLiteral("cube"), QStringLiteral("Cube"),
         QStringLiteral("shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;"
-                       "darkOpacity=0.05;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+                       "darkOpacity=0.05;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(110, 100), QStringLiteral("basic"));
     add(QStringLiteral("doubleEllipse"), QStringLiteral("Double Ellipse"),
-        QStringLiteral("shape=doubleEllipse;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
+        QStringLiteral("shape=doubleEllipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(130, 80), QStringLiteral("basic"));
     add(QStringLiteral("cylinder"), QStringLiteral("Database"),
         QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;"
-                       "fillColor=#bac8d3;strokeColor=#23445d;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(110, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.cylinder"), QStringLiteral("Cylinder"),
         QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;"
-                       "size=15;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+                       "size=15;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(90, 110), QStringLiteral("basic"));
     add(QStringLiteral("basic.cylinderStack"), QStringLiteral("Cylinder Stack"),
         QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;"
-                       "size=15;lid=0;fillColor=#bac8d3;strokeColor=#23445d;"),
+                       "size=15;lid=0;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(80, 100), QStringLiteral("basic"));
     add(QStringLiteral("cloud"), QStringLiteral("Cloud"),
-        QStringLiteral("ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;"),
+        QStringLiteral("ellipse;shape=cloud;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(150, 100), QStringLiteral("basic"));
     add(QStringLiteral("document"), QStringLiteral("Document"),
-        QStringLiteral("shape=document;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#f8cecc;strokeColor=#b85450;"),
+        QStringLiteral("shape=document;whiteSpace=wrap;html=1;boundedLbl=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(140, 90), QStringLiteral("basic"));
     add(QStringLiteral("tape"), QStringLiteral("Tape"),
         QStringLiteral("shape=tape;whiteSpace=wrap;html=1;"
-                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(120, 100), QStringLiteral("basic"));
     add(QStringLiteral("note"), QStringLiteral("Note"),
         QStringLiteral("shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;darkOpacity=0.05;"
-                       "fillColor=#fff2cc;strokeColor=#d6b656;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(120, 100), QStringLiteral("basic"));
     add(QStringLiteral("or"), QStringLiteral("Or"),
-        QStringLiteral("shape=or;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=or;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(60, 80), QStringLiteral("basic"));
     add(QStringLiteral("xor"), QStringLiteral("Xor"),
-        QStringLiteral("shape=xor;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=xor;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(60, 80), QStringLiteral("basic"));
     add(QStringLiteral("dataStorage"), QStringLiteral("Data Storage"),
         QStringLiteral("shape=dataStorage;whiteSpace=wrap;html=1;fixedSize=1;"
-                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(100, 80), QStringLiteral("basic"));
     add(QStringLiteral("internalStorage"), QStringLiteral("Internal Storage"),
         QStringLiteral("shape=internalStorage;whiteSpace=wrap;html=1;backgroundOutline=1;"
-                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(80, 80), QStringLiteral("basic"));
     add(QStringLiteral("wedgeCallout"), QStringLiteral("Wedge Callout"),
         QStringLiteral("shape=wedgeCallout;whiteSpace=wrap;html=1;"
-                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(120, 80), QStringLiteral("basic"));
     add(QStringLiteral("callout"), QStringLiteral("Callout"),
         QStringLiteral("shape=callout;whiteSpace=wrap;html=1;perimeter=calloutPerimeter;"
-                       "fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(150, 90), QStringLiteral("basic"));
     add(QStringLiteral("swimlane"), QStringLiteral("Swimlane"),
-        QStringLiteral("swimlane;html=1;startSize=23;fillColor=#f5f5f5;strokeColor=#666666;"),
+        QStringLiteral("swimlane;html=1;startSize=23;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(240, 160), QStringLiteral("basic"));
     add(QStringLiteral("text"), QStringLiteral("Text"),
         QStringLiteral("text;html=1;strokeColor=none;fillColor=none;align=center;"
@@ -526,29 +526,29 @@ QVector<ShapeDefinition> toolboxShapes()
 
     add(QStringLiteral("actor"), QStringLiteral("Actor"),
         QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;"
-                       "outlineConnect=0;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+                       "outlineConnect=0;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(60, 110), QStringLiteral("uml"));
-    const QString blue = QStringLiteral("fillColor=#dae8fc;strokeColor=#6c8ebf;");
-    const QString green = QStringLiteral("fillColor=#d5e8d4;strokeColor=#82b366;");
-    const QString orange = QStringLiteral("fillColor=#ffe6cc;strokeColor=#d79b00;");
-    const QString purple = QStringLiteral("fillColor=#e1d5e7;strokeColor=#9673a6;");
-    const QString yellow = QStringLiteral("fillColor=#fff2cc;strokeColor=#d6b656;");
-    const QString red = QStringLiteral("fillColor=#f8cecc;strokeColor=#b85450;");
+    const QString blue = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
+    const QString green = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
+    const QString orange = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
+    const QString purple = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
+    const QString yellow = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
+    const QString red = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
     const QString white = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
     const QString plain = QStringLiteral("whiteSpace=wrap;html=1;");
 
     // --- additional draw.io Basic shapes (Sidebar-Basic.js) --------------
     add(QStringLiteral("basic.partialTopBottom"), QStringLiteral("Partial Top Bottom"),
-        QStringLiteral("shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(140, 70), QStringLiteral("basic"));
     add(QStringLiteral("basic.partialTop"), QStringLiteral("Partial Top"),
-        QStringLiteral("shape=partialRectangle;top=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=partialRectangle;top=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(140, 70), QStringLiteral("basic"));
     add(QStringLiteral("basic.partialBottom"), QStringLiteral("Partial Bottom"),
-        QStringLiteral("shape=partialRectangle;bottom=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=partialRectangle;bottom=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(140, 70), QStringLiteral("basic"));
     add(QStringLiteral("basic.partialLeft"), QStringLiteral("Partial Left"),
-        QStringLiteral("shape=partialRectangle;left=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=partialRectangle;left=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(140, 70), QStringLiteral("basic"));
     add(QStringLiteral("basic.polygon"), QStringLiteral("Polygon"),
         QStringLiteral("shape=polygon;whiteSpace=wrap;html=1;") + blue,
@@ -602,7 +602,7 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=moon;whiteSpace=wrap;html=1;") + yellow,
         QSizeF(90, 110), QStringLiteral("basic"));
     add(QStringLiteral("basic.noSymbol"), QStringLiteral("No Symbol"),
-        QStringLiteral("shape=noSymbol;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#b85450;"),
+        QStringLiteral("shape=noSymbol;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(100, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.orthogonalTriangle"), QStringLiteral("Orthogonal Triangle"),
         QStringLiteral("shape=orthogonalTriangle;whiteSpace=wrap;html=1;") + green,
@@ -639,16 +639,16 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=plaque;whiteSpace=wrap;html=1;") + orange,
         QSizeF(140, 70), QStringLiteral("basic"));
     add(QStringLiteral("basic.frame"), QStringLiteral("Frame"),
-        QStringLiteral("shape=frame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=frame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(140, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.roundedFrame"), QStringLiteral("Rounded Frame"),
-        QStringLiteral("shape=roundedFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=roundedFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(140, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.plaqueFrame"), QStringLiteral("Plaque Frame"),
-        QStringLiteral("shape=plaqueFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=plaqueFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(140, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.frameCorner"), QStringLiteral("Frame Corner"),
-        QStringLiteral("shape=frameCorner;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=frameCorner;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(130, 90), QStringLiteral("basic"));
     add(QStringLiteral("basic.diagStripe"), QStringLiteral("Diag Stripe"),
         QStringLiteral("shape=diagStripe;whiteSpace=wrap;html=1;") + yellow,
@@ -670,7 +670,7 @@ QVector<ShapeDefinition> toolboxShapes()
         QSizeF(110, 110), QStringLiteral("basic"));
     add(QStringLiteral("basic.tick"), QStringLiteral("Tick"),
         QStringLiteral("shape=mxgraph.basic.tick;whiteSpace=wrap;html=1;"
-                       "fillColor=#d5e8d4;strokeColor=#82b366;"),
+                       "fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(100, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.pie"), QStringLiteral("Pie"),
         QStringLiteral("shape=mxgraph.basic.pie;startAngle=0.2;endAngle=0.9;"
@@ -727,7 +727,7 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=cloudSwitch;whiteSpace=wrap;html=1;") + blue,
         QSizeF(110, 80), QStringLiteral("cloud"));
     add(QStringLiteral("cloud.vpc"), QStringLiteral("VPC"),
-        QStringLiteral("shape=cloudVpc;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=cloudVpc;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(160, 110), QStringLiteral("cloud"));
     add(QStringLiteral("cloud.database"), QStringLiteral("Database"),
         QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;") + blue,
@@ -740,71 +740,71 @@ QVector<ShapeDefinition> toolboxShapes()
             + blue, QSizeF(60, 110), QStringLiteral("cloud"));
 
     add(QStringLiteral("basic.patternDiag"), QStringLiteral("Pattern Diag"),
-        QStringLiteral("shape=patternFillRect;fillStyle=diag;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=patternFillRect;fillStyle=diag;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(150, 80), QStringLiteral("basic"));
     add(QStringLiteral("basic.patternDiagRev"), QStringLiteral("Pattern Diag Rev"),
-        QStringLiteral("shape=patternFillRect;fillStyle=diagRev;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=patternFillRect;fillStyle=diagRev;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(150, 80), QStringLiteral("basic"));
     add(QStringLiteral("basic.patternVertical"), QStringLiteral("Pattern Vertical"),
-        QStringLiteral("shape=patternFillRect;fillStyle=vert;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=patternFillRect;fillStyle=vert;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(150, 80), QStringLiteral("basic"));
     add(QStringLiteral("basic.patternHorizontal"), QStringLiteral("Pattern Horizontal"),
-        QStringLiteral("shape=patternFillRect;fillStyle=hor;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=patternFillRect;fillStyle=hor;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(150, 80), QStringLiteral("basic"));
     add(QStringLiteral("basic.patternGrid"), QStringLiteral("Pattern Grid"),
-        QStringLiteral("shape=patternFillRect;fillStyle=grid;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=patternFillRect;fillStyle=grid;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(150, 80), QStringLiteral("basic"));
     add(QStringLiteral("basic.patternDiagGrid"), QStringLiteral("Pattern Diag Grid"),
-        QStringLiteral("shape=patternFillRect;fillStyle=diagGrid;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=patternFillRect;fillStyle=diagGrid;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(150, 80), QStringLiteral("basic"));
 
     // --- misc ------------------------------------------------------------
     add(QStringLiteral("misc.container"), QStringLiteral("Container"),
-        QStringLiteral("swimlane;startSize=0;html=1;fillColor=none;strokeColor=#666666;"),
+        QStringLiteral("swimlane;startSize=0;html=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(220, 160), QStringLiteral("misc"));
     add(QStringLiteral("misc.table"), QStringLiteral("Table"),
-        QStringLiteral("shape=miscTable;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=miscTable;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(180, 120), QStringLiteral("misc"));
     add(QStringLiteral("misc.list"), QStringLiteral("List"),
-        QStringLiteral("shape=miscList;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=miscList;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(180, 120), QStringLiteral("misc"));
     add(QStringLiteral("misc.note"), QStringLiteral("Note"),
-        QStringLiteral("shape=note;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;"),
+        QStringLiteral("shape=note;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(120, 100), QStringLiteral("misc"));
     add(QStringLiteral("misc.callout"), QStringLiteral("Callout"),
-        QStringLiteral("shape=callout;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=callout;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(150, 90), QStringLiteral("misc"));
 
     // --- advanced layouts ------------------------------------------------
     add(QStringLiteral("advanced.container"), QStringLiteral("Container"),
-        QStringLiteral("swimlane;startSize=0;html=1;fillColor=#f5f5f5;strokeColor=#666666;"),
+        QStringLiteral("swimlane;startSize=0;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(220, 160), QStringLiteral("advanced"));
     add(QStringLiteral("advanced.horizontal"), QStringLiteral("Horizontal"),
-        QStringLiteral("swimlane;horizontal=0;startSize=30;html=1;fillColor=#f5f5f5;strokeColor=#666666;"),
+        QStringLiteral("swimlane;horizontal=0;startSize=30;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(220, 160), QStringLiteral("advanced"));
     add(QStringLiteral("advanced.vertical"), QStringLiteral("Vertical"),
-        QStringLiteral("swimlane;startSize=30;html=1;fillColor=#f5f5f5;strokeColor=#666666;"),
+        QStringLiteral("swimlane;startSize=30;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(220, 160), QStringLiteral("advanced"));
     add(QStringLiteral("advanced.poolHorizontal"), QStringLiteral("Pool Horizontal"),
-        QStringLiteral("swimlane;horizontal=0;startSize=40;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QStringLiteral("swimlane;horizontal=0;startSize=40;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(260, 180), QStringLiteral("advanced"));
     add(QStringLiteral("advanced.poolVertical"), QStringLiteral("Pool Vertical"),
-        QStringLiteral("swimlane;startSize=40;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QStringLiteral("swimlane;startSize=40;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(260, 180), QStringLiteral("advanced"));
     add(QStringLiteral("advanced.treeHorizontal"), QStringLiteral("Tree Horizontal"),
-        QStringLiteral("shape=advTreeH;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=advTreeH;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(220, 150), QStringLiteral("advanced"));
     add(QStringLiteral("advanced.treeVertical"), QStringLiteral("Tree Vertical"),
-        QStringLiteral("shape=advTreeV;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=advTreeV;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(200, 190), QStringLiteral("advanced"));
     add(QStringLiteral("advanced.treeBalloon"), QStringLiteral("Tree Balloon"),
-        QStringLiteral("shape=advTreeBalloon;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#6c8ebf;"),
+        QStringLiteral("shape=advTreeBalloon;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(220, 190), QStringLiteral("advanced"));
     add(QStringLiteral("advanced.flowHorizontal"), QStringLiteral("Flow Horizontal"),
-        QStringLiteral("shape=advFlowH;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
+        QStringLiteral("shape=advFlowH;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(260, 110), QStringLiteral("advanced"));
     add(QStringLiteral("advanced.flowVertical"), QStringLiteral("Flow Vertical"),
-        QStringLiteral("shape=advFlowV;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
+        QStringLiteral("shape=advFlowV;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(160, 240), QStringLiteral("advanced"));
 
     // --- flowchart -------------------------------------------------------
@@ -1058,7 +1058,7 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("rounded=1;arcSize=40;") + plain + green,
         QSizeF(140, 70), QStringLiteral("uml"));
     add(QStringLiteral("uml.initial"), QStringLiteral("Initial"),
-        QStringLiteral("ellipse;fillColor=#000000;strokeColor=#000000;"),
+        QStringLiteral("ellipse;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(36, 36), QStringLiteral("uml"));
     add(QStringLiteral("uml.final"), QStringLiteral("Final"),
         QStringLiteral("shape=doubleEllipse;fillColor=#ffffff;strokeColor=#000000;"),
@@ -1066,7 +1066,7 @@ QVector<ShapeDefinition> toolboxShapes()
     add(QStringLiteral("uml.decision"), QStringLiteral("Decision"),
         QStringLiteral("rhombus;") + plain + yellow, QSizeF(90, 90), QStringLiteral("uml"));
     add(QStringLiteral("uml.fork"), QStringLiteral("Fork"),
-        QStringLiteral("rounded=0;fillColor=#000000;strokeColor=#000000;"),
+        QStringLiteral("rounded=0;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(140, 12), QStringLiteral("uml"));
     add(QStringLiteral("uml.object"), QStringLiteral("Object"),
         QStringLiteral("swimlane;fontStyle=4;startSize=26;") + blue + QStringLiteral("html=1;"),
@@ -1150,7 +1150,7 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=mxgraph.bpmn.message;") + white,
         QSizeF(90, 60), QStringLiteral("bpmn"));
     add(QStringLiteral("bpmn.group"), QStringLiteral("Group"),
-        QStringLiteral("rounded=1;dashed=1;fillColor=none;strokeColor=#666666;"),
+        QStringLiteral("rounded=1;dashed=1;fillColor=none;strokeColor=#000000;"),
         QSizeF(200, 140), QStringLiteral("bpmn"));
     add(QStringLiteral("bpmn.annotation"), QStringLiteral("Annotation"),
         QStringLiteral("shape=mxgraph.flowchart.annotation_1;align=left;verticalAlign=top;")
@@ -1221,26 +1221,26 @@ QVector<ShapeDefinition> toolboxShapes()
     add(QStringLiteral("ui.button"), QStringLiteral("Button"),
         QStringLiteral("rounded=1;arcSize=20;") + blue, QSizeF(110, 40), QStringLiteral("mockup"));
     add(QStringLiteral("ui.input"), QStringLiteral("Input"),
-        QStringLiteral("rounded=0;fillColor=#ffffff;strokeColor=#999999;"),
+        QStringLiteral("rounded=0;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(180, 40), QStringLiteral("mockup"));
     add(QStringLiteral("ui.window"), QStringLiteral("Window"),
         QStringLiteral("swimlane;startSize=26;") + blue, QSizeF(280, 180),
         QStringLiteral("mockup"));
     add(QStringLiteral("ui.navbar"), QStringLiteral("Navbar"),
-        QStringLiteral("rounded=0;fillColor=#f5f5f5;strokeColor=#cccccc;"),
+        QStringLiteral("rounded=0;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(320, 50), QStringLiteral("mockup"));
     add(QStringLiteral("ui.browser"), QStringLiteral("Browser"),
         QStringLiteral("swimlane;startSize=30;") + blue, QSizeF(320, 220),
         QStringLiteral("mockup"));
 
     add(QStringLiteral("android.phone"), QStringLiteral("Phone"),
-        QStringLiteral("rounded=1;arcSize=8;androidType=phone;fillColor=#a4c639;strokeColor=#4a6b14;"),
+        QStringLiteral("rounded=1;arcSize=8;androidType=phone;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(100, 190), QStringLiteral("software"));
     add(QStringLiteral("android.tablet"), QStringLiteral("Tablet"),
-        QStringLiteral("rounded=1;arcSize=6;androidType=tablet;fillColor=#a4c639;strokeColor=#4a6b14;"),
+        QStringLiteral("rounded=1;arcSize=6;androidType=tablet;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(160, 220), QStringLiteral("software"));
     add(QStringLiteral("android.watch"), QStringLiteral("Watch"),
-        QStringLiteral("rounded=1;arcSize=30;androidType=watch;fillColor=#a4c639;strokeColor=#4a6b14;"),
+        QStringLiteral("rounded=1;arcSize=30;androidType=watch;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(100, 100), QStringLiteral("software"));
 
     add(QStringLiteral("image"), QStringLiteral("Image"),
@@ -1302,97 +1302,97 @@ QVector<ShapeDefinition> toolboxShapes()
     }
 
     add(QStringLiteral("elec.junction"), QStringLiteral("Junction"),
-        QStringLiteral("shape=elec.junction;fillColor=#000000;strokeColor=#000000;"),
+        QStringLiteral("shape=elec.junction;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(24, 24), QStringLiteral("electrical"));
 
     // --- floor plan -------------------------------------------------------
     add(QStringLiteral("floor.wall"), QStringLiteral("Wall"),
-        QStringLiteral("rounded=0;fillColor=#e8eaed;strokeColor=#5f6368;strokeWidth=2;"),
+        QStringLiteral("rounded=0;fillColor=#ffffff;strokeColor=#000000;strokeWidth=2;"),
         QSizeF(240, 16), QStringLiteral("floorplan"));
     add(QStringLiteral("floor.door"), QStringLiteral("Door"),
-        QStringLiteral("shape=floor.door;fillColor=none;strokeColor=#5f6368;strokeWidth=2;"),
+        QStringLiteral("shape=floor.door;fillColor=none;strokeColor=#000000;strokeWidth=2;"),
         QSizeF(90, 90), QStringLiteral("floorplan"));
     add(QStringLiteral("floor.window"), QStringLiteral("Window"),
-        QStringLiteral("shape=floor.window;fillColor=#dae8fc;strokeColor=#5f6368;strokeWidth=2;"),
+        QStringLiteral("shape=floor.window;fillColor=#ffffff;strokeColor=#000000;strokeWidth=2;"),
         QSizeF(140, 16), QStringLiteral("floorplan"));
     add(QStringLiteral("floor.stairs"), QStringLiteral("Stairs"),
-        QStringLiteral("shape=floor.stairs;fillColor=#f5f5f5;strokeColor=#5f6368;"),
+        QStringLiteral("shape=floor.stairs;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(120, 160), QStringLiteral("floorplan"));
     add(QStringLiteral("floor.table"), QStringLiteral("Table"),
-        QStringLiteral("rounded=1;fillColor=#fff2cc;strokeColor=#d6b656;"),
+        QStringLiteral("rounded=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(160, 90), QStringLiteral("floorplan"));
     add(QStringLiteral("floor.chair"), QStringLiteral("Chair"),
-        QStringLiteral("rounded=1;fillColor=#dae8fc;strokeColor=#6c8ebf;"),
+        QStringLiteral("rounded=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(60, 60), QStringLiteral("floorplan"));
     add(QStringLiteral("floor.bed"), QStringLiteral("Bed"),
-        QStringLiteral("rounded=1;fillColor=#d5e8d4;strokeColor=#82b366;"),
+        QStringLiteral("rounded=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(180, 120), QStringLiteral("floorplan"));
     add(QStringLiteral("floor.sofa"), QStringLiteral("Sofa"),
-        QStringLiteral("rounded=1;fillColor=#e1d5e7;strokeColor=#9673a6;"),
+        QStringLiteral("rounded=1;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(180, 80), QStringLiteral("floorplan"));
 
     // --- infographic ------------------------------------------------------
     add(QStringLiteral("info.chevron"), QStringLiteral("Chevron"),
-        QStringLiteral("shape=step;perimeter=stepPerimeter;fixedSize=1;fillColor=#1a73e8;"
+        QStringLiteral("shape=step;perimeter=stepPerimeter;fixedSize=1;fillColor=#ffffff;"
                        "strokeColor=none;fontColor=#ffffff;html=1;"),
         QSizeF(180, 70), QStringLiteral("infographic"));
     add(QStringLiteral("info.ribbon"), QStringLiteral("Ribbon"),
-        QStringLiteral("shape=info.ribbon;fillColor=#f29900;strokeColor=none;"
+        QStringLiteral("shape=info.ribbon;fillColor=#ffffff;strokeColor=none;"
                        "fontColor=#ffffff;html=1;"),
         QSizeF(180, 70), QStringLiteral("infographic"));
     add(QStringLiteral("info.badge"), QStringLiteral("Badge"),
-        QStringLiteral("shape=star;perimeter=starPerimeter;fillColor=#d93025;strokeColor=none;"
+        QStringLiteral("shape=star;perimeter=starPerimeter;fillColor=#ffffff;strokeColor=none;"
                        "fontColor=#ffffff;html=1;"),
         QSizeF(110, 110), QStringLiteral("infographic"));
     add(QStringLiteral("info.bubble"), QStringLiteral("Bubble"),
-        QStringLiteral("shape=callout;perimeter=calloutPerimeter;fillColor=#e6f4ea;"
-                       "strokeColor=#34a853;html=1;"),
+        QStringLiteral("shape=callout;perimeter=calloutPerimeter;fillColor=#ffffff;"
+                       "strokeColor=#000000;html=1;"),
         QSizeF(180, 100), QStringLiteral("infographic"));
     add(QStringLiteral("info.progress"), QStringLiteral("Progress"),
-        QStringLiteral("rounded=1;arcSize=50;fillColor=#1a73e8;strokeColor=none;"),
+        QStringLiteral("rounded=1;arcSize=50;fillColor=#ffffff;strokeColor=none;"),
         QSizeF(240, 24), QStringLiteral("infographic"));
 
     // --- SysML ------------------------------------------------------------
     add(QStringLiteral("sysml.block"), QStringLiteral("Block"),
-        QStringLiteral("swimlane;fontStyle=1;startSize=28;fillColor=#dae8fc;"
-                       "strokeColor=#6c8ebf;html=1;"),
+        QStringLiteral("swimlane;fontStyle=1;startSize=28;fillColor=#ffffff;"
+                       "strokeColor=#000000;html=1;"),
         QSizeF(200, 120), QStringLiteral("sysml"));
     add(QStringLiteral("sysml.port"), QStringLiteral("Port"),
-        QStringLiteral("fillColor=#ffffff;strokeColor=#6c8ebf;"), QSizeF(24, 24), QStringLiteral("sysml"));
+        QStringLiteral("fillColor=#ffffff;strokeColor=#000000;"), QSizeF(24, 24), QStringLiteral("sysml"));
     add(QStringLiteral("sysml.requirement"), QStringLiteral("Requirement"),
-        QStringLiteral("shape=note;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;"
+        QStringLiteral("shape=note;backgroundOutline=1;fillColor=#ffffff;strokeColor=#000000;"
                        "html=1;"), QSizeF(180, 100), QStringLiteral("sysml"));
     add(QStringLiteral("sysml.constraint"), QStringLiteral("Constraint"),
-        QStringLiteral("rounded=0;fillColor=#f8cecc;strokeColor=#b85450;html=1;"),
+        QStringLiteral("rounded=0;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(170, 90), QStringLiteral("sysml"));
     add(QStringLiteral("sysml.item"), QStringLiteral("Item"),
-        QStringLiteral("rounded=0;fillColor=#e1d5e7;strokeColor=#9673a6;html=1;"),
+        QStringLiteral("rounded=0;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(140, 70), QStringLiteral("sysml"));
 
     // --- ArchiMate --------------------------------------------------------
     add(QStringLiteral("archimate.actor"), QStringLiteral("Actor"),
-        QStringLiteral("rounded=1;arcSize=30;fillColor=#fff2cc;strokeColor=#d6b656;html=1;"),
+        QStringLiteral("rounded=1;arcSize=30;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(140, 70), QStringLiteral("archimate"));
     add(QStringLiteral("archimate.role"), QStringLiteral("Role"),
-        QStringLiteral("rounded=1;arcSize=30;fillColor=#fff2cc;strokeColor=#d6b656;html=1;"),
+        QStringLiteral("rounded=1;arcSize=30;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(140, 70), QStringLiteral("archimate"));
     add(QStringLiteral("archimate.process"), QStringLiteral("Process"),
-        QStringLiteral("rounded=1;arcSize=30;fillColor=#fff2cc;strokeColor=#d6b656;html=1;"),
+        QStringLiteral("rounded=1;arcSize=30;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(160, 70), QStringLiteral("archimate"));
     add(QStringLiteral("archimate.appcomponent"), QStringLiteral("Appcomponent"),
-        QStringLiteral("rounded=1;arcSize=30;fillColor=#dae8fc;strokeColor=#6c8ebf;html=1;"),
+        QStringLiteral("rounded=1;arcSize=30;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(160, 70), QStringLiteral("archimate"));
     add(QStringLiteral("archimate.node"), QStringLiteral("Node"),
-        QStringLiteral("shape=cube;fillColor=#d5e8d4;strokeColor=#82b366;boundedLbl=1;"
+        QStringLiteral("shape=cube;fillColor=#ffffff;strokeColor=#000000;boundedLbl=1;"
                        "backgroundOutline=1;html=1;"),
         QSizeF(160, 100), QStringLiteral("archimate"));
     add(QStringLiteral("archimate.device"), QStringLiteral("Device"),
-        QStringLiteral("rounded=0;fillColor=#d5e8d4;strokeColor=#82b366;html=1;"),
+        QStringLiteral("rounded=0;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(150, 80), QStringLiteral("archimate"));
 
     // --- Enterprise integration patterns ---------------------------------
     add(QStringLiteral("eip.channel"), QStringLiteral("Channel"),
-        QStringLiteral("rounded=0;fillColor=#dae8fc;strokeColor=#6c8ebf;html=1;"),
+        QStringLiteral("rounded=0;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(200, 24), QStringLiteral("eip"));
     add(QStringLiteral("eip.router"), QStringLiteral("Router"),
         QStringLiteral("shape=eip.router;fillColor=#ffffff;strokeColor=#000000;html=1;"),
@@ -1407,57 +1407,57 @@ QVector<ShapeDefinition> toolboxShapes()
 
     // --- Bootstrap --------------------------------------------------------
     add(QStringLiteral("bs.button"), QStringLiteral("Button"),
-        QStringLiteral("rounded=1;arcSize=25;fillColor=#0d6efd;strokeColor=#0d6efd;"
+        QStringLiteral("rounded=1;arcSize=25;fillColor=#ffffff;strokeColor=#000000;"
                        "fontColor=#ffffff;html=1;"),
         QSizeF(120, 42), QStringLiteral("bootstrap"));
     add(QStringLiteral("bs.panel"), QStringLiteral("Panel"),
-        QStringLiteral("swimlane;startSize=34;fillColor=#ffffff;strokeColor=#dee2e6;html=1;"),
+        QStringLiteral("swimlane;startSize=34;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(240, 160), QStringLiteral("bootstrap"));
     add(QStringLiteral("bs.navbar"), QStringLiteral("Navbar"),
-        QStringLiteral("rounded=0;fillColor=#212529;strokeColor=#212529;fontColor=#ffffff;html=1;"),
+        QStringLiteral("rounded=0;fillColor=#ffffff;strokeColor=#000000;fontColor=#ffffff;html=1;"),
         QSizeF(320, 48), QStringLiteral("bootstrap"));
     add(QStringLiteral("bs.badge"), QStringLiteral("Badge"),
-        QStringLiteral("rounded=1;arcSize=50;fillColor=#6c757d;strokeColor=#6c757d;"
+        QStringLiteral("rounded=1;arcSize=50;fillColor=#ffffff;strokeColor=#000000;"
                        "fontColor=#ffffff;html=1;"),
         QSizeF(70, 28), QStringLiteral("bootstrap"));
     add(QStringLiteral("bs.alert"), QStringLiteral("Alert"),
-        QStringLiteral("rounded=1;arcSize=8;fillColor=#cff4fc;strokeColor=#b6effb;html=1;"),
+        QStringLiteral("rounded=1;arcSize=8;fillColor=#ffffff;strokeColor=#000000;html=1;"),
         QSizeF(260, 56), QStringLiteral("bootstrap"));
 
     // --- Kubernetes -------------------------------------------------------
     add(QStringLiteral("k8s.pod"), QStringLiteral("Pod"),
         QStringLiteral("shape=hexagon;perimeter=hexagonPerimeter2;fixedSize=1;"
-                       "fillColor=#326ce5;strokeColor=#1a4bb3;fontColor=#ffffff;html=1;"),
+                       "fillColor=#ffffff;strokeColor=#000000;fontColor=#ffffff;html=1;"),
         QSizeF(110, 100), QStringLiteral("kubernetes"));
     add(QStringLiteral("k8s.service"), QStringLiteral("Service"),
-        QStringLiteral("ellipse;fillColor=#326ce5;strokeColor=#1a4bb3;fontColor=#ffffff;html=1;"),
+        QStringLiteral("ellipse;fillColor=#ffffff;strokeColor=#000000;fontColor=#ffffff;html=1;"),
         QSizeF(100, 100), QStringLiteral("kubernetes"));
     add(QStringLiteral("k8s.deployment"), QStringLiteral("Deployment"),
-        QStringLiteral("rounded=1;arcSize=10;fillColor=#326ce5;strokeColor=#1a4bb3;"
+        QStringLiteral("rounded=1;arcSize=10;fillColor=#ffffff;strokeColor=#000000;"
                        "fontColor=#ffffff;html=1;"),
         QSizeF(150, 90), QStringLiteral("kubernetes"));
     add(QStringLiteral("k8s.ingress"), QStringLiteral("Ingress"),
-        QStringLiteral("shape=pentagon;perimeter=pentagonPerimeter;fillColor=#f29d38;"
-                       "strokeColor=#b36b00;fontColor=#ffffff;html=1;"),
+        QStringLiteral("shape=pentagon;perimeter=pentagonPerimeter;fillColor=#ffffff;"
+                       "strokeColor=#000000;fontColor=#ffffff;html=1;"),
         QSizeF(130, 100), QStringLiteral("kubernetes"));
     add(QStringLiteral("k8s.configmap"), QStringLiteral("ConfigMap"),
-        QStringLiteral("shape=note;backgroundOutline=1;fillColor=#fff2cc;strokeColor=#d6b656;"
+        QStringLiteral("shape=note;backgroundOutline=1;fillColor=#ffffff;strokeColor=#000000;"
                        "html=1;"),
         QSizeF(120, 100), QStringLiteral("kubernetes"));
     add(QStringLiteral("k8s.node"), QStringLiteral("Node"),
-        QStringLiteral("shape=cube;fillColor=#e1d5e7;strokeColor=#9673a6;boundedLbl=1;"
+        QStringLiteral("shape=cube;fillColor=#ffffff;strokeColor=#000000;boundedLbl=1;"
                        "backgroundOutline=1;html=1;"),
         QSizeF(130, 110), QStringLiteral("kubernetes"));
 
     // --- iOS ---------------------------------------------------------------
     add(QStringLiteral("ios.phone"), QStringLiteral("iPhone"),
-        QStringLiteral("shape=ios.phone;fillColor=#1b1d1e;strokeColor=#5f6368;"),
+        QStringLiteral("shape=ios.phone;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(100, 200), QStringLiteral("software"));
     add(QStringLiteral("ios.tablet"), QStringLiteral("iPad"),
-        QStringLiteral("shape=ios.phone;fillColor=#1b1d1e;strokeColor=#5f6368;"),
+        QStringLiteral("shape=ios.phone;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(160, 220), QStringLiteral("software"));
     add(QStringLiteral("ios.watch"), QStringLiteral("Apple Watch"),
-        QStringLiteral("shape=ios.phone;fillColor=#1b1d1e;strokeColor=#5f6368;"),
+        QStringLiteral("shape=ios.phone;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(90, 110), QStringLiteral("software"));
 
     return shapes;
