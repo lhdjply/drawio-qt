@@ -200,7 +200,15 @@ QRectF labelRect(const Cell &cell, const QRectF &bounds)
     if (ShapeRegistry::isContainerShape(cell) && cell.styleFlag(QStringLiteral("swimlane")))
     {
         const double startSize = cell.styleNumber(QStringLiteral("startSize"), 23.0);
-        rect.setHeight(qMax(0.0, startSize - spacingTop));
+
+        if (cell.styleFlag(QStringLiteral("horizontal"), true))
+        {
+            rect.setHeight(qMax(0.0, startSize - spacingTop));
+        }
+        else
+        {
+            rect.setWidth(qMax(0.0, startSize - spacingLeft));
+        }
     }
 
     // Labels below / above the shape (used by umlActor and image shapes).
@@ -1137,7 +1145,16 @@ void paint(QPainter &painter, const Cell &cell)
         else if (key == QLatin1String("swimlane") || cell.styleFlag(QStringLiteral("swimlane")))
         {
             const double startSize = cell.styleNumber(QStringLiteral("startSize"), 23.0);
-            painter.drawLine(QPointF(0, startSize), QPointF(local.width(), startSize));
+
+            // swimlane;horizontal=0 puts the title bar on the left edge.
+            if (cell.styleFlag(QStringLiteral("horizontal"), true))
+            {
+                painter.drawLine(QPointF(0, startSize), QPointF(local.width(), startSize));
+            }
+            else
+            {
+                painter.drawLine(QPointF(startSize, 0), QPointF(startSize, local.height()));
+            }
         }
         else if (key == QLatin1String("flowchart.annotation_2"))
         {

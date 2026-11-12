@@ -230,7 +230,8 @@ void ShapeCatalog::loadBuiltins()
     }
 
     // Stable, user friendly ordering of the standard libraries.
-    const QStringList order = {QStringLiteral("basic"), QStringLiteral("arrows"),
+    const QStringList order = {QStringLiteral("general"), QStringLiteral("basic"),
+                               QStringLiteral("arrows"),
                                QStringLiteral("misc"), QStringLiteral("advanced"),
                                QStringLiteral("flowchart"), QStringLiteral("uml"),
                                QStringLiteral("er"), QStringLiteral("bpmn"),

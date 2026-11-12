@@ -383,7 +383,8 @@ private slots:
     void defaultShapeLibrariesAreFocused()
     {
         const QStringList defaults = ShapeLibraryDialog::defaultCategories();
-        QCOMPARE(defaults, (QStringList{QStringLiteral("basic"), QStringLiteral("arrows"),
+        QCOMPARE(defaults, (QStringList{QStringLiteral("general"), QStringLiteral("basic"),
+                                        QStringLiteral("arrows"),
                                         QStringLiteral("flowchart")}));
     }
 

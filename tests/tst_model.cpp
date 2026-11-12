@@ -166,7 +166,8 @@ private slots:
     {
         for (const auto &definition : ShapeRegistry::toolboxShapes())
         {
-            if (definition.category != QLatin1String("basic")
+            if (definition.category != QLatin1String("general")
+                && definition.category != QLatin1String("basic")
                 && definition.category != QLatin1String("cloud")
                 && definition.category != QLatin1String("advanced")
                 && definition.category != QLatin1String("arrows")
@@ -369,6 +370,19 @@ private slots:
         QVERIFY(!ShapeCatalog::instance().search(QStringLiteral("star"), 40).isEmpty());
     }
 
+    void actorAndHorizontalSwimlane()
+    {
+        const QPainterPath actor = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=umlActor;")), QRectF(0, 0, 40, 80));
+        QVERIFY(actor.elementCount() > 6);
+
+        // swimlane;horizontal=0 keeps the title bar on the left.
+        const QPainterPath container = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("swimlane;horizontal=0;startSize=30;")),
+            QRectF(0, 0, 160, 80));
+        QVERIFY(!container.isEmpty());
+    }
+
     void basicStencilShapes()
     {
         const auto path = [](const QString &style)
@@ -477,25 +491,189 @@ private slots:
         QCOMPARE(cube.elementCount(), 7);
     }
 
-    void flowchartShapesAreInBasicLibrary()
+    void logicGatesAndStorageLiveInGeneral()
+    {
+        QStringList general;
+        QStringList basic;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category == QLatin1String("general"))
+            {
+                general.append(definition.key);
+            }
+            else if (definition.category == QLatin1String("basic"))
+            {
+                basic.append(definition.key);
+            }
+        }
+
+        for (const QString &key : {QStringLiteral("or"), QStringLiteral("and"),
+                                   QStringLiteral("dataStorage"),
+                                   QStringLiteral("internalStorage"),
+                                   QStringLiteral("wedgeCallout")})
+        {
+            QVERIFY2(general.contains(key), qPrintable(key));
+            QVERIFY2(!basic.contains(key), qPrintable(key));
+        }
+
+        // The plain XOR stencil is not part of the General palette.
+        QVERIFY(basic.contains(QStringLiteral("xor")));
+    }
+
+    void generalLibraryFollowsSidebar()
+    {
+        // Sidebar.prototype.addGeneralPalette, in draw.io order.
+        const QStringList official = {
+            QStringLiteral("rectangle"),      QStringLiteral("rounded"),
+            QStringLiteral("text"),           QStringLiteral("textbox"),
+            QStringLiteral("ellipse"),        QStringLiteral("square"),
+            QStringLiteral("circle"),         QStringLiteral("process"),
+            QStringLiteral("diamond"),        QStringLiteral("parallelogram"),
+            QStringLiteral("hexagon"),        QStringLiteral("triangle"),
+            QStringLiteral("cylinder"),       QStringLiteral("cloud"),
+            QStringLiteral("document"),       QStringLiteral("internalStorage"),
+            QStringLiteral("cube"),           QStringLiteral("step"),
+            QStringLiteral("trapezoid"),      QStringLiteral("tape"),
+            QStringLiteral("note"),           QStringLiteral("card"),
+            QStringLiteral("callout"),        QStringLiteral("wedgeCallout"),
+            QStringLiteral("actor"),          QStringLiteral("or"),
+            QStringLiteral("and"),            QStringLiteral("dataStorage"),
+            QStringLiteral("container"),      QStringLiteral("containerVertical"),
+            QStringLiteral("containerHorizontal"),
+        };
+
+        QStringList keys;
+        QHash<QString, ShapeDefinition> byKey;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category == QLatin1String("general"))
+            {
+                keys.append(definition.key);
+                byKey.insert(definition.key, definition);
+            }
+        }
+
+        QCOMPARE(keys, official);
+
+        // Default sizes come from the sidebar templates.
+        QCOMPARE(byKey.value(QStringLiteral("rectangle")).size, QSizeF(120, 60));
+        QCOMPARE(byKey.value(QStringLiteral("square")).size, QSizeF(80, 80));
+        QCOMPARE(byKey.value(QStringLiteral("process")).size, QSizeF(120, 60));
+        QCOMPARE(byKey.value(QStringLiteral("card")).size, QSizeF(80, 100));
+        QCOMPARE(byKey.value(QStringLiteral("actor")).size, QSizeF(30, 60));
+        QCOMPARE(byKey.value(QStringLiteral("container")).size, QSizeF(200, 200));
+
+        // The added entries reuse the addGeneralPalette style strings.
+        QVERIFY(byKey.value(QStringLiteral("square")).style.startsWith(
+            QStringLiteral("whiteSpace=wrap;html=1;aspect=fixed;")));
+        QVERIFY(byKey.value(QStringLiteral("process")).style.startsWith(
+            QStringLiteral("shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;")));
+        QVERIFY(byKey.value(QStringLiteral("card")).style.startsWith(
+            QStringLiteral("shape=card;whiteSpace=wrap;html=1;")));
+        QVERIFY(byKey.value(QStringLiteral("step")).style.startsWith(
+            QStringLiteral("shape=step;perimeter=stepPerimeter;")));
+        QVERIFY(byKey.value(QStringLiteral("container")).style.startsWith(
+            QStringLiteral("swimlane;startSize=0;")));
+        QVERIFY(byKey.value(QStringLiteral("containerHorizontal")).style.startsWith(
+            QStringLiteral("swimlane;horizontal=0;")));
+
+        // draw.io labels the XOR gate "Or" and the D shaped gate "And".
+        QVERIFY(byKey.value(QStringLiteral("or")).style.startsWith(QStringLiteral("shape=xor;")));
+        QVERIFY(byKey.value(QStringLiteral("and")).style.startsWith(QStringLiteral("shape=or;")));
+
+        // Every general entry is drawable (text and image placeholders aside).
+        for (const ShapeDefinition &definition : byKey)
+        {
+            Cell probe(Cell::Kind::Vertex, QString());
+            probe.style = Style::parse(definition.style);
+
+            if (ShapeRegistry::isTextShape(probe) || ShapeRegistry::isImageShape(probe))
+            {
+                continue;
+            }
+
+            QVERIFY2(!ShapeRegistry::pathForStyle(probe.style, QRectF(0, 0, 120, 80)).isEmpty(),
+                     qPrintable(definition.key));
+        }
+    }
+
+    void basicLibraryKeepsStencilShapes()
     {
         QStringList keys;
 
         for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
         {
-            if (definition.category == QStringLiteral("basic"))
+            if (definition.category == QLatin1String("basic"))
             {
                 keys.append(definition.key);
             }
         }
 
-        for (const QString &key : {QStringLiteral("or"), QStringLiteral("xor"),
-                                   QStringLiteral("dataStorage"),
-                                   QStringLiteral("internalStorage"),
-                                   QStringLiteral("wedgeCallout")})
+        // Nothing from the General palette is left in the basic library.
+        for (const QString &key : {QStringLiteral("rectangle"), QStringLiteral("rounded"),
+                                   QStringLiteral("text"), QStringLiteral("ellipse"),
+                                   QStringLiteral("circle"), QStringLiteral("diamond"),
+                                   QStringLiteral("triangle"), QStringLiteral("hexagon"),
+                                   QStringLiteral("parallelogram"), QStringLiteral("trapezoid"),
+                                   QStringLiteral("cylinder"), QStringLiteral("cloud"),
+                                   QStringLiteral("document"), QStringLiteral("internalStorage"),
+                                   QStringLiteral("cube"), QStringLiteral("tape"),
+                                   QStringLiteral("note"), QStringLiteral("callout"),
+                                   QStringLiteral("wedgeCallout"), QStringLiteral("actor"),
+                                   QStringLiteral("or"), QStringLiteral("dataStorage")})
+        {
+            QVERIFY2(!keys.contains(key), qPrintable(key));
+        }
+
+        // Sidebar-Basic.js stencils stay in the basic library.
+        for (const QString &key : {QStringLiteral("basic.star4"), QStringLiteral("basic.banner"),
+                                   QStringLiteral("basic.cloudCallout"),
+                                   QStringLiteral("basic.cone"), QStringLiteral("basic.donut"),
+                                   QStringLiteral("basic.drop"), QStringLiteral("basic.flash"),
+                                   QStringLiteral("basic.heart"), QStringLiteral("basic.isocube"),
+                                   QStringLiteral("basic.moon"), QStringLiteral("basic.noSymbol"),
+                                   QStringLiteral("basic.pyramid"), QStringLiteral("basic.smiley"),
+                                   QStringLiteral("basic.sun"), QStringLiteral("basic.tick"),
+                                   QStringLiteral("basic.pie"), QStringLiteral("basic.x"),
+                                   QStringLiteral("basic.wave"), QStringLiteral("basic.button"),
+                                   QStringLiteral("basic.polygon"),
+                                   QStringLiteral("basic.cylinderStack"),
+                                   QStringLiteral("image")})
         {
             QVERIFY2(keys.contains(key), qPrintable(key));
         }
+
+        QCOMPARE(ShapeRegistry::definition(QStringLiteral("rectangle")).category,
+                 QStringLiteral("general"));
+        QCOMPARE(ShapeRegistry::definition(QStringLiteral("basic.star4")).category,
+                 QStringLiteral("basic"));
+    }
+
+    void generalCategoryIsListedFirstAndTranslated()
+    {
+        const QVector<ShapeCategory> categories = ShapeCatalog::instance().builtinCategories();
+        int general = -1;
+        int basic = -1;
+
+        for (int i = 0; i < categories.size(); ++i)
+        {
+            if (categories.at(i).id == QLatin1String("general"))
+            {
+                general = i;
+            }
+            else if (categories.at(i).id == QLatin1String("basic"))
+            {
+                basic = i;
+            }
+        }
+
+        QVERIFY(general >= 0);
+        QVERIFY(basic > general);
+        QCOMPARE(categories.at(general).name, QStringLiteral("通用形状"));
+        QCOMPARE(ShapeCatalog::instance().definition(QStringLiteral("rectangle")).category,
+                 QStringLiteral("general"));
     }
 
     void basicLibraryHasTriangleAndCylinderVariants()
@@ -528,7 +706,7 @@ private slots:
         QCOMPARE(open.elementAt(0).y, 0.0);
     }
 
-    void tapeIsInBasicLibrary()
+    void tapeIsInGeneralLibrary()
     {
         bool found = false;
 
@@ -537,7 +715,7 @@ private slots:
             if (definition.key == QStringLiteral("tape"))
             {
                 found = true;
-                QCOMPARE(definition.category, QStringLiteral("basic"));
+                QCOMPARE(definition.category, QStringLiteral("general"));
             }
         }
 

@@ -185,9 +185,10 @@ QStringList ShapeLibraryDialog::enabledCategories() const
 
 QStringList ShapeLibraryDialog::defaultCategories()
 {
-    // Keep the initial palette focused: basic shapes, arrows and flowchart.
-    return {QStringLiteral("basic"), QStringLiteral("arrows"),
-            QStringLiteral("flowchart")};
+    // Keep the initial palette focused: general and basic shapes, arrows and
+    // flowchart (the libraries draw.io shows by default).
+    return {QStringLiteral("general"), QStringLiteral("basic"),
+            QStringLiteral("arrows"), QStringLiteral("flowchart")};
 }
 
 QStringList ShapeLibraryDialog::configuredCategories()
