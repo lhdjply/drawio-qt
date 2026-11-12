@@ -48,6 +48,7 @@
 #include <QPixmap>
 #include <QPrintDialog>
 #include <QPrintPreviewDialog>
+#include <QPointer>
 #include <QPrinter>
 #include <QScreen>
 #include <QStyle>
@@ -2112,6 +2113,120 @@ void MainWindow::pageSetup()
     updateStatus();
 }
 
+namespace {
+
+void stylePrintDialog(QDialog &dialog);
+
+class PrintDialogStyler : public QObject
+{
+public:
+    explicit PrintDialogStyler(QObject *parent) : QObject(parent) {}
+
+    void setParentDialog(QDialog *dialog)
+    {
+        m_parent = dialog;
+    }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override
+    {
+        if (event->type() == QEvent::Show)
+        {
+            auto *dialog = qobject_cast<QDialog *>(watched);
+
+            if (dialog != nullptr)
+            {
+                const QString title = dialog->windowTitle();
+                const QString className = QString::fromLatin1(dialog->metaObject()->className());
+                const bool printDialog = qobject_cast<QPrintDialog *>(dialog) != nullptr
+                    || className.contains(QLatin1String("QPrintProperties"))
+                    || title.contains(QLatin1String("Print"))
+                    || title.contains(QLatin1String("Page Setup"))
+                    || title.contains(QString::fromUtf8("打印"))
+                    || title.contains(QString::fromUtf8("页面设置"));
+
+                if (printDialog)
+                {
+                    stylePrintDialog(*dialog);
+                }
+            }
+        }
+
+        return QObject::eventFilter(watched, event);
+    }
+
+private:
+    QPointer<QDialog> m_parent;
+};
+
+PrintDialogStyler *printDialogStyler()
+{
+    static PrintDialogStyler *styler = nullptr;
+
+    if (styler == nullptr && qApp != nullptr)
+    {
+        styler = new PrintDialogStyler(qApp);
+        qApp->installEventFilter(styler);
+    }
+
+    return styler;
+}
+
+void stylePrintDialog(QDialog &dialog)
+{
+    if (PrintDialogStyler *styler = printDialogStyler())
+    {
+        styler->setParentDialog(&dialog);
+    }
+
+    dialog.setStyleSheet(QStringLiteral(
+        "QDialog { background: palette(window); }"
+        "QGroupBox { border: 1px solid palette(mid); border-radius: 8px;"
+        " margin-top: 12px; padding: 12px 10px 10px 10px; }"
+        "QGroupBox::title { subcontrol-origin: margin; left: 12px; padding: 0 4px; }"
+        "QComboBox, QSpinBox, QLineEdit { min-height: 30px; }"
+        "QPushButton { min-height: 32px; min-width: 84px; padding: 0 14px;"
+        " border: 1px solid palette(mid); border-radius: 4px; background: palette(button); }"
+        "QPushButton:hover { background: palette(midlight); }"
+        "QPushButton#primaryButton { background: #1a73e8; color: white; border: none;"
+        " font-weight: 600; }"
+        "QPushButton#primaryButton:hover { background: #1765cc; }"));
+
+    auto applyButtons = [&dialog]()
+    {
+        const QString printText = I18n::text(QStringLiteral("Print"));
+        const QString okText = I18n::text(QStringLiteral("OK"));
+        const QString cancelText = I18n::text(QStringLiteral("Cancel"));
+
+        for (QPushButton *button : dialog.findChildren<QPushButton *>())
+        {
+            button->setIcon(QIcon());
+            button->setMinimumHeight(32);
+            button->setMinimumWidth(84);
+
+            const QString plainText = button->text().remove(QLatin1Char('&'));
+
+            if (plainText.startsWith(printText) || plainText == okText)
+            {
+                button->setObjectName(QStringLiteral("primaryButton"));
+                button->setDefault(true);
+            }
+            else if (plainText.startsWith(cancelText))
+            {
+                button->setDefault(false);
+            }
+
+            button->style()->unpolish(button);
+            button->style()->polish(button);
+        }
+    };
+
+    applyButtons();
+    QTimer::singleShot(0, &dialog, applyButtons);
+}
+
+} // namespace
+
 void MainWindow::printDocument()
 {
     Page *page = m_document->currentPage();
@@ -2131,6 +2246,7 @@ void MainWindow::printDocument()
 
     QPrintDialog dialog(&printer, this);
     dialog.setWindowTitle(QStringLiteral("Print"));
+    stylePrintDialog(dialog);
 
     if (dialog.exec() != QDialog::Accepted)
     {
@@ -2139,6 +2255,35 @@ void MainWindow::printDocument()
 
     renderToPrinter(printer);
 }
+
+namespace {
+
+void stylePrintPreview(QPrintPreviewDialog &preview)
+{
+    preview.setStyleSheet(QStringLiteral(
+        "QToolBar { background: palette(window); border: none;"
+        " border-bottom: 1px solid palette(mid); spacing: 4px; padding: 4px 6px; }"
+        "QToolBar::separator { width: 1px; background: palette(mid); margin: 4px 6px; }"
+        "QToolButton { border: none; border-radius: 4px; padding: 3px; }"
+        "QToolButton:hover { background: palette(midlight); }"
+        "QToolButton:pressed { background: palette(mid); }"
+        "QComboBox, QLineEdit { min-height: 26px; border: 1px solid palette(mid);"
+        " border-radius: 4px; padding: 0 6px; background: palette(base); }"));
+
+    if (auto *toolbar = preview.findChild<QToolBar *>())
+    {
+        toolbar->setMovable(false);
+        toolbar->setIconSize(QSize(20, 20));
+
+        for (QToolButton *button : toolbar->findChildren<QToolButton *>())
+        {
+            button->setAutoRaise(true);
+            button->setMinimumSize(30, 30);
+        }
+    }
+}
+
+} // namespace
 
 void MainWindow::printPreview()
 {
@@ -2159,6 +2304,8 @@ void MainWindow::printPreview()
 
     QPrintPreviewDialog preview(&printer, this);
     preview.setWindowTitle(QStringLiteral("Print Preview"));
+    stylePrintDialog(preview);
+    stylePrintPreview(preview);
     connect(&preview, &QPrintPreviewDialog::paintRequested, this,
             [this](QPrinter *target)
     {

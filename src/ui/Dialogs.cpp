@@ -339,10 +339,15 @@ PageSetupDialog::PageSetupDialog(const Page &page, QWidget *parent)
     , m_original(page.settings)
 {
     setWindowTitle(QStringLiteral("Page Setup"));
-    setMinimumWidth(420);
+    setMinimumWidth(470);
 
     auto *layout = new QVBoxLayout(this);
+    layout->setContentsMargins(22, 20, 22, 16);
+    layout->setSpacing(16);
+
     auto *form = new QFormLayout();
+    form->setSpacing(12);
+    form->setLabelAlignment(Qt::AlignLeft | Qt::AlignVCenter);
 
     m_preset = new QComboBox(this);
     m_preset->addItem(QStringLiteral("A4 (210 × 297 mm)"), QSizeF(827, 1169));
@@ -385,13 +390,18 @@ PageSetupDialog::PageSetupDialog(const Page &page, QWidget *parent)
 
     layout->addLayout(form);
 
-    auto *buttons = new QDialogButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    buttons->button(QDialogButtonBox::Ok)->setText(QStringLiteral("OK"));
-    buttons->button(QDialogButtonBox::Cancel)->setText(QStringLiteral("Cancel"));
-    layout->addWidget(buttons);
+    auto *buttonRow = new QHBoxLayout();
+    buttonRow->addStretch(1);
+    auto *ok = new QPushButton(QStringLiteral("OK"), this);
+    auto *cancel = new QPushButton(QStringLiteral("Cancel"), this);
+    ok->setObjectName(QStringLiteral("primaryButton"));
+    ok->setDefault(true);
+    buttonRow->addWidget(ok);
+    buttonRow->addWidget(cancel);
+    layout->addLayout(buttonRow);
 
-    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    connect(ok, &QPushButton::clicked, this, &QDialog::accept);
+    connect(cancel, &QPushButton::clicked, this, &QDialog::reject);
     connect(m_preset, &QComboBox::currentIndexChanged, this, &PageSetupDialog::applyPreset);
     connect(m_orientation, &QComboBox::currentIndexChanged, this, &PageSetupDialog::updateEnabled);
 
@@ -418,6 +428,14 @@ PageSetupDialog::PageSetupDialog(const Page &page, QWidget *parent)
     {
         m_orientation->setCurrentIndex(1);
     }
+
+    setStyleSheet(QStringLiteral(
+        "QPushButton { min-height: 32px; min-width: 84px; padding: 0 16px;"
+        " border: 1px solid palette(mid); border-radius: 4px; background: palette(button); }"
+        "QPushButton:hover { background: palette(midlight); }"
+        "QPushButton#primaryButton { background: #1a73e8; color: white; border: none;"
+        " font-weight: 600; }"
+        "QPushButton#primaryButton:hover { background: #1765cc; }"));
 }
 
 void PageSetupDialog::applyPreset(int index)
