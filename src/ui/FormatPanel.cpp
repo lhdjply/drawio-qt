@@ -367,80 +367,116 @@ void FormatPanel::buildUi()
         }
     });
 
-    // --- style ------------------------------------------------------------
-    auto *styleGroup = new QGroupBox(QStringLiteral("Style"), content);
-    styleGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
-    auto *styleForm = new QFormLayout(styleGroup);
-    styleForm->setSpacing(4);
+    // --- fill -------------------------------------------------------------
+    auto *fillGroup = new QGroupBox(QStringLiteral("Fill"), content);
+    fillGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    auto *fillForm = new QFormLayout(fillGroup);
+    fillForm->setSpacing(4);
+    m_groups.append(fillGroup);
 
-    m_fill = new ColorButton(styleGroup);
+    m_fill = new ColorButton(fillGroup);
     m_fill->setObjectName(QStringLiteral("fillColor"));
-    m_stroke = new ColorButton(styleGroup);
-    m_stroke->setObjectName(QStringLiteral("strokeColor"));
-    m_fontColor = new ColorButton(styleGroup);
-
-    m_fillEnabled = new QCheckBox(styleGroup);
+    m_fillEnabled = new QCheckBox(fillGroup);
     m_fillEnabled->setObjectName(QStringLiteral("fillEnabled"));
     m_fillEnabled->setToolTip(I18n::text(QStringLiteral("Enable fill")));
-    auto *fillRow = new QWidget(styleGroup);
+    auto *fillRow = new QWidget(fillGroup);
     auto *fillLayout = new QHBoxLayout(fillRow);
     fillLayout->setContentsMargins(0, 0, 0, 0);
     fillLayout->addWidget(m_fillEnabled);
     fillLayout->addWidget(m_fill, 1);
-    styleForm->addRow(QStringLiteral("Fill"), fillRow);
+    fillForm->addRow(QStringLiteral("Fill"), fillRow);
 
-    m_gradient = new ColorButton(styleGroup);
+    m_gradient = new ColorButton(fillGroup);
     m_gradient->setObjectName(QStringLiteral("gradientColor"));
-    m_gradientEnabled = new QCheckBox(styleGroup);
+    m_gradientEnabled = new QCheckBox(fillGroup);
     m_gradientEnabled->setObjectName(QStringLiteral("gradientEnabled"));
     m_gradientEnabled->setToolTip(I18n::text(QStringLiteral("Enable gradient")));
-    auto *gradientRow = new QWidget(styleGroup);
+    auto *gradientRow = new QWidget(fillGroup);
     auto *gradientLayout = new QHBoxLayout(gradientRow);
     gradientLayout->setContentsMargins(0, 0, 0, 0);
     gradientLayout->addWidget(m_gradientEnabled);
     gradientLayout->addWidget(m_gradient, 1);
-    styleForm->addRow(QStringLiteral("Gradient"), gradientRow);
+    fillForm->addRow(QStringLiteral("Gradient"), gradientRow);
 
-    m_gradientDirection = new QComboBox(styleGroup);
+    m_gradientDirection = new QComboBox(fillGroup);
     m_gradientDirection->setObjectName(QStringLiteral("gradientDirection"));
     m_gradientDirection->addItem(QStringLiteral("South"), QStringLiteral("south"));
     m_gradientDirection->addItem(QStringLiteral("North"), QStringLiteral("north"));
     m_gradientDirection->addItem(QStringLiteral("East"), QStringLiteral("east"));
     m_gradientDirection->addItem(QStringLiteral("West"), QStringLiteral("west"));
-    styleForm->addRow(QStringLiteral("Direction"), m_gradientDirection);
+    fillForm->addRow(QStringLiteral("Direction"), m_gradientDirection);
+    layout->addWidget(fillGroup);
 
-    m_strokeEnabled = new QCheckBox(styleGroup);
+    // --- line -------------------------------------------------------------
+    auto *lineGroup = new QGroupBox(QStringLiteral("Line"), content);
+    lineGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    auto *lineForm = new QFormLayout(lineGroup);
+    lineForm->setSpacing(4);
+    m_groups.append(lineGroup);
+
+    m_stroke = new ColorButton(lineGroup);
+    m_stroke->setObjectName(QStringLiteral("strokeColor"));
+    m_strokeEnabled = new QCheckBox(lineGroup);
     m_strokeEnabled->setObjectName(QStringLiteral("strokeEnabled"));
     m_strokeEnabled->setToolTip(I18n::text(QStringLiteral("Enable border")));
-    auto *strokeRow = new QWidget(styleGroup);
+    auto *strokeRow = new QWidget(lineGroup);
     auto *strokeLayout = new QHBoxLayout(strokeRow);
     strokeLayout->setContentsMargins(0, 0, 0, 0);
     strokeLayout->addWidget(m_strokeEnabled);
     strokeLayout->addWidget(m_stroke, 1);
-    styleForm->addRow(QStringLiteral("Border"), strokeRow);
+    lineForm->addRow(QStringLiteral("Line"), strokeRow);
 
-    m_strokeWidth = new QSpinBox(styleGroup);
+    m_lineStyle = new QComboBox(lineGroup);
+    m_lineStyle->addItem(QStringLiteral("Solid"), QStringLiteral("solid"));
+    m_lineStyle->addItem(QStringLiteral("Dashed"), QStringLiteral("dashed"));
+    m_lineStyle->addItem(QStringLiteral("Dotted"), QStringLiteral("dotted"));
+    lineForm->addRow(QStringLiteral("Line Style"), m_lineStyle);
+
+    m_strokeWidth = new QSpinBox(lineGroup);
     m_strokeWidth->setRange(0, 40);
     m_strokeWidth->setSuffix(QStringLiteral(" px"));
     m_strokeWidth->setMinimumWidth(64);
-    styleForm->addRow(QStringLiteral("Line Width"), m_strokeWidth);
+    lineForm->addRow(QStringLiteral("Line Width"), m_strokeWidth);
 
-    m_opacity = new QSpinBox(styleGroup);
+    m_perimeter = new QSpinBox(lineGroup);
+    m_perimeter->setRange(0, 100);
+    m_perimeter->setSuffix(QStringLiteral(" pt"));
+    m_perimeter->setMinimumWidth(64);
+    lineForm->addRow(QStringLiteral("Perimeter"), m_perimeter);
+
+    layout->addWidget(lineGroup);
+
+    auto *opacityGroup = new QGroupBox(QStringLiteral("Opacity"), content);
+    opacityGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    auto *opacityForm = new QFormLayout(opacityGroup);
+    opacityForm->setSpacing(4);
+    m_groups.append(opacityGroup);
+
+    m_opacity = new QSpinBox(opacityGroup);
     m_opacity->setRange(0, 100);
     m_opacity->setSuffix(QStringLiteral(" %"));
     m_opacity->setMinimumWidth(64);
-    styleForm->addRow(QStringLiteral("Opacity"), m_opacity);
+    opacityForm->addRow(QStringLiteral("Opacity"), m_opacity);
+    layout->addWidget(opacityGroup);
 
-    auto *flagRow = new QHBoxLayout();
-    m_dashed = new QCheckBox(QStringLiteral("Dashed"), styleGroup);
-    m_rounded = new QCheckBox(QStringLiteral("Rounded"), styleGroup);
-    m_shadow = new QCheckBox(QStringLiteral("Shadow"), styleGroup);
-    flagRow->addWidget(m_dashed);
-    flagRow->addWidget(m_rounded);
-    flagRow->addWidget(m_shadow);
-    styleForm->addRow(QString(), flagRow);
+    // --- effects ----------------------------------------------------------
+    auto *effectsGroup = new QGroupBox(QStringLiteral("Effects"), content);
+    effectsGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
+    auto *effectsGrid = new QGridLayout(effectsGroup);
+    effectsGrid->setSpacing(4);
+    m_groups.append(effectsGroup);
 
-    layout->addWidget(styleGroup);
+    m_rounded = new QCheckBox(QStringLiteral("Rounded"), effectsGroup);
+    m_sketch = new QCheckBox(QStringLiteral("Sketch"), effectsGroup);
+    m_glass = new QCheckBox(QStringLiteral("Glass"), effectsGroup);
+    m_shadow = new QCheckBox(QStringLiteral("Shadow"), effectsGroup);
+    m_multiple = new QCheckBox(QStringLiteral("Multiple"), effectsGroup);
+    effectsGrid->addWidget(m_rounded, 0, 0);
+    effectsGrid->addWidget(m_sketch, 0, 1);
+    effectsGrid->addWidget(m_glass, 1, 0);
+    effectsGrid->addWidget(m_shadow, 1, 1);
+    effectsGrid->addWidget(m_multiple, 2, 0);
+    layout->addWidget(effectsGroup);
 
     connect(m_fill, &ColorButton::valueChanged, this, [this](const QString &value)
     {
@@ -559,12 +595,60 @@ void FormatPanel::buildUi()
             m_view->applyStyle(QStringLiteral("opacity"), QString::number(value));
         }
     });
-    connect(m_dashed, &QCheckBox::toggled, this, [this](bool checked)
+    connect(m_lineStyle, qOverload<int>(&QComboBox::currentIndexChanged), this, [this](int)
+    {
+        if (m_updating)
+        {
+            return;
+        }
+
+        const QString style = m_lineStyle->currentData().toString();
+
+        if (style == QLatin1String("dashed"))
+        {
+            m_view->applyStyle(QStringLiteral("dashed"), QStringLiteral("1"));
+            m_view->clearStyle(QStringLiteral("dashPattern"));
+        }
+        else if (style == QLatin1String("dotted"))
+        {
+            m_view->applyStyle(QStringLiteral("dashed"), QStringLiteral("1"));
+            m_view->applyStyle(QStringLiteral("dashPattern"), QStringLiteral("1 2"));
+        }
+        else
+        {
+            m_view->clearStyle(QStringLiteral("dashed"));
+            m_view->clearStyle(QStringLiteral("dashPattern"));
+        }
+    });
+    connect(m_perimeter, qOverload<int>(&QSpinBox::valueChanged), this, [this](int value)
     {
         if (!m_updating)
         {
-            checked ? m_view->applyStyle(QStringLiteral("dashed"), QStringLiteral("1"))
-                    : m_view->clearStyle(QStringLiteral("dashed"));
+            m_view->applyStyle(QStringLiteral("perimeterSpacing"), QString::number(value));
+        }
+    });
+    connect(m_sketch, &QCheckBox::toggled, this, [this](bool checked)
+    {
+        if (!m_updating)
+        {
+            checked ? m_view->applyStyle(QStringLiteral("sketch"), QStringLiteral("1"))
+                    : m_view->clearStyle(QStringLiteral("sketch"));
+        }
+    });
+    connect(m_glass, &QCheckBox::toggled, this, [this](bool checked)
+    {
+        if (!m_updating)
+        {
+            checked ? m_view->applyStyle(QStringLiteral("glass"), QStringLiteral("1"))
+                    : m_view->clearStyle(QStringLiteral("glass"));
+        }
+    });
+    connect(m_multiple, &QCheckBox::toggled, this, [this](bool checked)
+    {
+        if (!m_updating)
+        {
+            checked ? m_view->applyStyle(QStringLiteral("comic"), QStringLiteral("1"))
+                    : m_view->clearStyle(QStringLiteral("comic"));
         }
     });
     connect(m_rounded, &QCheckBox::toggled, this, [this](bool checked)
@@ -590,6 +674,8 @@ void FormatPanel::buildUi()
     auto *textForm = new QFormLayout(textGroup);
     textForm->setSpacing(4);
 
+    m_fontColor = new ColorButton(textGroup);
+    m_fontColor->setObjectName(QStringLiteral("fontColor"));
     m_fontSize = new QSpinBox(textGroup);
     m_fontSize->setRange(4, 200);
     m_fontSize->setSuffix(QStringLiteral(" px"));
@@ -956,9 +1042,19 @@ void FormatPanel::updateFromSelection()
     m_opacity->setValue(static_cast<int>(cell->styleNumber(QStringLiteral("opacity"), 100.0)));
     m_fontSize->setValue(static_cast<int>(cell->styleNumber(QStringLiteral("fontSize"), 11.0)));
 
-    m_dashed->setChecked(cell->styleFlag(QStringLiteral("dashed")));
+    const bool dashed = cell->styleFlag(QStringLiteral("dashed"));
+    const bool dotted = dashed
+        && cell->styleValue(QStringLiteral("dashPattern")).contains(QLatin1String("1 2"));
+    m_lineStyle->setCurrentIndex(m_lineStyle->findData(
+        dotted ? QStringLiteral("dotted") : dashed ? QStringLiteral("dashed")
+                                                    : QStringLiteral("solid")));
+    m_perimeter->setValue(static_cast<int>(
+        cell->styleNumber(QStringLiteral("perimeterSpacing"), 0.0)));
     m_rounded->setChecked(cell->styleFlag(QStringLiteral("rounded")));
+    m_sketch->setChecked(cell->styleFlag(QStringLiteral("sketch")));
+    m_glass->setChecked(cell->styleFlag(QStringLiteral("glass")));
     m_shadow->setChecked(cell->styleFlag(QStringLiteral("shadow")));
+    m_multiple->setChecked(cell->styleFlag(QStringLiteral("comic")));
 
     const int fontStyle = static_cast<int>(cell->styleNumber(QStringLiteral("fontStyle"), 0));
     m_bold->setChecked((fontStyle & 1) != 0);
@@ -1078,9 +1174,13 @@ void FormatPanel::updateEnabled(bool hasSelection, bool hasVertex, bool hasEdge)
     m_fontColor->setEnabled(hasSelection);
     m_strokeWidth->setEnabled(hasSelection);
     m_opacity->setEnabled(hasSelection);
-    m_dashed->setEnabled(hasSelection);
+    m_lineStyle->setEnabled(hasSelection);
+    m_perimeter->setEnabled(hasSelection);
     m_rounded->setEnabled(hasVertex);
+    m_sketch->setEnabled(hasVertex);
+    m_glass->setEnabled(hasVertex);
     m_shadow->setEnabled(hasVertex);
+    m_multiple->setEnabled(hasVertex);
 
     m_fontSize->setEnabled(hasSelection);
     m_align->setEnabled(hasSelection);

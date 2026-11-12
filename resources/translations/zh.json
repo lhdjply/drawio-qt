@@ -2795,5 +2795,13 @@
   "South": "向下",
   "North": "向上",
   "East": "向右",
-  "West": "向左"
+  "West": "向左",
+  "Line Style": "线型",
+  "Solid": "实线",
+  "Dotted": "点线",
+  "Perimeter": "周长",
+  "Effects": "效果",
+  "Sketch": "草图",
+  "Glass": "玻璃",
+  "Multiple": "多重"
 }

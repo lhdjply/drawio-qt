@@ -53,9 +53,13 @@ private:
     QCheckBox *m_fillEnabled = nullptr;
     QCheckBox *m_gradientEnabled = nullptr;
     QCheckBox *m_strokeEnabled = nullptr;
-    QCheckBox *m_dashed = nullptr;
     QCheckBox *m_rounded = nullptr;
+    QCheckBox *m_sketch = nullptr;
+    QCheckBox *m_glass = nullptr;
     QCheckBox *m_shadow = nullptr;
+    QCheckBox *m_multiple = nullptr;
+    QComboBox *m_lineStyle = nullptr;
+    QSpinBox *m_perimeter = nullptr;
 
     QComboBox *m_gradientDirection = nullptr;
     QComboBox *m_edgeStyle = nullptr;

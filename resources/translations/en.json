@@ -2795,5 +2795,13 @@
   "South": "South",
   "North": "North",
   "East": "East",
-  "West": "West"
+  "West": "West",
+  "Line Style": "Line Style",
+  "Solid": "Solid",
+  "Dotted": "Dotted",
+  "Perimeter": "Perimeter",
+  "Effects": "Effects",
+  "Sketch": "Sketch",
+  "Glass": "Glass",
+  "Multiple": "Multiple"
 }
