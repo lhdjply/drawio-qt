@@ -34,6 +34,10 @@ QRectF contentBounds(const Page &page);
 /// Bounds including the page rectangle when page view is enabled.
 QRectF diagramBounds(const Page &page, const RenderOptions &options = {});
 
+/// Area covered by the page sheet. Like draw.io's page breaks, a diagram that
+/// grows past the page adds further page-sized cells instead of spilling out.
+QRectF pageSheet(const Page &page);
+
 void paintGrid(QPainter &painter, const QRectF &area, int gridSize, const QColor &color);
 void paintPageSheet(QPainter &painter, const Page &page, bool dark);
 

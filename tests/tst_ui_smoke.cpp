@@ -7,6 +7,7 @@
 #include "ui/ShapeToolbox.h"
 #include "ui/ShapeLibraryDialog.h"
 #include "render/ShapeCatalog.h"
+#include "render/DiagramRenderer.h"
 #include "render/EdgeRenderer.h"
 #include "render/EdgeRouter.h"
 #include "ui/OverlayEditor.h"
@@ -1208,6 +1209,25 @@ private slots:
         QCoreApplication::processEvents();
 
         QVERIFY(view->isEditing());
+    }
+
+    void pageSheetGrowsWithContent()
+    {
+        Page page;
+        page.settings.page = true;
+        page.settings.pageWidth = 300;
+        page.settings.pageHeight = 200;
+
+        Cell *shape = page.addVertex(QRectF(20, 20, 80, 40),
+                                     Style::parse(QStringLiteral("whiteSpace=wrap;html=1;")), QString());
+
+        // Only the first page while everything fits.
+        QCOMPARE(DiagramRenderer::pageSheet(page), QRectF(0, 0, 300, 200));
+
+        // Moving it to the second page leaves page 1 empty, so only the page
+        // that holds content is drawn.
+        shape->geometry = QRectF(360, 260, 80, 40);
+        QCOMPARE(DiagramRenderer::pageSheet(page), QRectF(300, 200, 300, 200));
     }
 
     void colorDialogIsStyled()

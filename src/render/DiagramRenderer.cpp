@@ -154,14 +154,56 @@ void DiagramRenderer::paintGrid(QPainter &painter, const QRectF &area, int gridS
     painter.restore();
 }
 
+QRectF DiagramRenderer::pageSheet(const Page &page)
+{
+    const double width = page.settings.pageWidth;
+    const double height = page.settings.pageHeight;
+
+    if (!page.settings.page || width <= 0.0 || height <= 0.0)
+    {
+        return {};
+    }
+
+    // One page per page-sized cell the content reaches into. Pages that hold
+    // nothing are not drawn, so dragging the last shape from page 1 to page 2
+    // leaves the second page only.
+    const QRectF content = contentBounds(page);
+    int firstColumn = 0;
+    int lastColumn = 0;
+    int firstRow = 0;
+    int lastRow = 0;
+
+    if (!content.isNull())
+    {
+        firstColumn = static_cast<int>(std::floor(content.left() / width));
+        lastColumn = static_cast<int>(std::ceil(content.right() / width)) - 1;
+        firstRow = static_cast<int>(std::floor(content.top() / height));
+        lastRow = static_cast<int>(std::ceil(content.bottom() / height)) - 1;
+
+        lastColumn = qMax(lastColumn, firstColumn);
+        lastRow = qMax(lastRow, firstRow);
+
+        // Guard against absurd coordinates in a broken file.
+        const int limit = 50;
+        firstColumn = qBound(-limit, firstColumn, limit);
+        firstRow = qBound(-limit, firstRow, limit);
+        lastColumn = qBound(firstColumn, lastColumn, firstColumn + limit);
+        lastRow = qBound(firstRow, lastRow, firstRow + limit);
+    }
+
+    return QRectF(firstColumn * width, firstRow * height,
+                  (lastColumn - firstColumn + 1) * width,
+                  (lastRow - firstRow + 1) * height);
+}
+
 void DiagramRenderer::paintPageSheet(QPainter &painter, const Page &page, bool dark)
 {
-    if (!page.settings.page)
+    const QRectF sheet = pageSheet(page);
+
+    if (sheet.isEmpty())
     {
         return;
     }
-
-    const QRectF sheet(0, 0, page.settings.pageWidth, page.settings.pageHeight);
 
     painter.save();
     painter.setPen(Qt::NoPen);
@@ -174,6 +216,26 @@ void DiagramRenderer::paintPageSheet(QPainter &painter, const Page &page, bool d
     border.setWidthF(0.6);
     painter.setPen(border);
     painter.drawRect(sheet);
+
+    // Page breaks: dashed lines at every page boundary inside the sheet.
+    QPen pageBreak(dark ? QColor(0x6A, 0x70, 0x78) : QColor(0xC0, 0xC0, 0xC0));
+    pageBreak.setStyle(Qt::DashLine);
+    pageBreak.setWidthF(1.0);
+    painter.setPen(pageBreak);
+
+    const double width = page.settings.pageWidth;
+    const double height = page.settings.pageHeight;
+
+    for (double x = sheet.left() + width; x < sheet.right() - 0.5; x += width)
+    {
+        painter.drawLine(QPointF(x, sheet.top()), QPointF(x, sheet.bottom()));
+    }
+
+    for (double y = sheet.top() + height; y < sheet.bottom() - 0.5; y += height)
+    {
+        painter.drawLine(QPointF(sheet.left(), y), QPointF(sheet.right(), y));
+    }
+
     painter.restore();
 }
 
@@ -253,7 +315,7 @@ QRectF DiagramRenderer::diagramBounds(const Page &page, const RenderOptions &opt
 
     if (options.page && page.settings.page)
     {
-        const QRectF sheet(0, 0, page.settings.pageWidth, page.settings.pageHeight);
+        const QRectF sheet = pageSheet(page);
         bounds = bounds.isNull() ? sheet : bounds.united(sheet);
     }
 
@@ -283,7 +345,7 @@ void DiagramRenderer::paint(QPainter &painter, const Page &page, const RenderOpt
     if (options.grid && page.settings.grid)
     {
         const QRectF gridArea = options.page && page.settings.page
-            ? QRectF(0, 0, page.settings.pageWidth, page.settings.pageHeight)
+            ? pageSheet(page)
             : diagramBounds(page, options);
 
         if (!gridArea.isEmpty())
@@ -294,7 +356,7 @@ void DiagramRenderer::paint(QPainter &painter, const Page &page, const RenderOpt
 
     if (options.clipToPage && page.settings.page)
     {
-        painter.setClipRect(QRectF(0, 0, page.settings.pageWidth, page.settings.pageHeight));
+        painter.setClipRect(pageSheet(page));
     }
 
     const QVector<Cell *> cells = paintOrder(page);
