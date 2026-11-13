@@ -9,6 +9,7 @@ class QGroupBox;
 class QLabel;
 class QDoubleSpinBox;
 class QSpinBox;
+class QTabWidget;
 class QToolButton;
 
 namespace dq {
@@ -81,6 +82,8 @@ private:
     ColorButton *m_fontColor = nullptr;
 
     QLabel *m_hint = nullptr;
+    QLabel *m_textHint = nullptr;
+    QTabWidget *m_tabs = nullptr;
     QGroupBox *m_edgeGroup = nullptr;
 
     QToolButton *m_bold = nullptr;

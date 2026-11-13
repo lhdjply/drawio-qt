@@ -22,6 +22,7 @@
 #include <QMenu>
 #include <QPainter>
 #include <QScrollArea>
+#include <QTabWidget>
 #include <QSignalBlocker>
 #include <QSpinBox>
 #include <QToolButton>
@@ -276,17 +277,46 @@ void FormatPanel::buildUi()
     auto *outer = new QVBoxLayout(this);
     outer->setContentsMargins(0, 0, 0, 0);
 
-    auto *scroll = new QScrollArea(this);
+    // draw.io groups the panel into a Style and a Text tab; each keeps its own
+    // scroll area so the two sections scroll independently.
+    auto *tabs = new QTabWidget(this);
+    tabs->setObjectName(QStringLiteral("formatTabs"));
+    tabs->setDocumentMode(true);
+    tabs->tabBar()->setExpanding(false);
+    outer->addWidget(tabs);
+
+    auto *scroll = new QScrollArea(tabs);
     scroll->setWidgetResizable(true);
     scroll->setFrameShape(QFrame::NoFrame);
     scroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
-    outer->addWidget(scroll);
 
     auto *content = new QWidget(scroll);
     auto *layout = new QVBoxLayout(content);
     layout->setContentsMargins(8, 8, 8, 8);
     layout->setSpacing(8);
     scroll->setWidget(content);
+    tabs->addTab(scroll, QStringLiteral("Style"));
+
+    auto *textScroll = new QScrollArea(tabs);
+    textScroll->setWidgetResizable(true);
+    textScroll->setFrameShape(QFrame::NoFrame);
+    textScroll->setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
+
+    auto *textContent = new QWidget(textScroll);
+    auto *textLayout = new QVBoxLayout(textContent);
+    textLayout->setContentsMargins(8, 8, 8, 8);
+    textLayout->setSpacing(8);
+    textScroll->setWidget(textContent);
+    tabs->addTab(textScroll, QStringLiteral("Text"));
+
+    m_tabs = tabs;
+
+    m_textHint = new QLabel(QStringLiteral("Select a shape on the canvas\nto edit its text"),
+                            textContent);
+    m_textHint->setAlignment(Qt::AlignCenter);
+    m_textHint->setWordWrap(true);
+    m_textHint->setMinimumHeight(120);
+    textLayout->addWidget(m_textHint);
 
     m_hint = new QLabel(QStringLiteral("Select a shape on the canvas\nto edit its style and text"), content);
     m_hint->setAlignment(Qt::AlignCenter);
@@ -671,7 +701,7 @@ void FormatPanel::buildUi()
     });
 
     // --- text -------------------------------------------------------------
-    auto *textGroup = new QGroupBox(QStringLiteral("Text"), content);
+    auto *textGroup = new QGroupBox(QStringLiteral("Text"), textContent);
     textGroup->setSizePolicy(QSizePolicy::Preferred, QSizePolicy::Maximum);
     auto *textForm = new QFormLayout(textGroup);
     textForm->setSpacing(4);
@@ -729,7 +759,8 @@ void FormatPanel::buildUi()
     formatRow->addStretch(1);
     textForm->addRow(QString(), formatRow);
 
-    layout->addWidget(textGroup);
+    textLayout->addWidget(textGroup);
+    textLayout->addStretch(1);
 
     connect(m_fontFamily, qOverload<int>(&QComboBox::activated), this, [this](int index)
     {
@@ -1057,6 +1088,11 @@ void FormatPanel::updateFromSelection()
         m_hint->setVisible(!hasSelection);
     }
 
+    if (m_textHint != nullptr)
+    {
+        m_textHint->setVisible(!hasSelection);
+    }
+
     for (QGroupBox *group : m_groups)
     {
         group->setVisible(hasSelection);
@@ -1216,7 +1252,14 @@ void FormatPanel::applyTheme(bool dark)
             "QToolButton { border: 1px solid transparent; border-radius: 4px;"
             " padding: 3px 7px; }"
             "QToolButton:checked { background: #1a3a5c; color: #8ab4f8;"
-            " border-color: #8ab4f8; }"));
+            " border-color: #8ab4f8; }"
+            "QTabWidget::pane { border: none; }"
+            "QTabBar::tab { background: transparent; color: #9aa4b0;"
+            " border: 1px solid transparent; border-radius: 6px;"
+            " padding: 6px 14px; margin: 3px 2px; }"
+            "QTabBar::tab:selected { background: #262b31; color: #8ab4f8;"
+            " border-color: #4a5563; font-weight: 600; }"
+            "QTabBar::tab:hover:!selected { background: #2d333a; color: #c7d0da; }"));
     }
     else
     {
@@ -1229,7 +1272,14 @@ void FormatPanel::applyTheme(bool dark)
             "QToolButton { border: 1px solid transparent; border-radius: 4px;"
             " padding: 3px 7px; }"
             "QToolButton:checked { background: #e8f0fe; color: #1a73e8;"
-            " border-color: #1a73e8; }"));
+            " border-color: #1a73e8; }"
+            "QTabWidget::pane { border: none; }"
+            "QTabBar::tab { background: transparent; color: #5b6573;"
+            " border: 1px solid transparent; border-radius: 6px;"
+            " padding: 6px 14px; margin: 3px 2px; }"
+            "QTabBar::tab:selected { background: #ffffff; color: #1a73e8;"
+            " border-color: #d8dee6; font-weight: 600; }"
+            "QTabBar::tab:hover:!selected { background: #e8edf4; color: #374151; }"));
     }
 
     compactGroups();

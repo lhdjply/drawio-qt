@@ -1208,6 +1208,40 @@ private slots:
         QVERIFY(view->isEditing());
     }
 
+    void formatPanelHasStyleAndTextTabs()
+    {
+        MainWindow window;
+        window.show();
+
+        QWidget *panel = window.findChild<QWidget *>(QStringLiteral("formatPanel"));
+        QVERIFY(panel != nullptr);
+
+        auto *tabs = panel->findChild<QTabWidget *>(QStringLiteral("formatTabs"));
+        QVERIFY(tabs != nullptr);
+        QCOMPARE(tabs->count(), 2);
+
+        // Style keeps the geometry and paint sections, Text keeps the text one.
+        auto groupNames = [](QWidget *page)
+        {
+            QStringList names;
+
+            for (QGroupBox *group : page->findChildren<QGroupBox *>())
+            {
+                names.append(group->title());
+            }
+
+            return names;
+        };
+
+        const QStringList style = groupNames(tabs->widget(0));
+        const QStringList text = groupNames(tabs->widget(1));
+
+        QVERIFY2(style.contains(QStringLiteral("Position and Size")), qPrintable(style.join(",")));
+        QVERIFY2(style.contains(QStringLiteral("Fill")), qPrintable(style.join(",")));
+        QVERIFY2(text.contains(QStringLiteral("Text")), qPrintable(text.join(",")));
+        QVERIFY2(!style.contains(QStringLiteral("Text")), qPrintable(style.join(",")));
+    }
+
     void formattingAppliesToSelectionOnly()
     {
         MainWindow window;
