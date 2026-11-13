@@ -17,6 +17,8 @@
 #include "app/I18n.h"
 
 #include <QApplication>
+#include <QColorDialog>
+#include <QPushButton>
 #include <QComboBox>
 #include <QGroupBox>
 #include <QMenu>
@@ -1206,6 +1208,44 @@ private slots:
         QCoreApplication::processEvents();
 
         QVERIFY(view->isEditing());
+    }
+
+    void colorDialogIsStyled()
+    {
+        MainWindow window;
+        window.show();
+
+        QScopedPointer<QColorDialog> dialog(
+            ColorDialog::create(QColor(QStringLiteral("#dae8fc")), &window,
+                                QStringLiteral("Choose Color")));
+        QVERIFY(dialog != nullptr);
+        QVERIFY(dialog->testOption(QColorDialog::DontUseNativeDialog));
+        QVERIFY(dialog->testOption(QColorDialog::ShowAlphaChannel));
+        QCOMPARE(dialog->currentColor(), QColor(QStringLiteral("#dae8fc")));
+        QVERIFY(!dialog->styleSheet().isEmpty());
+
+        QPushButton *primary = nullptr;
+
+        for (QPushButton *button : dialog->findChildren<QPushButton *>())
+        {
+            if (button->objectName() == QLatin1String("primaryButton"))
+            {
+                primary = button;
+            }
+        }
+
+        QVERIFY(primary != nullptr);
+
+        // Text only buttons, like the rest of the application's dialogs.
+        QVERIFY(primary->icon().isNull());
+
+        for (QPushButton *button : dialog->findChildren<QPushButton *>())
+        {
+            if (button->text() == QStringLiteral("Cancel"))
+            {
+                QVERIFY(button->icon().isNull());
+            }
+        }
     }
 
     void formatPanelHasStyleAndTextTabs()

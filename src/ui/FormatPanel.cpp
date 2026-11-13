@@ -4,10 +4,10 @@
 
 #include "core/Page.h"
 #include "ui/DiagramView.h"
+#include "ui/Dialogs.h"
 
 #include <QButtonGroup>
 #include <QCheckBox>
-#include <QColorDialog>
 #include <QComboBox>
 #include <QDoubleSpinBox>
 #include <QFontDatabase>
@@ -68,9 +68,8 @@ public:
         connect(this, &QToolButton::clicked, this, [this]()
         {
             const QColor initial = m_color.isValid() ? m_color : Qt::white;
-            const QColor chosen = QColorDialog::getColor(initial, this,
-                                                         QStringLiteral("Choose Color"),
-                                                         QColorDialog::ShowAlphaChannel);
+            const QColor chosen = ColorDialog::getColor(initial, this,
+                                                        QStringLiteral("Choose Color"));
 
             if (chosen.isValid())
             {

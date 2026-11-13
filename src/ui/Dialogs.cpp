@@ -6,6 +6,7 @@
 #include "core/Document.h"
 
 #include <QCheckBox>
+#include <QColorDialog>
 #include <QComboBox>
 #include <QDialogButtonBox>
 #include <QDoubleSpinBox>
@@ -16,6 +17,8 @@
 #include <QKeySequenceEdit>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QScopedPointer>
+#include <QStyle>
 #include <QTableWidget>
 #include <QTabWidget>
 #include <QHeaderView>
@@ -815,6 +818,71 @@ void SettingsDialog::acceptIfValid()
     m_shortcuts = current;
     accept();
 }
+
+namespace ColorDialog {
+
+QColorDialog *create(const QColor &initial, QWidget *parent, const QString &title, bool alpha)
+{
+    auto *dialog = new QColorDialog(parent);
+    dialog->setOption(QColorDialog::DontUseNativeDialog, true);
+    dialog->setOption(QColorDialog::ShowAlphaChannel, alpha);
+    dialog->setCurrentColor(initial.isValid() ? initial : QColor(Qt::white));
+    dialog->setWindowTitle(title);
+    dialog->setMinimumWidth(560);
+
+    if (QLayout *layout = dialog->layout())
+    {
+        layout->setContentsMargins(14, 14, 14, 14);
+    }
+
+    // The dialog creates its buttons in the constructor, so they can be marked
+    // before the stylesheet below is applied.
+    for (QDialogButtonBox *box : dialog->findChildren<QDialogButtonBox *>())
+    {
+        // draw.io's dialogs use text only buttons, while the platform style
+        // gives the standard buttons a check mark and a cross.
+        for (QDialogButtonBox::StandardButton role : {QDialogButtonBox::Ok,
+                                                      QDialogButtonBox::Cancel})
+        {
+            if (QPushButton *button = box->button(role))
+            {
+                button->setIcon(QIcon());
+
+                if (role == QDialogButtonBox::Ok)
+                {
+                    button->setObjectName(QStringLiteral("primaryButton"));
+                }
+            }
+        }
+    }
+
+    dialog->setStyleSheet(QStringLiteral(
+        "QColorDialog { background: palette(window); }"
+        "QLabel { color: palette(window-text); font-size: 12px; }"
+        // The spin boxes keep the platform look: styling them replaces the
+        // style's up/down arrows with an empty slot.
+        "QLineEdit { min-height: 30px; border: 1px solid palette(mid);"
+        " border-radius: 4px; padding: 0 8px; background: palette(base); }"
+        "QPushButton { min-height: 32px; min-width: 84px; padding: 0 16px;"
+        " border: 1px solid palette(mid); border-radius: 4px; background: palette(button); }"
+        "QPushButton:hover { background: palette(midlight); }"
+        "QPushButton#primaryButton { background: #1a73e8; color: white; border: none;"
+        " font-weight: 600; }"
+        "QPushButton#primaryButton:hover { background: #1765cc; }"));
+
+    return dialog;
+}
+
+QColor getColor(const QColor &initial, QWidget *parent, const QString &title, bool alpha)
+{
+    QScopedPointer<QColorDialog> dialog(create(initial, parent, title, alpha));
+    const QColor color = dialog->exec() == QDialog::Accepted ? dialog->selectedColor()
+                                                            : QColor();
+    dialog->deleteLater();
+    return color;
+}
+
+} // namespace ColorDialog
 
 void showAboutDialog(QWidget *parent)
 {

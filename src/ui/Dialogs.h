@@ -10,6 +10,7 @@
 #include <QSizeF>
 
 class QCheckBox;
+class QColorDialog;
 class QComboBox;
 class QDoubleSpinBox;
 class QLabel;
@@ -152,6 +153,20 @@ private:
     class QComboBox *m_theme = nullptr;
     class QComboBox *m_language = nullptr;
 };
+
+/// draw.io's colour picker: Qt's own QColorDialog, styled like the rest of the
+/// application's dialogs (rounded inputs, blue primary button).
+namespace ColorDialog {
+
+QColorDialog *create(const QColor &initial, QWidget *parent, const QString &title,
+                     bool alpha = true);
+
+/// Runs the dialog and returns the chosen colour, or an invalid colour when the
+/// user cancels.
+QColor getColor(const QColor &initial, QWidget *parent, const QString &title,
+                bool alpha = true);
+
+} // namespace ColorDialog
 
 void showAboutDialog(QWidget *parent);
 
