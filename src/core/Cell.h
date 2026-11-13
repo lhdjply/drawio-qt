@@ -39,6 +39,13 @@ public:
     QString parentId = QStringLiteral("1");
     bool visible = true;
 
+    /// draw.io stores hyperlinks and placeholders in a UserObject wrapper.
+    /// The label template stays in `value` (so editing shows `%date{}%`),
+    /// while displayLabel() expands it for painting and export.
+    QString link;
+    bool placeholders = false;
+    QString placeholderName;
+
     /// draw.io stores the folded state as a cell attribute and the size to
     /// restore on expand in <alternateBounds>.
     bool collapsed = false;
@@ -89,7 +96,12 @@ public:
     QPointF mapToAbsolute(const QPointF &local) const;
     QPointF mapFromAbsolute(const QPointF &absolute) const;
 
-    /// Text shown in the label, with basic HTML entities resolved.
+    /// The label with draw.io placeholders expanded (`%name%`,
+    /// `%date{...}%`). HTML markup is preserved.
+    QString displayLabel() const;
+
+    /// Text shown in the label, with placeholders expanded and basic HTML
+    /// entities/tags resolved.
     QString plainLabel() const;
 
     /// Container cells (groups, swimlanes) clip and move their children.

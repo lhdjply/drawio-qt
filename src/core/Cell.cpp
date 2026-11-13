@@ -2,6 +2,7 @@
 
 #include "core/Page.h"
 
+#include <QDateTime>
 #include <QRegularExpression>
 #include <QTransform>
 
@@ -133,22 +134,54 @@ QPointF Cell::mapFromAbsolute(const QPointF &absolute) const
     return absolute - (mapToAbsolute(QPointF(0, 0)));
 }
 
+QString Cell::displayLabel() const
+{
+    if (!placeholders)
+    {
+        return value;
+    }
+
+    QString text = value;
+
+    if (!placeholderName.isEmpty())
+    {
+        text.replace(QStringLiteral("%name%"), placeholderName);
+    }
+
+    static const QRegularExpression datePattern(QStringLiteral("%date\\{([^}]*)\\}%"));
+
+    for (auto it = datePattern.globalMatch(text); it.hasNext();)
+    {
+        const QRegularExpressionMatch match = it.next();
+        QString format = match.captured(1);
+        // JavaScript date tokens (draw.io labels) to Qt's equivalent. Minutes
+        // are converted before the month token so that "MMM" stays intact.
+        format.replace(QStringLiteral("MM"), QStringLiteral("mm"));
+        format.replace(QStringLiteral("mmm"), QStringLiteral("MMM"));
+        text.replace(match.captured(0), QDateTime::currentDateTime().toString(format));
+    }
+
+    return text;
+}
+
 QString Cell::plainLabel() const
 {
-    if (value.isEmpty())
+    const QString label = displayLabel();
+
+    if (label.isEmpty())
     {
         return QString();
     }
 
     if (!isHtmlLabel())
     {
-        return value;
+        return label;
     }
 
     // A very small subset of the HTML used by draw.io labels. Tags often carry
     // Word-generated style attributes, so block tags are matched including
     // their attributes; otherwise the text runs together on one line.
-    QString text = value;
+    QString text = label;
     text.replace(QRegularExpression(QStringLiteral("<br[^>]*>"),
                                     QRegularExpression::CaseInsensitiveOption),
                  QStringLiteral("\n"));

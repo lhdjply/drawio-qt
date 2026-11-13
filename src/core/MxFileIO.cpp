@@ -6,6 +6,7 @@
 
 #include <QDateTime>
 #include <QDomDocument>
+#include <QRegularExpression>
 #include <QXmlStreamWriter>
 
 #include <algorithm>
@@ -107,14 +108,48 @@ void writeCellGeometry(QXmlStreamWriter &writer, const Cell &cell)
 
 void writeCell(QXmlStreamWriter &writer, const Cell &cell)
 {
+    // Links and placeholders live on a UserObject wrapper in draw.io. Write
+    // the wrapper back so that editing a link survives a save/load cycle.
+    const bool userObject = !cell.link.isEmpty() || cell.placeholders;
+
+    if (userObject)
+    {
+        writer.writeStartElement(QStringLiteral("UserObject"));
+
+        if (!cell.id.isEmpty())
+        {
+            writer.writeAttribute(QStringLiteral("id"), cell.id);
+        }
+
+        if (!cell.value.isEmpty())
+        {
+            writer.writeAttribute(QStringLiteral("label"), cell.value);
+        }
+
+        if (!cell.link.isEmpty())
+        {
+            writer.writeAttribute(QStringLiteral("link"), cell.link);
+        }
+
+        if (!cell.placeholderName.isEmpty())
+        {
+            writer.writeAttribute(QStringLiteral("name"), cell.placeholderName);
+        }
+
+        if (cell.placeholders)
+        {
+            writer.writeAttribute(QStringLiteral("placeholders"), QStringLiteral("1"));
+        }
+    }
+
     writer.writeStartElement(QStringLiteral("mxCell"));
 
-    if (!cell.id.isEmpty())
+    if (!userObject && !cell.id.isEmpty())
     {
         writer.writeAttribute(QStringLiteral("id"), cell.id);
     }
 
-    if (!cell.value.isEmpty())
+    if (!userObject && !cell.value.isEmpty())
     {
         writer.writeAttribute(QStringLiteral("value"), cell.value);
     }
@@ -158,6 +193,11 @@ void writeCell(QXmlStreamWriter &writer, const Cell &cell)
 
     writeCellGeometry(writer, cell);
     writer.writeEndElement();
+
+    if (userObject)
+    {
+        writer.writeEndElement();
+    }
 }
 
 QString cellLayerId(const Page &page, const Cell *cell)
@@ -446,34 +486,52 @@ bool readGraphModel(Page &page, const QDomElement &model, QString *error)
     for (QDomElement element = root.firstChildElement(); !element.isNull();
          element = element.nextSiblingElement())
     {
-        if (element.tagName() != QLatin1String("mxCell"))
+        const QString tag = element.tagName();
+        // draw.io wraps cells with metadata (links, placeholders, custom
+        // attributes) in <UserObject>/<object> elements whose label is the
+        // visible value. The nested mxCell carries the geometry and style.
+        const bool userObject = tag == QLatin1String("UserObject")
+            || tag == QLatin1String("object");
+        QDomElement cellElement = element;
+
+        if (userObject)
+        {
+            cellElement = element.firstChildElement(QStringLiteral("mxCell"));
+
+            if (cellElement.isNull())
+            {
+                continue;
+            }
+        }
+        else if (tag != QLatin1String("mxCell"))
         {
             continue;
         }
 
-        const QString id = element.attribute(QStringLiteral("id"));
+        const QString id = userObject ? element.attribute(QStringLiteral("id"))
+                                      : cellElement.attribute(QStringLiteral("id"));
 
         if (id.isEmpty())
         {
             continue;
         }
 
-        const QString parentId = element.attribute(QStringLiteral("parent"));
-        const bool isVertex = element.attribute(QStringLiteral("vertex")) == QLatin1String("1");
-        const bool isEdge = element.attribute(QStringLiteral("edge")) == QLatin1String("1");
+        const QString parentId = cellElement.attribute(QStringLiteral("parent"));
+        const bool isVertex = cellElement.attribute(QStringLiteral("vertex")) == QLatin1String("1");
+        const bool isEdge = cellElement.attribute(QStringLiteral("edge")) == QLatin1String("1");
 
         if (id == QLatin1String("0"))
         {
             continue;
         }
 
-        if (!isVertex && !isEdge && parentId == QLatin1String("0"))
+        if (!userObject && !isVertex && !isEdge && parentId == QLatin1String("0"))
         {
             if (id != QLatin1String("0"))
             {
                 Layer layer;
                 layer.id = id;
-                layer.name = element.attribute(QStringLiteral("value"));
+                layer.name = cellElement.attribute(QStringLiteral("value"));
 
                 if (layer.name.isEmpty())
                 {
@@ -481,7 +539,7 @@ bool readGraphModel(Page &page, const QDomElement &model, QString *error)
                 }
 
                 const StyleMap layerStyle =
-                    Style::parse(element.attribute(QStringLiteral("style")));
+                    Style::parse(cellElement.attribute(QStringLiteral("style")));
                 layer.visible = Style::flag(layerStyle, QStringLiteral("visible"), true);
                 layer.locked = Style::flag(layerStyle, QStringLiteral("locked"), false);
                 parsedLayers.append(layer);
@@ -491,16 +549,23 @@ bool readGraphModel(Page &page, const QDomElement &model, QString *error)
         }
 
         auto cell = std::make_unique<Cell>(isEdge ? Cell::Kind::Edge : Cell::Kind::Vertex, id);
-        cell->value = element.attribute(QStringLiteral("value"));
-        cell->style = Style::parse(element.attribute(QStringLiteral("style")));
+        cell->value = userObject ? element.attribute(QStringLiteral("label"))
+                                 : cellElement.attribute(QStringLiteral("value"));
+        cell->link = userObject ? element.attribute(QStringLiteral("link"))
+                                : cellElement.attribute(QStringLiteral("link"));
+        cell->placeholders = userObject
+            && MxFileIO::xmlBool(element.attribute(QStringLiteral("placeholders")), false);
+        cell->placeholderName = userObject ? element.attribute(QStringLiteral("name"))
+                                           : QString();
+        cell->style = Style::parse(cellElement.attribute(QStringLiteral("style")));
         cell->parentId = parentId.isEmpty() ? QStringLiteral("1") : parentId;
-        cell->visible = MxFileIO::xmlBool(element.attribute(QStringLiteral("visible")), true);
-        cell->collapsed = MxFileIO::xmlBool(element.attribute(QStringLiteral("collapsed")), false);
-        cell->sourceId = element.attribute(QStringLiteral("source"));
-        cell->targetId = element.attribute(QStringLiteral("target"));
+        cell->visible = MxFileIO::xmlBool(cellElement.attribute(QStringLiteral("visible")), true);
+        cell->collapsed = MxFileIO::xmlBool(cellElement.attribute(QStringLiteral("collapsed")), false);
+        cell->sourceId = cellElement.attribute(QStringLiteral("source"));
+        cell->targetId = cellElement.attribute(QStringLiteral("target"));
 
         const QDomElement geometry =
-            element.firstChildElement(QStringLiteral("mxGeometry"));
+            cellElement.firstChildElement(QStringLiteral("mxGeometry"));
 
         if (!geometry.isNull())
         {

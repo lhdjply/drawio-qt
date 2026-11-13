@@ -519,6 +519,13 @@ QIcon ShapeCatalog::iconFor(const ShapeDefinition &definition, int size) const
             else
             {
                 root = page.addVertex(QRectF(QPointF(0, 0), target), style, definition.value);
+
+                if (root != nullptr)
+                {
+                    root->link = definition.link;
+                    root->placeholders = definition.placeholders;
+                    root->placeholderName = definition.placeholderName;
+                }
             }
 
             if (root != nullptr)
@@ -558,6 +565,10 @@ QIcon ShapeCatalog::iconFor(const ShapeDefinition &definition, int size) const
         {
             Cell cell(Cell::Kind::Vertex, QStringLiteral("preview"));
             cell.style = style;
+            cell.value = definition.value;
+            cell.link = definition.link;
+            cell.placeholders = definition.placeholders;
+            cell.placeholderName = definition.placeholderName;
             const double scale = (size - 8.0) / qMax(target.width(), target.height());
             cell.geometry = QRectF(0, 0, target.width(), target.height());
 

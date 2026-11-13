@@ -258,6 +258,98 @@ QVector<QPointF> simplify(const QVector<QPointF> &points)
     return simplified;
 }
 
+/// mxEdgeStyle.IsometricConnector: the route follows the two isometric base
+/// directions (30 degrees above the horizontal). With elbow=horizontal the
+/// first segment is horizontal, otherwise vertical.
+QVector<QPointF> isometricRoute(const QPointF &start, const QPointF &end,
+                                bool horizontalElbow)
+{
+    const QPointF a(std::cos(qDegreesToRadians(-30.0)),
+                    std::sin(qDegreesToRadians(-30.0)));
+    const QPointF b(std::cos(qDegreesToRadians(-150.0)),
+                    std::sin(qDegreesToRadians(-150.0)));
+    const double a1 = a.x();
+    const double a2 = a.y();
+    const double b1 = b.x();
+    const double b2 = b.y();
+    const double denominator = a1 * b2 - a2 * b1;
+
+    QVector<QPointF> points;
+    points.append(start);
+    QPointF last = start;
+
+    const auto isoLineTo = [&](const QPointF &target, bool ignoreFirst)
+    {
+        const double c1 = target.x() - last.x();
+        const double c2 = target.y() - last.y();
+
+        if (qFuzzyIsNull(denominator))
+        {
+            return;
+        }
+
+        const double h = (b2 * c1 - b1 * c2) / denominator;
+        const double v = (a2 * c1 - a1 * c2) / (a2 * b1 - a1 * b2);
+
+        if (horizontalElbow)
+        {
+            if (ignoreFirst)
+            {
+                last = QPointF(last.x() + a1 * h, last.y() + a2 * h);
+                points.append(last);
+            }
+
+            last = QPointF(last.x() + b1 * v, last.y() + b2 * v);
+            points.append(last);
+        }
+        else
+        {
+            if (ignoreFirst)
+            {
+                last = QPointF(last.x() + b1 * v, last.y() + b2 * v);
+                points.append(last);
+            }
+
+            last = QPointF(last.x() + a1 * h, last.y() + a2 * h);
+            points.append(last);
+        }
+    };
+
+    isoLineTo(QPointF((start.x() + end.x()) / 2.0, (start.y() + end.y()) / 2.0), true);
+    isoLineTo(end, false);
+
+    if (points.isEmpty() || QLineF(points.last(), end).length() > 0.001)
+    {
+        points.append(end);
+    }
+
+    return points;
+}
+
+/// mxEdgeStyle.ElbowConnector for floating terminals: SideToSide (horizontal)
+/// or TopToBottom (vertical) with the bend in the middle.
+QVector<QPointF> elbowRoute(const QPointF &start, const QPointF &end, bool horizontal)
+{
+    QVector<QPointF> points;
+    points.append(start);
+
+    if (horizontal)
+    {
+        const double x = qRound((start.x() + end.x()) / 2.0);
+        points.append(QPointF(x, start.y()));
+        points.append(QPointF(x, end.y()));
+    }
+    else
+    {
+        const double y = qRound((start.y() + end.y()) / 2.0);
+        points.append(QPointF(start.x(), y));
+        points.append(QPointF(end.x(), y));
+    }
+
+    points.append(end);
+    return simplify(points);
+}
+
 RoutedEdge route(const Page &page, const Cell &edge)
 {
     RoutedEdge result;
@@ -348,10 +440,15 @@ RoutedEdge route(const Page &page, const Cell &edge)
     result.sourceDirection = sourceDir;
     result.targetDirection = targetDir;
 
-    // Free floating edges already store the exact orthogonal polyline. Using
-    // it verbatim keeps the wire lengths identical to draw.io instead of
-    // re-routing and shifting the segments.
-    if (result.sourceCell == nullptr && result.targetCell == nullptr)
+    const bool floating = result.sourceCell == nullptr && result.targetCell == nullptr;
+    const QString edgeStyle = edge.styleValue(QStringLiteral("edgeStyle")).toLower();
+    const bool routedStyle = !edgeStyle.isEmpty()
+        && edgeStyle != QLatin1String("none");
+
+    // Free floating edges without a routing style (or with explicit
+    // waypoints) already store the exact polyline. Using it verbatim keeps
+    // the wire lengths identical to draw.io.
+    if (floating && (!routedStyle || !edge.waypoints.isEmpty()))
     {
         QVector<QPointF> given;
 
@@ -385,13 +482,43 @@ RoutedEdge route(const Page &page, const Cell &edge)
 
     if (waypoints.isEmpty())
     {
-        const QString edgeStyle = edge.styleValue(QStringLiteral("edgeStyle")).toLower();
         const bool orthogonal = edgeStyle == QLatin1String("orthogonaledgestyle")
-            || edgeStyle == QLatin1String("elbowedgestyle")
             || edgeStyle == QLatin1String("entityrelationedgestyle")
             || edgeStyle.isEmpty();
 
-        if (orthogonal)
+        if (floating && edgeStyle == QLatin1String("isometricedgestyle"))
+        {
+            points = isometricRoute(start, end,
+                edge.styleValue(QStringLiteral("elbow")) != QLatin1String("vertical"));
+        }
+        else if (floating && edgeStyle == QLatin1String("elbowedgestyle"))
+        {
+            points = elbowRoute(start, end,
+                edge.styleValue(QStringLiteral("elbow")) != QLatin1String("vertical"));
+        }
+        else if (floating && (edgeStyle == QLatin1String("segmentedgestyle")
+                              || orthogonal))
+        {
+            // Graph.isOrthogonal() includes SegmentConnector: for two fixed
+            // points the route bends at the target x and source y.
+            const double dx = qAbs(end.x() - start.x());
+            const double dy = qAbs(end.y() - start.y());
+            QVector<QPointF> given{start};
+
+            if (dx >= dy)
+            {
+                given.append(QPointF(end.x(), start.y()));
+            }
+            else
+            {
+                given.append(QPointF(start.x(), end.y()));
+            }
+
+            given.append(end);
+            points = simplify(given);
+        }
+        else if (orthogonal && result.sourceCell != nullptr
+                 && result.targetCell != nullptr)
         {
             points = orthogonalBetween(start, sourceDir, end, targetDir);
         }

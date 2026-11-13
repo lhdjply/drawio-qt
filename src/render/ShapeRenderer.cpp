@@ -16,6 +16,8 @@
 #include <QTextOption>
 #include <QtMath>
 
+#include <algorithm>
+
 namespace dq {
 namespace {
 
@@ -126,6 +128,118 @@ QPen penFor(const Cell &cell)
     pen.setCapStyle(Qt::FlatCap);
     pen.setJoinStyle(Qt::MiterJoin);
     return pen;
+}
+
+/// draw.io's `fillColor=inherit` / `strokeColor=inherit` copies the value from
+/// the parent cell's style (rows and cells of a table use it). Walking the
+/// parent chain here keeps the renderer independent of the model's parenting
+/// order.
+QString inheritedStyleValue(const Cell &cell, const QString &key)
+{
+    const Cell *current = &cell;
+
+    for (int depth = 0; current != nullptr && depth < 64; ++depth)
+    {
+        const QString value = Style::value(Style::withDefaults(current->style), key);
+
+        if (value.compare(QLatin1String("inherit"), Qt::CaseInsensitive) != 0)
+        {
+            return value;
+        }
+
+        current = current->parent;
+    }
+
+    return {};
+}
+
+/// Resolves a draw.io image reference to a bundled resource. STENCIL_PATH
+/// references such as img/clipart/Gear_128x128.png live in the stencil set;
+/// the bundled copy is under img/lib/clip_art/general.
+QString resolveImagePath(const QString &source)
+{
+    if (source.startsWith(QLatin1String(":/")) || QFileInfo::exists(source))
+    {
+        return source;
+    }
+
+    if (source.startsWith(QLatin1String("img/clipart/")))
+    {
+        const QString path = QStringLiteral(":/drawio/img/lib/clip_art/general/")
+            + source.mid(QStringLiteral("img/clipart/").size());
+
+        if (QFileInfo::exists(path))
+        {
+            return path;
+        }
+    }
+
+    if (source.startsWith(QLatin1String("img/")))
+    {
+        return QStringLiteral(":/drawio/") + source;
+    }
+
+    return {};
+}
+
+/// Paints an image stretched into the given rectangle, like mxLabel.paintImage
+/// and mxImageShape (SVG files keep their view box).
+void paintImageAt(QPainter &painter, const QString &source, const QRectF &target,
+                  bool keepAspect = false)
+{
+    const QString path = resolveImagePath(source);
+
+    if (path.isEmpty())
+    {
+        return;
+    }
+
+    QRectF destination = target;
+
+    if (path.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive))
+    {
+        static QHash<QString, QSharedPointer<QSvgRenderer>> renderers;
+        QSharedPointer<QSvgRenderer> renderer = renderers.value(path);
+
+        if (renderer.isNull())
+        {
+            renderer = QSharedPointer<QSvgRenderer>::create(path);
+            renderers.insert(path, renderer);
+        }
+
+        if (!renderer->isValid())
+        {
+            return;
+        }
+
+        if (keepAspect && renderer->defaultSize().isValid())
+        {
+            QSizeF size = renderer->defaultSize();
+            size.scale(target.size(), Qt::KeepAspectRatio);
+            destination = QRectF(target.center() - QPointF(size.width() / 2.0,
+                                                           size.height() / 2.0), size);
+        }
+
+        renderer->render(&painter, destination);
+        return;
+    }
+
+    QImage image(path);
+
+    if (image.isNull())
+    {
+        return;
+    }
+
+    if (keepAspect)
+    {
+        QSizeF size = image.size();
+        size.scale(target.size(), Qt::KeepAspectRatio);
+        destination = QRectF(target.center() - QPointF(size.width() / 2.0,
+                                                       size.height() / 2.0), size);
+    }
+
+    painter.drawImage(destination, image);
 }
 
 
@@ -299,7 +413,20 @@ QFont fontFor(const Cell &cell)
 QColor textColor(const Cell &cell)
 {
     const StyleMap style = resolvedStyle(cell);
-    return Style::color(style, QStringLiteral("fontColor"), QColor(Qt::black));
+    const QString value = inheritedStyleValue(cell, QStringLiteral("fontColor"));
+
+    if (value.isEmpty())
+    {
+        return QColor(Qt::black);
+    }
+
+    if (Style::isNoneColor(value))
+    {
+        return Qt::transparent;
+    }
+
+    const QColor color = Style::parseColorValue(value);
+    return color.isValid() ? color : QColor(Qt::black);
 }
 
 Qt::Alignment alignmentFor(const Cell &cell)
@@ -353,17 +480,27 @@ QRectF labelRect(const Cell &cell, const QRectF &bounds)
 
     QRectF rect = bounds.adjusted(spacingLeft, spacingTop, -spacingRight, -spacingBottom);
 
-    if (ShapeRegistry::isContainerShape(cell) && cell.styleFlag(QStringLiteral("swimlane")))
+    const QString shapeKey = ShapeRegistry::canonicalKey(cell.style);
+    const bool tableLike = shapeKey == QLatin1String("table")
+        || shapeKey == QLatin1String("tableRow");
+    const bool swimlaneTitle = (ShapeRegistry::isContainerShape(cell)
+                                && cell.styleFlag(QStringLiteral("swimlane")))
+        || tableLike;
+
+    if (swimlaneTitle)
     {
         const double startSize = Style::number(style, QStringLiteral("startSize"), 23.0);
 
-        if (Style::flag(style, QStringLiteral("horizontal"), true))
+        if (startSize > 0.0)
         {
-            rect.setHeight(qMax(0.0, startSize - spacingTop));
-        }
-        else
-        {
-            rect.setWidth(qMax(0.0, startSize - spacingLeft));
+            if (Style::flag(style, QStringLiteral("horizontal"), true))
+            {
+                rect.setHeight(qMax(0.0, startSize - spacingTop));
+            }
+            else
+            {
+                rect.setWidth(qMax(0.0, startSize - spacingLeft));
+            }
         }
     }
 
@@ -456,7 +593,7 @@ void applyInlineFont(const QString &html, QFont &font)
 QFont fontForLabel(const Cell &cell)
 {
     QFont font = fontFor(cell);
-    applyInlineFont(cell.value, font);
+    applyInlineFont(cell.displayLabel(), font);
     return font;
 }
 
@@ -538,9 +675,103 @@ QFont inlineSpanFont(const QString &tag, const QFont &base)
 
 } // namespace
 
+bool paintHtmlTable(QPainter &painter, const Cell &cell, const QRectF &rect,
+                    const QFont &baseFont)
+{
+    static const QRegularExpression rowPattern(
+        QStringLiteral("<tr\\b[^>]*>(.*?)</tr>"),
+        QRegularExpression::CaseInsensitiveOption
+            | QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression cellPattern(
+        QStringLiteral("<(td|th)\\b([^>]*)>(.*?)</\\1>"),
+        QRegularExpression::CaseInsensitiveOption
+            | QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression tagPattern(QStringLiteral("<[^>]*>"));
+
+    QVector<QRegularExpressionMatch> rows;
+
+    for (auto it = rowPattern.globalMatch(cell.displayLabel()); it.hasNext();)
+    {
+        rows.append(it.next());
+    }
+
+    if (rows.isEmpty())
+    {
+        return false;
+    }
+
+    painter.save();
+    painter.setPen(QPen(QColor(Qt::black), 1.0));
+    painter.setBrush(Qt::NoBrush);
+    painter.drawRect(rect);
+
+    const double rowHeight = rect.height() / rows.size();
+
+    for (int i = 1; i < rows.size(); ++i)
+    {
+        const double y = rect.top() + i * rowHeight;
+        painter.drawLine(QPointF(rect.left(), y), QPointF(rect.right(), y));
+    }
+
+    for (int i = 0; i < rows.size(); ++i)
+    {
+        const QRegularExpressionMatch cellMatch = cellPattern.match(rows.at(i).captured(1));
+
+        if (!cellMatch.hasMatch())
+        {
+            continue;
+        }
+
+        const bool header = cellMatch.captured(1).compare(QLatin1String("th"),
+                                                          Qt::CaseInsensitive) == 0;
+        QString text = cellMatch.captured(3);
+        text.replace(QRegularExpression(QStringLiteral("<br\\s*/?>"),
+                                        QRegularExpression::CaseInsensitiveOption),
+                     QStringLiteral("\n"));
+        text.remove(tagPattern);
+        text = decodeHtmlEntities(text);
+
+        QFont font = baseFont;
+
+        if (header)
+        {
+            font.setBold(true);
+        }
+
+        painter.setFont(font);
+        const QFontMetricsF metrics(font);
+        const QStringList lines = text.split(QLatin1Char('\n'));
+        const double lineHeight = metrics.height();
+        double y = rect.top() + i * rowHeight
+            + (rowHeight - lineHeight * lines.size()) / 2.0;
+
+        const bool centered = cellMatch.captured(2).contains(
+            QLatin1String("align=\"center\""), Qt::CaseInsensitive)
+            || header;
+
+        for (const QString &line : lines)
+        {
+            const QString trimmed = line.trimmed();
+            const double width = metrics.horizontalAdvance(trimmed);
+            double x = rect.left() + 4.0;
+
+            if (centered)
+            {
+                x = rect.center().x() - width / 2.0;
+            }
+
+            painter.drawText(QPointF(x, y + metrics.ascent()), trimmed);
+            y += lineHeight;
+        }
+    }
+
+    painter.restore();
+    return true;
+}
+
 void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawBackground)
 {
-    if (cell.value.isEmpty())
+    if (cell.displayLabel().isEmpty() || cell.styleFlag(QStringLiteral("noLabel")))
     {
         return;
     }
@@ -549,10 +780,24 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
 
     painter.save();
 
-    // Vertical swimlanes rotate their title by -90 degrees so that it runs
-    // along the header instead of wrapping inside its 23 pixel width.
-    const bool verticalSwimlane = ShapeRegistry::isContainerShape(cell)
-        && cell.styleFlag(QStringLiteral("swimlane"))
+    if (cell.displayLabel().contains(QLatin1String("<table"), Qt::CaseInsensitive))
+    {
+        if (paintHtmlTable(painter, cell, labelRect(cell, bounds), fontForLabel(cell)))
+        {
+            painter.restore();
+            return;
+        }
+    }
+
+    // Vertical swimlanes (and table/row titles) rotate their title by -90
+    // degrees so that it runs along the header instead of wrapping inside
+    // its 23 pixel width.
+    const QString labelShapeKey = ShapeRegistry::canonicalKey(cell.style);
+    const bool verticalSwimlane = ((ShapeRegistry::isContainerShape(cell)
+                                    && cell.styleFlag(QStringLiteral("swimlane")))
+                                   || labelShapeKey == QLatin1String("table")
+                                   || labelShapeKey == QLatin1String("tableRow"))
+        && Style::number(style, QStringLiteral("startSize"), 23.0) > 0.0
         && !Style::flag(style, QStringLiteral("horizontal"), true);
     QRectF rect = labelRect(cell, bounds);
 
@@ -590,8 +835,9 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
     const QFont font = fontForLabel(cell);
     painter.setPen(textColor(cell));
 
-    const bool wrap = Style::value(style, QStringLiteral("whiteSpace")) == QLatin1String("wrap")
-        || cell.isHtmlLabel();
+    // draw.io's graph.isWrapping() only wraps labels with whiteSpace=wrap;
+    // HTML labels without it stay on one line (Autosize Title).
+    const bool wrap = Style::value(style, QStringLiteral("whiteSpace")) == QLatin1String("wrap");
     const double maxWidth = wrap ? rect.width() : 100000.0;
     const Qt::Alignment baseAlignment = alignmentFor(cell) & Qt::AlignHorizontal_Mask;
 
@@ -608,6 +854,8 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
         block.align = baseAlignment;
         bool blockPending = true;
         bool paragraphStarted = false;
+        QString listType;
+        int listIndex = 1;
 
         const auto beginParagraph = [&]()
         {
@@ -655,7 +903,7 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
             paragraphStarted = false;
         };
 
-        const QString html = cell.value;
+        const QString html = cell.displayLabel();
 
         for (int i = 0; i < html.size();)
         {
@@ -707,6 +955,53 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
                         block = blockStyleFor(tag, font, baseAlignment, true);
                         runFont = block.font;
                         blockPending = true;
+                    }
+                }
+                else if (name == QLatin1String("ul") || name == QLatin1String("ol"))
+                {
+                    flushRun();
+
+                    if (closing)
+                    {
+                        flushParagraph(false);
+                        listType.clear();
+                    }
+                    else
+                    {
+                        listType = name;
+                        listIndex = 1;
+                    }
+                }
+                else if (name == QLatin1String("li"))
+                {
+                    flushRun();
+
+                    if (closing)
+                    {
+                        flushParagraph(false);
+                    }
+                    else
+                    {
+                        flushParagraph(false);
+                        block = BlockStyle();
+                        block.font = font;
+                        block.align = baseAlignment;
+                        blockPending = true;
+                        beginParagraph();
+
+                        QString prefix = QStringLiteral("    ");
+
+                        if (listType == QLatin1String("ol"))
+                        {
+                            prefix += QString::number(listIndex++) + QStringLiteral(". ");
+                        }
+                        else
+                        {
+                            prefix += QStringLiteral("\u2022 ");
+                        }
+
+                        paragraphs.last().runs.append(
+                            TextRun{prefix, block.font, runColor});
                     }
                 }
                 else if (name == QLatin1String("b") || name == QLatin1String("strong")
@@ -812,7 +1107,7 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
     }
     else
     {
-        const QStringList parts = cell.value.split(QLatin1Char('\n'));
+        const QStringList parts = cell.displayLabel().split(QLatin1Char('\n'));
 
         for (const QString &part : parts)
         {
@@ -978,6 +1273,54 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
     {
         painter.restore();
         return;
+    }
+
+    // CSS transforms in HTML labels (the slanted text entries use
+    // transform:skewY(30deg) and transform:matrix(...)). Browsers apply the
+    // transform around the block's centre, which is the label centre here.
+    {
+        static const QRegularExpression skewPattern(
+            QStringLiteral("transform\\s*:\\s*skewY\\(\\s*(-?[0-9.]+)\\s*deg\\s*\\)"),
+            QRegularExpression::CaseInsensitiveOption);
+        static const QRegularExpression matrixPattern(
+            QStringLiteral("transform\\s*:\\s*matrix\\(([^)]*)\\)"),
+            QRegularExpression::CaseInsensitiveOption);
+        QTransform transform;
+        bool hasTransform = false;
+        const QRegularExpressionMatch skew = skewPattern.match(cell.displayLabel());
+
+        if (skew.hasMatch())
+        {
+            transform.shear(0.0, std::tan(qDegreesToRadians(skew.captured(1).toDouble())));
+            hasTransform = true;
+        }
+        else
+        {
+            const QRegularExpressionMatch matrix = matrixPattern.match(cell.displayLabel());
+
+            if (matrix.hasMatch())
+            {
+                const QStringList parts = matrix.captured(1).split(QLatin1Char(','));
+                double values[6] = {1, 0, 0, 1, 0, 0};
+
+                for (int i = 0; i < 6 && i < parts.size(); ++i)
+                {
+                    values[i] = parts.at(i).trimmed().toDouble();
+                }
+
+                transform = QTransform(values[0], values[1], values[2], values[3],
+                                       values[4], values[5]);
+                hasTransform = true;
+            }
+        }
+
+        if (hasTransform)
+        {
+            const QPointF center = rect.center();
+            painter.translate(center);
+            painter.setTransform(transform, true);
+            painter.translate(-center);
+        }
     }
 
     // Vertical layout: block margins collapse like in CSS.
@@ -1146,8 +1489,7 @@ namespace ShapeRenderer {
 
 QColor fillColor(const Cell &cell)
 {
-    const StyleMap style = Style::withDefaults(cell.style);
-    const QString value = Style::value(style, QStringLiteral("fillColor"));
+    const QString value = inheritedStyleValue(cell, QStringLiteral("fillColor"));
 
     if (value.isEmpty())
     {
@@ -1165,8 +1507,7 @@ QColor fillColor(const Cell &cell)
 
 QColor strokeColor(const Cell &cell)
 {
-    const StyleMap style = Style::withDefaults(cell.style);
-    const QString value = Style::value(style, QStringLiteral("strokeColor"));
+    const QString value = inheritedStyleValue(cell, QStringLiteral("strokeColor"));
 
     if (value.isEmpty())
     {
@@ -1219,6 +1560,421 @@ double crispOffsetFor(QPainter &painter, const Cell &cell)
     return (deviceWidth % 2 == 1) ? 0.5 : 0.0;
 }
 
+bool isTableShape(const Cell &cell)
+{
+    const QString key = ShapeRegistry::canonicalKey(cell.style);
+    return key == QLatin1String("table") || key == QLatin1String("tableRow");
+}
+
+bool isCollapsedTable(const Cell &cell)
+{
+    return ShapeRegistry::canonicalKey(cell.style) == QLatin1String("table")
+        && cell.styleValue(QStringLiteral("tableRender")) == QLatin1String("collapsed");
+}
+
+/// Rows and cells of a collapsed table only paint their fill and label; the
+/// table shape paints every border on top (draw.io's paintCollapsedTable).
+bool isCollapsedTableChild(const Cell &cell)
+{
+    const Cell *row = cell.parent;
+
+    if (row == nullptr || !isTableShape(*row))
+    {
+        return false;
+    }
+
+    const Cell *table = row->parent;
+    return table != nullptr && isCollapsedTable(*table);
+}
+
+QVector<Cell *> sortedChildren(const Cell &cell)
+{
+    QVector<Cell *> result = cell.children;
+    std::sort(result.begin(), result.end(), [](const Cell *a, const Cell *b)
+    {
+        return a->geometry.top() < b->geometry.top();
+    });
+    return result;
+}
+
+/// Port of Graph.getTableLines + TableLineShape.paintTableLine for the
+/// geometry stored in the file: the table's title divider, one horizontal
+/// line between adjacent rows and one vertical line between adjacent cells.
+/// rowLines/columnLines=0 suppress the corresponding separators.
+/// mxLabel.paintImage(): the image sits in a fixed-size box positioned by
+/// imageAlign / imageVerticalAlign (relative to the cell, not the label).
+void paintLabelImage(QPainter &painter, const Cell &cell, const QRectF &local)
+{
+    const StyleMap style = Style::withDefaults(cell.style);
+    const QString source = Style::value(style, QStringLiteral("image"));
+
+    if (source.isEmpty())
+    {
+        return;
+    }
+
+    const double width = qMax(0.0, Style::number(style, QStringLiteral("imageWidth"), 42.0));
+    const double height = qMax(0.0, Style::number(style, QStringLiteral("imageHeight"), 42.0));
+    const double spacing = Style::number(style, QStringLiteral("spacing"), 2.0) + 5.0;
+    const QString align = Style::value(style, QStringLiteral("imageAlign"),
+                                        QStringLiteral("left"));
+    const QString valign = Style::value(style, QStringLiteral("imageVerticalAlign"),
+                                         QStringLiteral("middle"));
+    double x = local.left();
+    double y = local.top();
+
+    if (align == QLatin1String("center"))
+    {
+        x += (local.width() - width) / 2.0;
+    }
+    else if (align == QLatin1String("right"))
+    {
+        x += local.width() - width - spacing;
+    }
+    else
+    {
+        x += spacing;
+    }
+
+    if (valign == QLatin1String("top"))
+    {
+        y += spacing;
+    }
+    else if (valign == QLatin1String("bottom"))
+    {
+        y += local.height() - height - spacing;
+    }
+    else
+    {
+        y += (local.height() - height) / 2.0;
+    }
+
+    paintImageAt(painter, source, QRectF(x, y, width, height));
+}
+
+void paintTableGrid(QPainter &painter, const Cell &table, const QRectF &local)
+{
+    const StyleMap style = Style::withDefaults(table.style);
+    const QColor stroke = ShapeRenderer::strokeColor(table);
+
+    if (stroke.alpha() == 0)
+    {
+        return;
+    }
+
+    painter.save();
+    QPen pen = penFor(table);
+    pen.setColor(stroke);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+
+    const double w = local.width();
+    const double h = local.height();
+    const bool horizontal = Style::flag(style, QStringLiteral("horizontal"), true);
+    const double start = qMax(0.0, Style::number(style, QStringLiteral("startSize"), 0.0));
+    const bool rowLines = Style::value(style, QStringLiteral("rowLines"),
+                                       QStringLiteral("1")) != QLatin1String("0");
+    const bool columnLines = Style::value(style, QStringLiteral("columnLines"),
+                                          QStringLiteral("1")) != QLatin1String("0");
+
+    const auto line = [&painter](const QPointF &a, const QPointF &b)
+    {
+        painter.drawLine(a, b);
+    };
+
+    // Title divider of the swimlane-shaped table.
+    if (start > 0.0)
+    {
+        if (horizontal)
+        {
+            line(QPointF(0, start), QPointF(w, start));
+        }
+        else
+        {
+            line(QPointF(start, 0), QPointF(start, h));
+        }
+    }
+
+    const QVector<Cell *> rows = sortedChildren(table);
+
+    if (rows.isEmpty())
+    {
+        painter.restore();
+        return;
+    }
+
+    const double bodyTop = horizontal ? qMin(start, h) : 0.0;
+    const double bodyBottom = h;
+    const double bodyLeft = horizontal ? 0.0 : qMin(start, w);
+    const double bodyRight = w;
+
+    // Row titles (cross-functional flowcharts place the actor in a 40 pixel
+    // strip at the left of every row) add one column boundary.
+    if (columnLines)
+    {
+        for (const Cell *row : rows)
+        {
+            const double rowStart = qMax(0.0, row->styleNumber(QStringLiteral("startSize"), 0.0));
+            const bool rowHorizontal = row->styleFlag(QStringLiteral("horizontal"), true);
+
+            if (!rowHorizontal && rowStart > 0.0)
+            {
+                const double x = row->geometry.left() + rowStart;
+                line(QPointF(x, bodyTop), QPointF(x, bodyBottom));
+            }
+        }
+    }
+
+    // Vertical cell borders from the first row (all rows share the grid).
+    if (columnLines)
+    {
+        for (const Cell *row : rows)
+        {
+            const QVector<Cell *> cells = sortedChildren(*row);
+
+            if (cells.isEmpty())
+            {
+                continue;
+            }
+
+            double right = 0.0;
+
+            for (const Cell *cell : cells)
+            {
+                right = cell->geometry.right();
+                line(QPointF(right, bodyTop), QPointF(right, bodyBottom));
+            }
+
+            break;
+        }
+    }
+
+    // Horizontal lines between rows.
+    if (rowLines)
+    {
+        for (int i = 0; i + 1 < rows.size(); ++i)
+        {
+            const double y = rows.at(i)->geometry.bottom();
+            line(QPointF(bodyLeft, y), QPointF(bodyRight, y));
+        }
+    }
+
+    painter.restore();
+}
+
+/// Sketch (rough.js) fill. draw.io renders the fill as hachure strokes in the
+/// fill colour: "solid" fills the path, "cross-hatch" draws both diagonals,
+/// every other fillStyle (including the "dots" entry of the palette) uses the
+/// hachure lines of the bundled rough.js version.
+void paintSketchFill(QPainter &painter, const QPainterPath &path,
+                     const QRectF &local, const StyleMap &style,
+                     const QColor &fill, double strokeWidth)
+{
+    if (fill.alpha() == 0 || local.width() <= 0.0 || local.height() <= 0.0)
+    {
+        return;
+    }
+
+    const QString fillStyle = Style::value(style, QStringLiteral("fillStyle"),
+                                           QStringLiteral("hachure")).toLower();
+
+    painter.save();
+    painter.setClipPath(path);
+
+    if (fillStyle == QLatin1String("solid"))
+    {
+        painter.fillPath(path, fill);
+        painter.restore();
+        return;
+    }
+
+    double gap = Style::number(style, QStringLiteral("hachureGap"), -1.0);
+
+    if (gap <= 0.0)
+    {
+        gap = qMax(1.0, strokeWidth * 4.0);
+    }
+
+    double weight = Style::number(style, QStringLiteral("fillWeight"), -1.0);
+
+    if (weight <= 0.0)
+    {
+        weight = qMax(0.5, strokeWidth / 2.0);
+    }
+
+    const double angle = Style::number(style, QStringLiteral("hachureAngle"), -41.0);
+    QVector<double> angles{angle};
+
+    if (fillStyle == QLatin1String("cross-hatch"))
+    {
+        angles.append(angle + 90.0);
+    }
+
+    QPen pen(fill);
+    pen.setWidthF(weight);
+    pen.setCapStyle(Qt::RoundCap);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+
+    const double diagonal = std::hypot(local.width(), local.height());
+    const QPointF center = local.center();
+
+    for (double current : angles)
+    {
+        const double radians = qDegreesToRadians(current);
+        const QPointF direction(std::cos(radians), std::sin(radians));
+        const QPointF normal(-direction.y(), direction.x());
+        const double projections[] = {
+            (local.topLeft() - center).x() * normal.x()
+                + (local.topLeft() - center).y() * normal.y(),
+            (local.topRight() - center).x() * normal.x()
+                + (local.topRight() - center).y() * normal.y(),
+            (local.bottomLeft() - center).x() * normal.x()
+                + (local.bottomLeft() - center).y() * normal.y(),
+            (local.bottomRight() - center).x() * normal.x()
+                + (local.bottomRight() - center).y() * normal.y()};
+        const double minimum = *std::min_element(std::begin(projections),
+                                                 std::end(projections));
+        const double maximum = *std::max_element(std::begin(projections),
+                                                 std::end(projections));
+
+        for (double offset = minimum; offset <= maximum; offset += gap)
+        {
+            const QPointF base = center + normal * offset;
+            painter.drawLine(base - direction * diagonal,
+                             base + direction * diagonal);
+        }
+    }
+
+    painter.restore();
+}
+
+/// CurvedTextShape.paintForeground: the label is laid out along a circular/// CurvedTextShape.paintForeground: the label is laid out along a circular
+/// arc (curveType=round) whose natural start/mid/end offsets are 25/-25/25.
+/// Each glyph is rotated by the tangent at its position.
+void paintCurvedText(QPainter &painter, const Cell &cell, const QRectF &local)
+{
+    const QString label = cell.plainLabel();
+
+    if (label.isEmpty())
+    {
+        return;
+    }
+
+    const StyleMap style = Style::withDefaults(cell.style);
+    const double fontSize = qMax(1.0, Style::number(style, QStringLiteral("fontSize"), 12.0));
+    const double inset = fontSize / 2.0;
+    const double w = local.width();
+    const double h = local.height();
+    const double startY = Style::number(style, QStringLiteral("arcStartY"), 25.0);
+    const double rawMid = Style::number(style, QStringLiteral("arcMidY"), -25.0);
+    const double endY = Style::number(style, QStringLiteral("arcEndY"), 25.0);
+    const double chordMidY = (startY + endY) / 2.0;
+    const double maxMid = qMax(25.0, qMin(chordMidY, h - chordMidY));
+    const double midOffset = qBound(-maxMid, rawMid, maxMid);
+    const double naturalMidY = chordMidY + midOffset;
+    const double curveTop = qMin(startY, qMin(endY, naturalMidY));
+    const double curveBottom = qMax(startY, qMax(endY, naturalMidY));
+    const double curveHeight = curveBottom - curveTop;
+    const QString verticalAlign = Style::value(style, QStringLiteral("verticalAlign"),
+                                                QStringLiteral("middle"));
+    double yOffset = (h - curveHeight) / 2.0 - curveTop;
+
+    if (verticalAlign == QLatin1String("top"))
+    {
+        yOffset = inset - curveTop;
+    }
+    else if (verticalAlign == QLatin1String("bottom"))
+    {
+        yOffset = (h - inset) - curveBottom;
+    }
+
+    // draw.io builds a circular arc through the start, the natural middle
+    // point and the end. A quadratic whose control point is twice as far from
+    // the chord reaches the same apex (0.5 * control offset), which keeps the
+    // glyph positions and tangents of the SVG textPath.
+    const double chordY = (startY + endY) / 2.0 + yOffset;
+    const double controlY = 2.0 * (naturalMidY + yOffset) - chordY;
+    QPainterPath curve;
+    curve.moveTo(inset, startY + yOffset);
+    curve.quadTo((inset + (w - inset)) / 2.0, controlY, w - inset, endY + yOffset);
+
+    QFont font = LabelPainter::fontFor(cell);
+    font.setPixelSize(qRound(fontSize));
+    painter.setFont(font);
+    painter.setPen(LabelPainter::textColor(cell));
+    painter.setBrush(Qt::NoBrush);
+
+    const QFontMetricsF metrics(font);
+    const double textWidth = metrics.horizontalAdvance(label);
+    const double pathLength = curve.length();
+
+    if (pathLength <= 0.0)
+    {
+        return;
+    }
+
+    // SVG textPath uses textLength=path length with lengthAdjust=spacing, so
+    // the natural advances are distributed over the whole curve.
+    const double extra = label.size() > 0
+        ? qMax(0.0, pathLength - textWidth) / label.size() : 0.0;
+    double position = 0.0;
+
+    for (const QChar character : label)
+    {
+        const double advance = metrics.horizontalAdvance(QString(character)) + extra;
+        const double center = position + advance / (2.0 * pathLength);
+        const QPointF point = curve.pointAtPercent(qBound(0.0, center, 1.0));
+        const QPointF before = curve.pointAtPercent(qBound(0.0, center - 0.001, 1.0));
+        const QPointF after = curve.pointAtPercent(qBound(0.0, center + 0.001, 1.0));
+        const double angle = std::atan2(after.y() - before.y(), after.x() - before.x());
+
+        painter.save();
+        painter.translate(point);
+        painter.rotate(qRadiansToDegrees(angle));
+        painter.drawText(QPointF(-advance / 2.0,
+                                 (metrics.ascent() - metrics.descent()) / 2.0),
+                         QString(character));
+        painter.restore();
+        position += advance / pathLength;
+    }
+}
+
+/// The arrow head of the basic.arc palette entry: draw.io paints the style's
+/// end marker on the end of the arc.
+void paintArcMarker(QPainter &painter, const Cell &cell, const QPainterPath &path)
+{
+    const StyleMap style = Style::withDefaults(cell.style);
+    const QString arrow = Style::value(style, QStringLiteral("endArrow"));
+
+    if (arrow.isEmpty() || arrow == QLatin1String("none"))
+    {
+        return;
+    }
+
+    const QPointF tip = path.pointAtPercent(1.0);
+    const QPointF before = path.pointAtPercent(0.995);
+
+    if (QLineF(before, tip).length() < 0.001)
+    {
+        return;
+    }
+
+    const QPointF direction = (tip - before) / QLineF(before, tip).length();
+    const QPointF normal(-direction.y(), direction.x());
+    const double size = qMax(3.0, Style::number(style, QStringLiteral("endSize"), 6.0));
+    const QPointF base = tip - direction * size;
+    QPolygonF head;
+    head << tip << base + normal * (size / 2.0) << base - normal * (size / 2.0);
+
+    painter.save();
+    painter.setPen(QPen(ShapeRenderer::strokeColor(cell), 1.0));
+    painter.setBrush(Style::flag(style, QStringLiteral("endFill"), true)
+                         ? QBrush(ShapeRenderer::strokeColor(cell)) : QBrush(Qt::NoBrush));
+    painter.drawPolygon(head);
+    painter.restore();
+}
+
 void paintLabel(QPainter &painter, const Cell &cell, const QRectF &local, double offset)
 {
     painter.save();
@@ -1226,6 +1982,33 @@ void paintLabel(QPainter &painter, const Cell &cell, const QRectF &local, double
     if (offset > 0.0)
     {
         painter.translate(-offset, -offset);
+    }
+
+    // mxShape.getShapeRotation() adds the direction to the *shape* only; the
+    // label is painted separately and stays upright (a note with
+    // direction=west paints its fold bottom-left but keeps readable text).
+    const QString direction = cell.styleValue(QStringLiteral("direction")).toLower();
+    double directionRotation = 0.0;
+
+    if (direction == QLatin1String("north"))
+    {
+        directionRotation = 270.0;
+    }
+    else if (direction == QLatin1String("west"))
+    {
+        directionRotation = 180.0;
+    }
+    else if (direction == QLatin1String("south"))
+    {
+        directionRotation = 90.0;
+    }
+
+    if (directionRotation != 0.0)
+    {
+        const QPointF center = local.center();
+        painter.translate(center);
+        painter.rotate(-directionRotation);
+        painter.translate(-center);
     }
 
     LabelPainter::paint(painter, cell, local);
@@ -1310,6 +2093,26 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
 
     const double opacity = qBound(0.0, cell.styleNumber(QStringLiteral("opacity"), 100.0), 100.0);
     painter.setOpacity(opacity / 100.0);
+
+    // Rows and cells of a collapsed table (tableRender=collapsed) only paint
+    // their fill and label; the table shape paints the whole grid above them.
+    const QString collapsedKey = ShapeRegistry::canonicalKey(cell.style);
+
+    if (collapsedKey == QLatin1String("tableRow") || isCollapsedTableChild(cell))
+    {
+        const QColor rowFill = fillColor(cell);
+
+        if (rowFill.alpha() > 0)
+        {
+            painter.setPen(Qt::NoPen);
+            painter.setBrush(rowFill);
+            painter.drawRect(local);
+        }
+
+        paintLabel(painter, cell, local, crispOffset);
+        painter.restore();
+        return;
+    }
 
     // mxShapeElectricalBatteryStack from shapes/mxElectrical.js: a series of
     // filled short plates and long thin plates, with dashed links between cells.
@@ -1402,23 +2205,6 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
         const QString source = cell.styleValue(QStringLiteral("image"));
         const bool keepAspect = cell.styleFlag(QStringLiteral("imageAspect"))
             || cell.styleFlag(QStringLiteral("aspect"));
-        QRectF target = local;
-
-        const auto fitTarget = [&local, keepAspect](const QSizeF &sourceSize)
-        {
-            if (!keepAspect || sourceSize.isEmpty())
-            {
-                return local;
-            }
-
-            QSizeF scaled = sourceSize;
-            scaled.scale(local.size(), Qt::KeepAspectRatio);
-            return QRectF(local.center() - QPointF(scaled.width() / 2.0,
-                                                   scaled.height() / 2.0),
-                          scaled);
-        };
-
-        QString path;
 
         if (source.startsWith(QLatin1String("data:")))
         {
@@ -1432,56 +2218,30 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
 
                 if (!image.isNull())
                 {
-                    target = fitTarget(image.size());
+                    QRectF target = local;
+
+                    if (keepAspect)
+                    {
+                        QSizeF size = image.size();
+                        size.scale(local.size(), Qt::KeepAspectRatio);
+                        target = QRectF(local.center() - QPointF(size.width() / 2.0,
+                                                                 size.height() / 2.0), size);
+                    }
+
                     painter.drawImage(target, image);
                 }
             }
         }
         else
         {
-            if (source.startsWith(QLatin1String("img/")))
+            paintImageAt(painter, source, local, keepAspect);
+
+            if (resolveImagePath(source).isEmpty())
             {
-                path = QStringLiteral(":/drawio/") + source;
+                painter.setPen(QPen(QColor(160, 160, 160), 1, Qt::DashLine));
+                painter.setBrush(QColor(245, 245, 245, 60));
+                painter.drawRect(local);
             }
-            else if (source.startsWith(QLatin1String(":/")) || QFileInfo::exists(source))
-            {
-                path = source;
-            }
-
-            if (!path.isEmpty() && path.endsWith(QLatin1String(".svg"), Qt::CaseInsensitive))
-            {
-                static QHash<QString, QSharedPointer<QSvgRenderer>> renderers;
-                QSharedPointer<QSvgRenderer> renderer = renderers.value(path);
-
-                if (renderer.isNull())
-                {
-                    renderer = QSharedPointer<QSvgRenderer>::create(path);
-                    renderers.insert(path, renderer);
-                }
-
-                if (renderer->isValid())
-                {
-                    target = fitTarget(renderer->defaultSize());
-                    renderer->render(&painter, target);
-                }
-            }
-            else if (!path.isEmpty())
-            {
-                QImage image(path);
-
-                if (!image.isNull())
-                {
-                    target = fitTarget(image.size());
-                    painter.drawImage(target, image);
-                }
-            }
-        }
-
-        if (target.isEmpty() || (path.isEmpty() && !source.startsWith(QLatin1String("data:"))))
-        {
-            painter.setPen(QPen(QColor(160, 160, 160), 1, Qt::DashLine));
-            painter.setBrush(QColor(245, 245, 245, 60));
-            painter.drawRect(local);
         }
 
         paintLabel(painter, cell, local, crispOffset);
@@ -1493,8 +2253,22 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
     {
         if (cell.styleFlag(QStringLiteral("shadow")))
         {
+            // mxShape paints its shadow in screen space: the offset stays
+            // bottom-right even for rotated shapes (a note with
+            // direction=west). Undo the rotation for the local offset.
+            QPointF shadowOffset(3.0, 3.0);
+
+            if (!qFuzzyIsNull(rotation))
+            {
+                const double radians = qDegreesToRadians(-rotation);
+                const double cos = std::cos(radians);
+                const double sin = std::sin(radians);
+                shadowOffset = QPointF(shadowOffset.x() * cos - shadowOffset.y() * sin,
+                                       shadowOffset.x() * sin + shadowOffset.y() * cos);
+            }
+
             painter.save();
-            painter.translate(3, 3);
+            painter.translate(shadowOffset);
             painter.setPen(Qt::NoPen);
             painter.setBrush(QColor(0, 0, 0, 50));
             painter.drawPath(path);
@@ -1540,7 +2314,7 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
             }
         }
 
-        if (!lineArt && fill.alpha() > 0)
+        if (!lineArt && !cell.styleFlag(QStringLiteral("sketch")) && fill.alpha() > 0)
         {
             const QString gradientColor = cell.styleValue(QStringLiteral("gradientColor"));
 
@@ -1609,6 +2383,14 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
 
         painter.drawPath(path);
 
+        if (sketch)
+        {
+            paintSketchFill(painter, path, local, Style::withDefaults(cell.style),
+                            fill, qMax(1.0, Style::number(
+                                Style::withDefaults(cell.style),
+                                QStringLiteral("strokeWidth"), 1.0)));
+        }
+
         if (sketch || comic)
         {
             painter.setPen(outlinePen);
@@ -1617,6 +2399,11 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
                 qHash(cell.id) ^ static_cast<uint>(local.width() * 13 + local.height()));
             painter.setBrush(Qt::NoBrush);
             painter.drawPath(rough);
+        }
+
+        if (collapsedKey == QLatin1String("table"))
+        {
+            paintTableGrid(painter, cell, local);
         }
 
         // Stroke-only details (inner frames, hatch patterns, fold lines,
@@ -1695,6 +2482,14 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
                 }
             }
         }
+        else if (key == QLatin1String("curvedText"))
+        {
+            paintCurvedText(painter, cell, local);
+        }
+        else if (key == QLatin1String("basic.arc"))
+        {
+            paintArcMarker(painter, cell, path);
+        }
         else if (key == QLatin1String("note"))
         {
             // NoteShape.paintVertexShape: the folded corner is filled with
@@ -1724,6 +2519,12 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
                              QPointF(local.width() - size, size));
             painter.drawLine(QPointF(local.width() - size, size),
                              QPointF(local.width(), size));
+        }
+        else if (key == QLatin1String("label"))
+        {
+            // mxLabel.paintForeground: image then indicator (the icon palette
+            // entry is the same shape with centred image and label below).
+            paintLabelImage(painter, cell, local);
         }
         else if (key == QLatin1String("message"))
         {

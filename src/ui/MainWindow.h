@@ -102,7 +102,12 @@ private:
     void removeDraft();
     QString draftPathFor(const QString &path) const;
 
+    /// True when any selected cell carries a hyperlink (draw.io only offers the
+    /// link editor for those).
+    bool selectionHasLink() const;
+
     void showCanvasContextMenu(const QPoint &globalPos, const QString &cellId);
+    void editSelectedLink();
     void showStatusMessage(const QString &message, int timeout = 4000);
     void renderToPrinter(QPrinter &printer);
 
@@ -144,6 +149,7 @@ private:
     QAction *m_deleteAction = nullptr;
     QAction *m_duplicateAction = nullptr;
     QAction *m_selectAllAction = nullptr;
+    QAction *m_editLinkAction = nullptr;
 
     QAction *m_zoomInAction = nullptr;
     QAction *m_zoomOutAction = nullptr;

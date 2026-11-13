@@ -1462,6 +1462,185 @@ private slots:
         QCOMPARE(process.boundingRect(), QRectF(0, 0, 100, 100));
         QCOMPARE(process.elementAt(0).y, 7.0);
     }
+
+    void miscLibraryMatchesSidebar()
+    {
+        // Sidebar.prototype.addMiscPalette, in draw.io order. Keys are the
+        // stable internal identifiers; names are the sidebar titles.
+        const QStringList official = {
+            QStringLiteral("misc.autosizeText"), QStringLiteral("misc.autosizeTitle"),
+            QStringLiteral("misc.link"), QStringLiteral("misc.curvedText"),
+            QStringLiteral("misc.slantedTextLeft"), QStringLiteral("misc.slantedTextRight"),
+            QStringLiteral("misc.slantedTextTop"), QStringLiteral("misc.variable"),
+            QStringLiteral("misc.timestamp"), QStringLiteral("misc.unorderedList"),
+            QStringLiteral("misc.orderedList"), QStringLiteral("misc.verticalList"),
+            QStringLiteral("misc.note"), QStringLiteral("misc.table1"),
+            QStringLiteral("misc.table2"), QStringLiteral("misc.tableWithTitle1"),
+            QStringLiteral("misc.tableWithTitle2"), QStringLiteral("misc.crossFunctional"),
+            QStringLiteral("misc.tableAssets"), QStringLiteral("misc.tableBordered"),
+            QStringLiteral("misc.tablePlain"), QStringLiteral("misc.htmlTable"),
+            QStringLiteral("misc.rectangleSketch"), QStringLiteral("misc.ellipseSketch"),
+            QStringLiteral("misc.diamondSketch"), QStringLiteral("misc.isometricCube"),
+            QStringLiteral("misc.isometricSquare"), QStringLiteral("misc.isometricEdge1"),
+            QStringLiteral("misc.isometricEdge2"), QStringLiteral("misc.leftCurlyBracket"),
+            QStringLiteral("misc.rightCurlyBracket"), QStringLiteral("misc.horizontalLine"),
+            QStringLiteral("misc.verticalLine"), QStringLiteral("misc.horizontalBackbone"),
+            QStringLiteral("misc.verticalBackbone"), QStringLiteral("misc.horizontalCrossbar"),
+            QStringLiteral("misc.verticalCrossbar"), QStringLiteral("misc.imageFixedAspect"),
+            QStringLiteral("misc.imageVariableAspect"), QStringLiteral("misc.icon"),
+            QStringLiteral("misc.label1"), QStringLiteral("misc.label2"),
+            QStringLiteral("misc.shapeGroup"), QStringLiteral("misc.partialRectangle1"),
+            QStringLiteral("misc.partialRectangle2"), QStringLiteral("misc.partialRectangle3"),
+            QStringLiteral("misc.waypoint"), QStringLiteral("misc.manualLine"),
+            QStringLiteral("misc.filledEdge"), QStringLiteral("misc.taperedArrow"),
+            QStringLiteral("misc.horizontalElbow"), QStringLiteral("misc.verticalElbow"),
+            QStringLiteral("misc.arc"), QStringLiteral("misc.zigzag"),
+        };
+
+        QStringList keys;
+        QHash<QString, ShapeDefinition> byKey;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category == QLatin1String("misc"))
+            {
+                keys.append(definition.key);
+                byKey.insert(definition.key, definition);
+            }
+        }
+
+        QCOMPARE(keys, official);
+        QCOMPARE(byKey.value(QStringLiteral("misc.autosizeText")).size, QSizeF(50, 30));
+        QCOMPARE(byKey.value(QStringLiteral("misc.curvedText")).size, QSizeF(70, 50));
+        QCOMPARE(byKey.value(QStringLiteral("misc.note")).size, QSizeF(150, 150));
+        QCOMPARE(byKey.value(QStringLiteral("misc.table1")).size, QSizeF(180, 120));
+        QCOMPARE(byKey.value(QStringLiteral("misc.crossFunctional")).size, QSizeF(400, 400));
+        QCOMPARE(byKey.value(QStringLiteral("misc.htmlTable")).size, QSizeF(180, 180));
+        QCOMPARE(byKey.value(QStringLiteral("misc.leftCurlyBracket")).size, QSizeF(20, 120));
+        QCOMPARE(byKey.value(QStringLiteral("misc.horizontalLine")).size, QSizeF(160, 10));
+        QCOMPARE(byKey.value(QStringLiteral("misc.zigzag")).size, QSizeF(160, 20));
+        QCOMPARE(byKey.value(QStringLiteral("misc.link")).link,
+                 QStringLiteral("https://www.draw.io"));
+        QVERIFY(byKey.value(QStringLiteral("misc.timestamp")).placeholders);
+        QVERIFY(byKey.value(QStringLiteral("misc.variable")).placeholders);
+        QCOMPARE(byKey.value(QStringLiteral("misc.variable")).placeholderName,
+                 QStringLiteral("Variable"));
+
+        // The exact sidebar style strings (no color defaults appended).
+        QCOMPARE(byKey.value(QStringLiteral("misc.curvedText")).style,
+                 QStringLiteral("shape=curvedText;noLabel=1;align=center;"
+                                "verticalAlign=middle;strokeColor=none;fillColor=none;"));
+        QVERIFY(byKey.value(QStringLiteral("misc.rectangleSketch")).style.startsWith(
+            QStringLiteral("rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fillWeight=4;")));
+        QVERIFY(byKey.value(QStringLiteral("misc.ellipseSketch")).style.contains(
+            QStringLiteral("fillStyle=dots;sketch=1;")));
+        QVERIFY(byKey.value(QStringLiteral("misc.diamondSketch")).style.contains(
+            QStringLiteral("fillStyle=cross-hatch;")));
+        QVERIFY(byKey.value(QStringLiteral("misc.isometricCube")).style.startsWith(
+            QStringLiteral("html=1;whiteSpace=wrap;shape=isoCube2;")));
+
+        // Edge templates become floating edges.
+        int edgeCount = 0;
+
+        for (const QString &key : official)
+        {
+            if (byKey.value(key).edge)
+            {
+                ++edgeCount;
+            }
+        }
+
+        QCOMPARE(edgeCount, 7);
+        QVERIFY(byKey.value(QStringLiteral("misc.isometricEdge1")).edge);
+        QVERIFY(byKey.value(QStringLiteral("misc.filledEdge")).edge);
+        QVERIFY(byKey.value(QStringLiteral("misc.taperedArrow")).edge);
+        QVERIFY(byKey.value(QStringLiteral("misc.horizontalElbow")).edge);
+
+        // Tables carry their rows and cells, the shape group its triangle.
+        QCOMPARE(byKey.value(QStringLiteral("misc.verticalList")).children.size(), 8);
+        QCOMPARE(byKey.value(QStringLiteral("misc.table1")).children.size(), 12);
+        QCOMPARE(byKey.value(QStringLiteral("misc.tableWithTitle2")).children.size(), 9);
+        QCOMPARE(byKey.value(QStringLiteral("misc.crossFunctional")).children.size(), 12);
+        QCOMPARE(byKey.value(QStringLiteral("misc.tableAssets")).children.size(), 20);
+        QCOMPARE(byKey.value(QStringLiteral("misc.shapeGroup")).children.size(), 1);
+        QCOMPARE(byKey.value(QStringLiteral("misc.shapeGroup")).children.first().value,
+                 QString());
+        QCOMPARE(byKey.value(QStringLiteral("misc.verticalList")).children.at(1).value,
+                 QStringLiteral("Item 1"));
+
+        // The deleted legacy entries are gone.
+        QVERIFY(!byKey.contains(QStringLiteral("misc.container")));
+        QVERIFY(!byKey.contains(QStringLiteral("misc.list")));
+        QVERIFY(!byKey.contains(QStringLiteral("misc.callout")));
+    }
+
+    void placeholderLabelsExpand()
+    {
+        Cell variable(Cell::Kind::Vertex, QStringLiteral("variable"));
+        variable.value = QStringLiteral("%name% Text");
+        variable.placeholders = true;
+        variable.placeholderName = QStringLiteral("Variable");
+        QCOMPARE(variable.displayLabel(), QStringLiteral("Variable Text"));
+        QCOMPARE(variable.plainLabel(), QStringLiteral("Variable Text"));
+
+        Cell timestamp(Cell::Kind::Vertex, QStringLiteral("timestamp"));
+        timestamp.value = QStringLiteral("%date{yyyy}%");
+        timestamp.placeholders = true;
+        QVERIFY(timestamp.displayLabel().contains(
+            QString::number(QDate::currentDate().year())));
+
+        // Without the placeholders flag the template stays verbatim.
+        Cell raw(Cell::Kind::Vertex, QStringLiteral("raw"));
+        raw.value = QStringLiteral("%name% Text");
+        QCOMPARE(raw.displayLabel(), QStringLiteral("%name% Text"));
+    }
+
+    void miscShapeGeometry()
+    {
+        const QPainterPath crossbar = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=crossbar;rounded=1;")),
+            QRectF(0, 0, 120, 20));
+        QCOMPARE(crossbar.elementCount(), 6);
+        QCOMPARE(crossbar.elementAt(0).x, 0.0);
+        QCOMPARE(crossbar.elementAt(0).y, 0.0);
+        QCOMPARE(crossbar.elementAt(0).type, QPainterPath::MoveToElement);
+        QCOMPARE(crossbar.elementAt(2).x, 120.0);
+
+        const QPainterPath zigzag = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=zigzag;fillColor=none;")),
+            QRectF(0, 0, 160, 20));
+        QCOMPARE(zigzag.elementCount(), 17);
+        QCOMPARE(zigzag.elementAt(0).x, 0.0);
+        QCOMPARE(zigzag.elementAt(0).y, 10.0);
+        QCOMPARE(zigzag.elementAt(1).x, 5.0);
+        QCOMPARE(zigzag.elementAt(1).y, 1.0);
+
+        const QPainterPath bracket = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=curlyBracket;rounded=1;")),
+            QRectF(0, 0, 20, 120));
+        QVERIFY(bracket.elementCount() > 8);
+        QCOMPARE(bracket.boundingRect().right(), 20.0);
+        QCOMPARE(bracket.boundingRect().bottom(), 120.0);
+        QVERIFY(bracket.boundingRect().width() > 18.0);
+
+        const QPainterPath cube = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=isoCube2;isoAngle=15;")),
+            QRectF(0, 0, 90, 100));
+        QCOMPARE(cube.elementCount(), 7);
+        QCOMPARE(cube.elementAt(0).x, 45.0);
+        QVERIFY(qAbs(cube.elementAt(1).y - 21.6070883172) < 0.01);
+
+        const QPainterPath iso = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=isoRectangle;aspect=fixed;")),
+            QRectF(0, 0, 150, 90));
+        QCOMPARE(iso.elementCount(), 5);
+        QCOMPARE(iso.boundingRect().center().x(), 75.0);
+
+        const QPainterPath table = ShapeRegistry::pathForStyle(
+            Style::parse(QStringLiteral("shape=table;tableRender=collapsed;startSize=30;")),
+            QRectF(0, 0, 180, 150));
+        QCOMPARE(table.boundingRect(), QRectF(0, 0, 180, 150));
+    }
 };
 
 QTEST_MAIN(TestModel)

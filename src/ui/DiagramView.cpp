@@ -21,6 +21,8 @@
 #include <QMouseEvent>
 #include <QUrl>
 #include <QFontMetrics>
+#include <QCursor>
+#include <QGuiApplication>
 #include <QPainter>
 #include <QtMath>
 #include <QPainterPath>
@@ -1665,9 +1667,19 @@ void DiagramView::mousePressEvent(QMouseEvent *event)
         return;
     }
 
+    // Ctrl+click on a hyperlinked cell opens the link, like draw.io; on any
+    // other cell it starts a connector.
     if (hit != nullptr && (event->modifiers() & Qt::ControlModifier)
         && !event->modifiers().testFlag(Qt::ShiftModifier))
     {
+        Cell *target = topLevelSelectable(hit);
+
+        if (!target->link.isEmpty())
+        {
+            emit linkActivated(target->link);
+            return;
+        }
+
         beginConnect(hit, scenePoint);
         return;
     }
@@ -2031,6 +2043,8 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
     {
         Cell *hover = cellAt(scenePoint);
         const QString hoverId = hover != nullptr ? topLevelSelectable(hover)->id : QString();
+
+        m_hoverModifiers = event->modifiers();
 
         if (hoverId != m_hoverCellId)
         {
@@ -2860,6 +2874,12 @@ void DiagramView::keyPressEvent(QKeyEvent *event)
         return;
     }
 
+    if (event->key() == Qt::Key_Control && !m_editor->isVisible())
+    {
+        m_hoverModifiers |= Qt::ControlModifier;
+        updateCursorForPosition(mapFromGlobal(QCursor::pos()));
+    }
+
     if (event->key() == Qt::Key_Escape)
     {
         if (m_editor->isVisible())
@@ -2988,6 +3008,12 @@ void DiagramView::keyReleaseEvent(QKeyEvent *event)
         return;
     }
 
+    if (event->key() == Qt::Key_Control && !m_editor->isVisible())
+    {
+        m_hoverModifiers &= ~Qt::ControlModifier;
+        updateCursorForPosition(mapFromGlobal(QCursor::pos()));
+    }
+
     QWidget::keyReleaseEvent(event);
 }
 
@@ -3091,6 +3117,19 @@ void DiagramView::updateCursorForPosition(const QPointF &viewPoint)
     {
         setCursor(Qt::CrossCursor);
         return;
+    }
+
+    // Ctrl over a hyperlinked cell shows the "open link" hand, like draw.io.
+    if ((m_hoverModifiers & Qt::ControlModifier)
+        && m_page != nullptr && !m_hoverCellId.isEmpty())
+    {
+        Cell *hover = m_page->cell(m_hoverCellId);
+
+        if (hover != nullptr && !hover->link.isEmpty())
+        {
+            setCursor(Qt::PointingHandCursor);
+            return;
+        }
     }
 
     if (hasSelection())
@@ -3302,6 +3341,9 @@ void DiagramView::cloneSelectionTo(Page &target, const QVector<Cell *> &sourceCe
         copy->value = cell->value;
         copy->style = cell->style;
         copy->visible = cell->visible;
+        copy->link = cell->link;
+        copy->placeholders = cell->placeholders;
+        copy->placeholderName = cell->placeholderName;
         copy->geometry = cell->geometry;
         copy->rotation = cell->rotation;
         copy->sourceId = cell->sourceId;
@@ -4122,6 +4164,26 @@ void DiagramView::setCellValue(const QString &cellId, const QString &value)
     update();
 }
 
+void DiagramView::setCellLink(const QString &cellId, const QString &link)
+{
+    if (m_page == nullptr)
+    {
+        return;
+    }
+
+    Cell *cell = m_page->cell(cellId);
+
+    if (cell == nullptr || cell->link == link)
+    {
+        return;
+    }
+
+    beginSnapshot(QStringLiteral("Edit Link"));
+    cell->link = link;
+    commitSnapshot();
+    update();
+}
+
 void DiagramView::applyStyle(const QString &key, const QString &value)
 {
     if (m_page == nullptr || m_selection.isEmpty())
@@ -4577,6 +4639,10 @@ Cell *DiagramView::addShape(const ShapeDefinition &definition, const QPointF &sc
     // Palette entries such as the List container create their child cells too.
     if (cell != nullptr)
     {
+        cell->link = definition.link;
+        cell->placeholders = definition.placeholders;
+        cell->placeholderName = definition.placeholderName;
+
         for (const ShapeChildDefinition &child : definition.children)
         {
             Cell *created = m_page->addVertex(child.geometry, Style::parse(child.style),

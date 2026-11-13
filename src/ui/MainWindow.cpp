@@ -30,6 +30,7 @@
 #include <QDragEnterEvent>
 #include <QDropEvent>
 #include <QAbstractButton>
+#include <QDesktopServices>
 #include <QDialog>
 #include <QPushButton>
 #include <QFile>
@@ -39,6 +40,7 @@
 #include <QHBoxLayout>
 #include <QImage>
 #include <QInputDialog>
+#include <QLineEdit>
 #include <QLabel>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -389,6 +391,16 @@ MainWindow::MainWindow(QWidget *parent)
     });
     connect(m_view, &DiagramView::contextMenuRequested, this,
             &MainWindow::showCanvasContextMenu);
+    connect(m_view, &DiagramView::linkActivated, this, [this](const QString &url)
+    {
+        const QUrl target(url);
+
+        if (target.isValid() && !target.isEmpty())
+        {
+            QDesktopServices::openUrl(target);
+            showStatusMessage(QStringLiteral("Opening %1").arg(url));
+        }
+    });
     connect(m_view, &DiagramView::statusMessage, this, [this](const QString &message)
     {
         showStatusMessage(message);
@@ -1330,6 +1342,9 @@ void MainWindow::createMenus()
     editMenu->addAction(m_pasteAction);
     editMenu->addAction(m_duplicateAction);
     editMenu->addAction(m_deleteAction);
+    m_editLinkAction = editMenu->addAction(QStringLiteral("Edit Link…"));
+    m_editLinkAction->setShortcut(QKeySequence(QStringLiteral("Ctrl+K")));
+    connect(m_editLinkAction, &QAction::triggered, this, &MainWindow::editSelectedLink);
     editMenu->addSeparator();
     editMenu->addAction(m_selectAllAction);
     editMenu->addSeparator();
@@ -1637,6 +1652,11 @@ void MainWindow::updateActions()
     m_closeAction->setEnabled(true);
     m_selectAllAction->setEnabled(hasDocument);
     m_pasteAction->setEnabled(hasDocument);
+
+    if (m_editLinkAction != nullptr)
+    {
+        m_editLinkAction->setEnabled(hasSelection && selectionHasLink());
+    }
 
     m_cutAction->setEnabled(hasSelection);
     m_copyAction->setEnabled(hasSelection);
@@ -2778,6 +2798,40 @@ void MainWindow::watchCurrentFile(bool watch)
 
 // --- context menu / close ------------------------------------------------
 
+void MainWindow::editSelectedLink()
+{
+    const QVector<Cell *> cells = m_view->selectedCellObjects();
+
+    if (cells.isEmpty())
+    {
+        return;
+    }
+
+    Cell *cell = cells.first();
+    bool ok = false;
+    const QString link = QInputDialog::getText(
+        this, QStringLiteral("Edit Link"), QStringLiteral("Link URL:"),
+        QLineEdit::Normal, cell->link, &ok);
+
+    if (ok)
+    {
+        m_view->setCellLink(cell->id, link.trimmed());
+    }
+}
+
+bool MainWindow::selectionHasLink() const
+{
+    for (Cell *cell : m_view->selectedCellObjects())
+    {
+        if (!cell->link.isEmpty())
+        {
+            return true;
+        }
+    }
+
+    return false;
+}
+
 void MainWindow::showCanvasContextMenu(const QPoint &globalPos, const QString &cellId)
 {
     Q_UNUSED(cellId);
@@ -2798,6 +2852,13 @@ void MainWindow::showCanvasContextMenu(const QPoint &globalPos, const QString &c
         {
             m_view->startEditingSelection();
         });
+
+        // draw.io only offers the link editor on cells that carry a link.
+        if (selectionHasLink())
+        {
+            QAction *linkAction = menu.addAction(QStringLiteral("Edit Link…"));
+            connect(linkAction, &QAction::triggered, this, &MainWindow::editSelectedLink);
+        }
 
         QAction *connectAction = menu.addAction(QStringLiteral("Connect Selected Shapes"));
         connectAction->setEnabled(m_view->selection().size() >= 2);

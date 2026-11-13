@@ -201,6 +201,33 @@ const QHash<QString, StyleMap> &namedStyles()
         styles.insert(QStringLiteral("edgeLabel"),
                       Style::merged(text, {{QStringLiteral("labelBackgroundColor"), QStringLiteral("default")},
                                     {QStringLiteral("fontSize"), QStringLiteral("11")}}));
+        // styles/default.xml: label is the default vertex shape with an
+        // image and a text column; icon extends it with a centred image and
+        // the label below the shape.
+        styles.insert(QStringLiteral("label"),
+                      {{QStringLiteral("shape"), QStringLiteral("label")},
+                       {QStringLiteral("fontStyle"), QStringLiteral("1")},
+                       {QStringLiteral("align"), QStringLiteral("left")},
+                       {QStringLiteral("verticalAlign"), QStringLiteral("middle")},
+                       {QStringLiteral("spacing"), QStringLiteral("2")},
+                       {QStringLiteral("spacingLeft"), QStringLiteral("52")},
+                       {QStringLiteral("imageWidth"), QStringLiteral("42")},
+                       {QStringLiteral("imageHeight"), QStringLiteral("42")},
+                       {QStringLiteral("rounded"), QStringLiteral("1")}});
+        styles.insert(QStringLiteral("icon"),
+                      {{QStringLiteral("shape"), QStringLiteral("label")},
+                       {QStringLiteral("fontStyle"), QStringLiteral("0")},
+                       {QStringLiteral("align"), QStringLiteral("center")},
+                       {QStringLiteral("verticalAlign"), QStringLiteral("top")},
+                       {QStringLiteral("verticalLabelPosition"), QStringLiteral("bottom")},
+                       {QStringLiteral("imageAlign"), QStringLiteral("center")},
+                       {QStringLiteral("spacing"), QStringLiteral("0")},
+                       {QStringLiteral("spacingLeft"), QStringLiteral("0")},
+                       {QStringLiteral("spacingTop"), QStringLiteral("6")},
+                       {QStringLiteral("labelBackgroundColor"), QStringLiteral("default")},
+                       {QStringLiteral("imageWidth"), QStringLiteral("48")},
+                       {QStringLiteral("imageHeight"), QStringLiteral("48")},
+                       {QStringLiteral("rounded"), QStringLiteral("1")}});
         styles.insert(QStringLiteral("swimlane"),
                       {{QStringLiteral("shape"), QStringLiteral("swimlane")},
                        {QStringLiteral("fontSize"), QStringLiteral("12")},

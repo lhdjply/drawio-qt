@@ -136,8 +136,10 @@ QString normalizeStencilKey(const QString &shape)
 
 QString shapeKey(const Cell &cell)
 {
+    // Named styles such as `label` / `icon` expand to shape=label in
+    // draw.io's stylesheet, so resolve the defaults before reading the key.
     const QString shape = normalizeStencilKey(
-        cell.styleValue(QStringLiteral("shape")).trimmed());
+        Style::value(Style::withDefaults(cell.style), QStringLiteral("shape")).trimmed());
 
     if (!shape.isEmpty())
     {
@@ -1749,6 +1751,41 @@ QVector<ShapeDefinition> toolboxShapes()
         shapes.append(definition);
     };
 
+    // Palette entries that create child cells (tables, the shape group) use
+    // these helpers; child coordinates are relative to the new parent.
+    auto child = [](const QString &style, const QString &value, double x, double y,
+                    double w, double h)
+    {
+        ShapeChildDefinition definition;
+        definition.style = style;
+        definition.value = value;
+        definition.geometry = QRectF(x, y, w, h);
+        return definition;
+    };
+
+    auto addMisc = [&shapes](const QString &key, const QString &name,
+                             const QString &style, const QString &value,
+                             const QSizeF &size, bool edge,
+                             const QVector<ShapeChildDefinition> &children,
+                             const QString &link = QString(),
+                             bool placeholders = false,
+                             const QString &placeholderName = QString())
+    {
+        ShapeDefinition definition;
+        definition.key = key;
+        definition.name = name;
+        definition.style = style;
+        definition.value = value;
+        definition.size = size;
+        definition.category = QStringLiteral("misc");
+        definition.edge = edge;
+        definition.children = children;
+        definition.link = link;
+        definition.placeholders = placeholders;
+        definition.placeholderName = placeholderName;
+        shapes.append(definition);
+    };
+
     // --- general ---------------------------------------------------------
     // Exactly the entries of Sidebar.prototype.addGeneralPalette in draw.io's
     // grapheditor/Sidebar.js: same order, same style strings, same default
@@ -2436,21 +2473,285 @@ QVector<ShapeDefinition> toolboxShapes()
             + blue, QSizeF(60, 110), QStringLiteral("cloud"));
 
     // --- misc ------------------------------------------------------------
-    add(QStringLiteral("misc.container"), QStringLiteral("Container"),
-        QStringLiteral("swimlane;startSize=0;html=1;fillColor=none;strokeColor=#000000;"),
-        QSizeF(220, 160), QStringLiteral("misc"));
-    add(QStringLiteral("misc.table"), QStringLiteral("Table"),
-        QStringLiteral("shape=miscTable;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(180, 120), QStringLiteral("misc"));
-    add(QStringLiteral("misc.list"), QStringLiteral("List"),
-        QStringLiteral("shape=miscList;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(180, 120), QStringLiteral("misc"));
-    add(QStringLiteral("misc.note"), QStringLiteral("Note"),
-        QStringLiteral("shape=note;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(120, 100), QStringLiteral("misc"));
-    add(QStringLiteral("misc.callout"), QStringLiteral("Callout"),
-        QStringLiteral("shape=callout;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(150, 90), QStringLiteral("misc"));
+    // Exactly the entries of Sidebar.prototype.addMiscPalette (draw.io's
+    // grapheditor/Sidebar.js): same order, same style strings, same sizes and
+    // template values. Table entries carry their row/cell children, the shape
+    // group its triangle.
+    addMisc(QStringLiteral("misc.autosizeText"), QStringLiteral("Autosize Text"),
+        QStringLiteral("text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;rounded=0;autosize=1;resizable=0;"),
+        QStringLiteral("Text"), QSizeF(50, 30), false, {});
+    addMisc(QStringLiteral("misc.autosizeTitle"), QStringLiteral("Autosize Title"),
+        QStringLiteral("text;strokeColor=none;fillColor=none;html=1;fontSize=25;fontStyle=1;verticalAlign=middle;align=center;autosizeText=1;"),
+        QStringLiteral("Autosize Title"), QSizeF(160, 40), false, {});
+    addMisc(QStringLiteral("misc.link"), QStringLiteral("Link"),
+        QStringLiteral("text;html=1;strokeColor=none;fillColor=none;whiteSpace=wrap;align=center;verticalAlign=middle;fontColor=#0000EE;fontStyle=4;"),
+        QStringLiteral("Link"), QSizeF(60, 40), false, {},
+        QStringLiteral("https://www.draw.io"));
+    addMisc(QStringLiteral("misc.curvedText"), QStringLiteral("Curved Text"),
+        QStringLiteral("shape=curvedText;noLabel=1;align=center;verticalAlign=middle;strokeColor=none;fillColor=none;"),
+        QStringLiteral("Curved Text"), QSizeF(70, 50), false, {});
+    addMisc(QStringLiteral("misc.slantedTextLeft"), QStringLiteral("Slanted Text Left"),
+        QStringLiteral("text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;"),
+        QStringLiteral("<div style=\"transform:skewY(30deg);\">Text</div>"), QSizeF(100, 60), false, {});
+    addMisc(QStringLiteral("misc.slantedTextRight"), QStringLiteral("Slanted Text Right"),
+        QStringLiteral("text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;"),
+        QStringLiteral("<div style=\"transform:skewY(-30deg);\">Text</div>"), QSizeF(100, 60), false, {});
+    addMisc(QStringLiteral("misc.slantedTextTop"), QStringLiteral("Slanted Text Top"),
+        QStringLiteral("text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;"),
+        QStringLiteral("<div style=\"transform:matrix(0.866,-0.5,0.866,0.5,0,0);\">Text</div>"), QSizeF(100, 60), false, {});
+    addMisc(QStringLiteral("misc.variable"), QStringLiteral("Variable"),
+        QStringLiteral("text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;"),
+        QStringLiteral("%name% Text"), QSizeF(80, 20), false, {}, QString(),
+        true, QStringLiteral("Variable"));
+    addMisc(QStringLiteral("misc.timestamp"), QStringLiteral("Timestamp"),
+        QStringLiteral("text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;overflow=hidden;"),
+        QStringLiteral("%date{ddd mmm dd yyyy HH:MM:ss}%"), QSizeF(160, 20), false, {},
+        QString(), true);
+    addMisc(QStringLiteral("misc.unorderedList"), QStringLiteral("Unordered List"),
+        QStringLiteral("text;strokeColor=none;fillColor=none;html=1;whiteSpace=wrap;verticalAlign=middle;overflow=hidden;"),
+        QStringLiteral("<ul><li>Value 1</li><li>Value 2</li><li>Value 3</li></ul>"), QSizeF(100, 80), false, {});
+    addMisc(QStringLiteral("misc.orderedList"), QStringLiteral("Ordered List"),
+        QStringLiteral("text;strokeColor=none;fillColor=none;html=1;whiteSpace=wrap;verticalAlign=middle;overflow=hidden;"),
+        QStringLiteral("<ol><li>Value 1</li><li>Value 2</li><li>Value 3</li></ol>"), QSizeF(100, 80), false, {});
+    addMisc(QStringLiteral("misc.verticalList"), QStringLiteral("Vertical List"),
+        QStringLiteral("shape=table;tableRender=collapsed;startSize=0;container=1;collapsible=0;childLayout=tableLayout;fontSize=11;fillColor=none;strokeColor=none;"),
+        QStringLiteral(""), QSizeF(60, 60), false, {
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;"), QStringLiteral(""), 0, 0, 60, 15),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=12;align=left;spacingLeft=5;"), QStringLiteral("Item 1"), 0, 0, 60, 15),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;"), QStringLiteral(""), 0, 15, 60, 15),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=12;align=left;spacingLeft=5;"), QStringLiteral("Item 2"), 0, 15, 60, 15),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;"), QStringLiteral(""), 0, 30, 60, 15),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=12;align=left;spacingLeft=5;"), QStringLiteral("Item 3"), 0, 30, 60, 15),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;"), QStringLiteral(""), 0, 45, 60, 15),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=12;align=left;spacingLeft=5;"), QStringLiteral("Item 4"), 0, 45, 60, 15)});
+    addMisc(QStringLiteral("misc.note"), QStringLiteral("Note"),
+        QStringLiteral("shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;autosizeText=1;fontColor=#000000;darkOpacity=0.05;fillColor=#FFF9B2;strokeColor=none;fillStyle=solid;fontSize=20;direction=west;gradientDirection=north;gradientColor=#FFF2A1;shadow=1;size=20;pointerEvents=1;"),
+        QStringLiteral("The size of the font in this note will change so that it fits within the note shape"), QSizeF(150, 150), false, {});
+    addMisc(QStringLiteral("misc.table1"), QStringLiteral("Table 1"),
+        QStringLiteral("shape=table;tableRender=collapsed;startSize=0;container=1;collapsible=0;childLayout=tableLayout;fontSize=16;"),
+        QStringLiteral(""), QSizeF(180, 120), false, {
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;"), QStringLiteral(""), 0, 0, 180, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 0, 0, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 60, 0, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 120, 0, 60, 40),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;"), QStringLiteral(""), 0, 40, 180, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 0, 40, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 60, 40, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 120, 40, 60, 40),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;"), QStringLiteral(""), 0, 80, 180, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 0, 80, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 60, 80, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 120, 80, 60, 40)});
+    addMisc(QStringLiteral("misc.table2"), QStringLiteral("Table 2"),
+        QStringLiteral("shape=table;tableRender=collapsed;html=1;whiteSpace=wrap;startSize=0;container=1;collapsible=0;childLayout=tableLayout;columnLines=0;rowLines=0;fontSize=16;strokeColor=default;"),
+        QStringLiteral(""), QSizeF(180, 120), false, {
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;strokeColor=inherit;"), QStringLiteral(""), 0, 0, 180, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;fontSize=12;strokeColor=inherit;"), QStringLiteral("Value 1"), 0, 0, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;fontSize=12;strokeColor=inherit;"), QStringLiteral("Value 2"), 60, 0, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;fontSize=12;strokeColor=inherit;"), QStringLiteral("Value 3"), 120, 0, 60, 40),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;strokeColor=inherit;"), QStringLiteral(""), 0, 40, 180, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;fontSize=12;strokeColor=inherit;"), QStringLiteral("Value 4"), 0, 40, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;fontSize=12;strokeColor=inherit;"), QStringLiteral("Value 5"), 60, 40, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;fontSize=12;strokeColor=inherit;"), QStringLiteral("Value 6"), 120, 40, 60, 40),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;strokeColor=inherit;"), QStringLiteral(""), 0, 80, 180, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;fontSize=12;strokeColor=inherit;"), QStringLiteral("Value 7"), 0, 80, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;fontSize=12;strokeColor=inherit;"), QStringLiteral("Value 8"), 60, 80, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;fontSize=12;strokeColor=inherit;"), QStringLiteral("Value 9"), 120, 80, 60, 40)});
+    addMisc(QStringLiteral("misc.tableWithTitle1"), QStringLiteral("Table with Title 1"),
+        QStringLiteral("shape=table;tableRender=collapsed;startSize=30;container=1;collapsible=0;childLayout=tableLayout;strokeColor=default;fontSize=16;"),
+        QStringLiteral("Table"), QSizeF(180, 150), false, {
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;"), QStringLiteral(""), 0, 30, 180, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 0, 30, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 60, 30, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 120, 30, 60, 40),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;"), QStringLiteral(""), 0, 70, 180, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 0, 70, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 60, 70, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 120, 70, 60, 40),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;fontSize=16;"), QStringLiteral(""), 0, 110, 180, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 0, 110, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 60, 110, 60, 40),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;strokeColor=inherit;overflow=hidden;fillColor=none;pointerEvents=1;fontSize=16;"), QStringLiteral(""), 120, 110, 60, 40)});
+    addMisc(QStringLiteral("misc.tableWithTitle2"), QStringLiteral("Table with Title 2"),
+        QStringLiteral("shape=table;tableRender=collapsed;startSize=30;container=1;collapsible=0;childLayout=tableLayout;fixedRows=1;rowLines=0;fontStyle=0;strokeColor=default;fontSize=16;"),
+        QStringLiteral("Table"), QSizeF(180, 120), false, {
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;strokeColor=inherit;fontSize=16;"), QStringLiteral(""), 0, 30, 180, 30),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;pointerEvents=1;strokeColor=inherit;fontSize=16;"), QStringLiteral("1"), 0, 30, 40, 30),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;align=left;spacingLeft=6;overflow=hidden;strokeColor=inherit;fontSize=16;"), QStringLiteral("Value 1"), 40, 30, 140, 30),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;strokeColor=inherit;fontSize=16;"), QStringLiteral(""), 0, 60, 180, 30),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;strokeColor=inherit;fontSize=16;"), QStringLiteral("2"), 0, 60, 40, 30),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;align=left;spacingLeft=6;overflow=hidden;strokeColor=inherit;fontSize=16;"), QStringLiteral("Value 2"), 40, 60, 140, 30),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;collapsible=0;dropTarget=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;strokeColor=inherit;fontSize=16;"), QStringLiteral(""), 0, 90, 180, 30),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;overflow=hidden;strokeColor=inherit;fontSize=16;"), QStringLiteral("3"), 0, 90, 40, 30),
+            child(QStringLiteral("shape=partialRectangle;html=1;whiteSpace=wrap;connectable=0;fillColor=none;align=left;spacingLeft=6;overflow=hidden;strokeColor=inherit;fontSize=16;"), QStringLiteral("Value 3"), 40, 90, 140, 30)});
+    addMisc(QStringLiteral("misc.crossFunctional"), QStringLiteral("Cross-Functional Flowchart"),
+        QStringLiteral("shape=table;tableRender=collapsed;childLayout=tableLayout;startSize=40;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"),
+        QStringLiteral("Cross-Functional Flowchart"), QSizeF(400, 400), false, {
+            child(QStringLiteral("shape=tableRow;horizontal=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;dropTarget=0;fontStyle=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;startSize=40;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral("Actor 1"), 0, 40, 400, 120),
+            child(QStringLiteral("swimlane;swimlaneHead=0;swimlaneBody=0;fontStyle=0;strokeColor=inherit;connectable=0;fillColor=none;startSize=40;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral("Phase 1"), 40, 40, 120, 120),
+            child(QStringLiteral("swimlane;swimlaneHead=0;swimlaneBody=0;fontStyle=0;strokeColor=inherit;connectable=0;fillColor=none;startSize=40;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral("Phase 2"), 160, 40, 120, 120),
+            child(QStringLiteral("swimlane;swimlaneHead=0;swimlaneBody=0;fontStyle=0;strokeColor=inherit;connectable=0;fillColor=none;startSize=40;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral("Phase 3"), 280, 40, 120, 120),
+            child(QStringLiteral("shape=tableRow;horizontal=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;dropTarget=0;fontStyle=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;startSize=40;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral("Actor 2"), 0, 160, 400, 120),
+            child(QStringLiteral("swimlane;swimlaneHead=0;swimlaneBody=0;fontStyle=0;connectable=0;strokeColor=inherit;fillColor=none;startSize=0;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral(""), 40, 160, 120, 120),
+            child(QStringLiteral("swimlane;swimlaneHead=0;swimlaneBody=0;fontStyle=0;connectable=0;strokeColor=inherit;fillColor=none;startSize=0;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral(""), 160, 160, 120, 120),
+            child(QStringLiteral("swimlane;swimlaneHead=0;swimlaneBody=0;fontStyle=0;connectable=0;strokeColor=inherit;fillColor=none;startSize=0;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral(""), 280, 160, 120, 120),
+            child(QStringLiteral("shape=tableRow;horizontal=0;swimlaneHead=0;swimlaneBody=0;strokeColor=inherit;dropTarget=0;fontStyle=0;fillColor=none;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;startSize=40;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral("Actor 3"), 0, 280, 400, 120),
+            child(QStringLiteral("swimlane;swimlaneHead=0;swimlaneBody=0;fontStyle=0;connectable=0;strokeColor=inherit;fillColor=none;startSize=0;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral(""), 40, 280, 120, 120),
+            child(QStringLiteral("swimlane;swimlaneHead=0;swimlaneBody=0;fontStyle=0;connectable=0;strokeColor=inherit;fillColor=none;startSize=0;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral(""), 160, 280, 120, 120),
+            child(QStringLiteral("swimlane;swimlaneHead=0;swimlaneBody=0;fontStyle=0;connectable=0;strokeColor=inherit;fillColor=none;startSize=0;collapsible=0;recursiveResize=0;expand=0;fontSize=16;"), QStringLiteral(""), 280, 280, 120, 120)});
+    addMisc(QStringLiteral("misc.tableAssets"), QStringLiteral("Table"),
+        QStringLiteral("childLayout=tableLayout;recursiveResize=0;strokeColor=#98bf21;fillColor=#A7C942;shadow=1;"),
+        QStringLiteral("Assets"), QSizeF(280, 160), false, {
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;dropTarget=0;collapsible=0;recursiveResize=0;expand=0;fontStyle=0;strokeColor=inherit;fillColor=#ffffff;"), QStringLiteral(""), 0, 0, 280, 33),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=#A7C942;align=center;fontStyle=1;fontColor=#FFFFFF;html=1;"), QStringLiteral("Title 1"), 0, 0, 93, 33),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=#A7C942;align=center;fontStyle=1;fontColor=#FFFFFF;html=1;"), QStringLiteral("Title 2"), 93, 0, 94, 33),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=#A7C942;align=center;fontStyle=1;fontColor=#FFFFFF;html=1;"), QStringLiteral("Title 3"), 187, 0, 93, 33),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;dropTarget=0;collapsible=0;recursiveResize=0;expand=0;fontStyle=0;strokeColor=inherit;fillColor=#ffffff;"), QStringLiteral(""), 0, 33, 280, 32),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 1"), 0, 33, 93, 32),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 2"), 93, 33, 94, 32),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 3"), 187, 33, 93, 32),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;dropTarget=0;collapsible=0;recursiveResize=0;expand=0;fontStyle=1;strokeColor=inherit;fillColor=#EAF2D3;"), QStringLiteral(""), 0, 65, 280, 31),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;whiteSpace=wrap;html=1;"), QStringLiteral("Value 4"), 0, 65, 93, 31),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;whiteSpace=wrap;html=1;"), QStringLiteral("Value 5"), 93, 65, 94, 31),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;whiteSpace=wrap;html=1;"), QStringLiteral("Value 6"), 187, 65, 93, 31),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;dropTarget=0;collapsible=0;recursiveResize=0;expand=0;fontStyle=0;strokeColor=inherit;fillColor=#ffffff;"), QStringLiteral(""), 0, 96, 280, 33),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;fontStyle=0;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 7"), 0, 96, 93, 33),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;fontStyle=0;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 8"), 93, 96, 94, 33),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;fontStyle=0;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 9"), 187, 96, 93, 33),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;dropTarget=0;collapsible=0;recursiveResize=0;expand=0;fontStyle=1;strokeColor=inherit;fillColor=#EAF2D3;"), QStringLiteral(""), 0, 129, 280, 31),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;whiteSpace=wrap;html=1;"), QStringLiteral("Value 10"), 0, 129, 93, 31),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;whiteSpace=wrap;html=1;"), QStringLiteral("Value 11"), 93, 129, 94, 31),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=inherit;whiteSpace=wrap;html=1;"), QStringLiteral("Value 12"), 187, 129, 93, 31)});
+    addMisc(QStringLiteral("misc.tableBordered"), QStringLiteral("Table"),
+        QStringLiteral("childLayout=tableLayout;recursiveResize=0;shadow=0;fillColor=none;strokeColor=#C0C0C0;"),
+        QStringLiteral(""), QSizeF(180, 140), false, {
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;dropTarget=0;collapsible=0;recursiveResize=0;expand=0;fontStyle=0;fillColor=none;"), QStringLiteral(""), 0, 0, 180, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=none;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 1"), 0, 0, 60, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=none;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 2"), 60, 0, 60, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=none;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 3"), 120, 0, 60, 47),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;dropTarget=0;collapsible=0;recursiveResize=0;expand=0;fontStyle=0;fillColor=none;"), QStringLiteral(""), 0, 47, 180, 46),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=none;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 4"), 0, 47, 60, 46),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=none;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 5"), 60, 47, 60, 46),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=none;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 6"), 120, 47, 60, 46),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;dropTarget=0;collapsible=0;recursiveResize=0;expand=0;fontStyle=0;fillColor=none;"), QStringLiteral(""), 0, 93, 180, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=none;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 7"), 0, 93, 60, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=none;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 8"), 60, 93, 60, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=none;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 9"), 120, 93, 60, 47)});
+    addMisc(QStringLiteral("misc.tablePlain"), QStringLiteral("Table"),
+        QStringLiteral("childLayout=tableLayout;recursiveResize=0;shadow=0;fillColor=none;"),
+        QStringLiteral(""), QSizeF(180, 140), false, {
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;dropTarget=0;collapsible=0;recursiveResize=0;expand=0;fontStyle=0;fillColor=none;strokeColor=inherit;"), QStringLiteral(""), 0, 0, 180, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 1"), 0, 0, 60, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 2"), 60, 0, 60, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 3"), 120, 0, 60, 47),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;dropTarget=0;collapsible=0;recursiveResize=0;expand=0;fontStyle=0;fillColor=none;strokeColor=inherit;"), QStringLiteral(""), 0, 47, 180, 46),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 4"), 0, 47, 60, 46),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 5"), 60, 47, 60, 46),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 6"), 120, 47, 60, 46),
+            child(QStringLiteral("shape=tableRow;horizontal=0;startSize=0;swimlaneHead=0;swimlaneBody=0;top=0;left=0;bottom=0;right=0;dropTarget=0;collapsible=0;recursiveResize=0;expand=0;fontStyle=0;fillColor=none;strokeColor=inherit;"), QStringLiteral(""), 0, 93, 180, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 7"), 0, 93, 60, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 8"), 60, 93, 60, 47),
+            child(QStringLiteral("connectable=0;recursiveResize=0;strokeColor=inherit;fillColor=none;align=center;whiteSpace=wrap;html=1;"), QStringLiteral("Value 9"), 120, 93, 60, 47)});
+    addMisc(QStringLiteral("misc.htmlTable"), QStringLiteral("HTML Table 4"),
+        QStringLiteral("text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;overflow=fill;"),
+        QStringLiteral("<table border=\"1\" width=\"100%\" height=\"100%\" cellpadding=\"4\" style=\"width:100%;height:100%;border-collapse:collapse;\"><tr><th align=\"center\"><b>Title</b></th></tr><tr><td align=\"center\">Section 1.1\nSection 1.2\nSection 1.3</td></tr><tr><td align=\"center\">Section 2.1\nSection 2.2\nSection 2.3</td></tr></table>"), QSizeF(180, 180), false, {});
+    addMisc(QStringLiteral("misc.rectangleSketch"), QStringLiteral("Rectangle Sketch"),
+        QStringLiteral("rounded=1;whiteSpace=wrap;html=1;strokeWidth=2;fillWeight=4;hachureGap=8;hachureAngle=45;fillColor=#1ba1e2;sketch=1;"),
+        QStringLiteral(""), QSizeF(120, 60), false, {});
+    addMisc(QStringLiteral("misc.ellipseSketch"), QStringLiteral("Ellipse Sketch"),
+        QStringLiteral("ellipse;whiteSpace=wrap;html=1;strokeWidth=2;fillWeight=2;hachureGap=8;fillColor=#990000;fillStyle=dots;sketch=1;"),
+        QStringLiteral(""), QSizeF(120, 60), false, {});
+    addMisc(QStringLiteral("misc.diamondSketch"), QStringLiteral("Diamond Sketch"),
+        QStringLiteral("rhombus;whiteSpace=wrap;html=1;strokeWidth=2;fillWeight=-1;hachureGap=8;fillStyle=cross-hatch;fillColor=#006600;sketch=1;"),
+        QStringLiteral(""), QSizeF(120, 60), false, {});
+    addMisc(QStringLiteral("misc.isometricCube"), QStringLiteral("Isometric Cube"),
+        QStringLiteral("html=1;whiteSpace=wrap;shape=isoCube2;backgroundOutline=1;isoAngle=15;"),
+        QStringLiteral(""), QSizeF(90, 100), false, {});
+    addMisc(QStringLiteral("misc.isometricSquare"), QStringLiteral("Isometric Square"),
+        QStringLiteral("html=1;whiteSpace=wrap;aspect=fixed;shape=isoRectangle;"),
+        QStringLiteral(""), QSizeF(150, 90), false, {});
+    addMisc(QStringLiteral("misc.isometricEdge1"), QStringLiteral("Isometric Edge 1"),
+        QStringLiteral("edgeStyle=isometricEdgeStyle;endArrow=none;html=1;rounded=0;defaultLabelBackgroundColor=page;"),
+        QStringLiteral(""), QSizeF(50, 100), true, {});
+    addMisc(QStringLiteral("misc.isometricEdge2"), QStringLiteral("Isometric Edge 2"),
+        QStringLiteral("edgeStyle=isometricEdgeStyle;endArrow=none;html=1;elbow=vertical;rounded=0;defaultLabelBackgroundColor=page;"),
+        QStringLiteral(""), QSizeF(50, 100), true, {});
+    addMisc(QStringLiteral("misc.leftCurlyBracket"), QStringLiteral("Left Curly Bracket"),
+        QStringLiteral("shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;labelPosition=left;verticalLabelPosition=middle;align=right;verticalAlign=middle;labelPerimeter=1;"),
+        QStringLiteral(""), QSizeF(20, 120), false, {});
+    addMisc(QStringLiteral("misc.rightCurlyBracket"), QStringLiteral("Right Curly Bracket"),
+        QStringLiteral("shape=curlyBracket;whiteSpace=wrap;html=1;rounded=1;flipH=1;labelPosition=right;verticalLabelPosition=middle;align=left;verticalAlign=middle;labelPerimeter=1;legacyAnchorPoints=0;"),
+        QStringLiteral(""), QSizeF(20, 120), false, {});
+    addMisc(QStringLiteral("misc.horizontalLine"), QStringLiteral("Horizontal Line"),
+        QStringLiteral("line;strokeWidth=2;html=1;"),
+        QStringLiteral(""), QSizeF(160, 10), false, {});
+    addMisc(QStringLiteral("misc.verticalLine"), QStringLiteral("Vertical Line"),
+        QStringLiteral("line;strokeWidth=2;direction=south;html=1;"),
+        QStringLiteral(""), QSizeF(10, 160), false, {});
+    addMisc(QStringLiteral("misc.horizontalBackbone"), QStringLiteral("Horizontal Backbone"),
+        QStringLiteral("line;strokeWidth=4;html=1;perimeter=backbonePerimeter;points=[];outlineConnect=0;"),
+        QStringLiteral(""), QSizeF(160, 10), false, {});
+    addMisc(QStringLiteral("misc.verticalBackbone"), QStringLiteral("Vertical Backbone"),
+        QStringLiteral("line;strokeWidth=4;direction=south;html=1;perimeter=backbonePerimeter;points=[];outlineConnect=0;"),
+        QStringLiteral(""), QSizeF(10, 160), false, {});
+    addMisc(QStringLiteral("misc.horizontalCrossbar"), QStringLiteral("Horizontal Crossbar"),
+        QStringLiteral("shape=crossbar;whiteSpace=wrap;html=1;rounded=1;"),
+        QStringLiteral(""), QSizeF(120, 20), false, {});
+    addMisc(QStringLiteral("misc.verticalCrossbar"), QStringLiteral("Vertical Crossbar"),
+        QStringLiteral("shape=crossbar;whiteSpace=wrap;html=1;rounded=1;direction=south;"),
+        QStringLiteral(""), QSizeF(20, 120), false, {});
+    addMisc(QStringLiteral("misc.imageFixedAspect"), QStringLiteral("Image (Fixed Aspect)"),
+        QStringLiteral("shape=image;html=1;verticalLabelPosition=bottom;verticalAlign=top;imageAspect=1;aspect=fixed;image=img/clipart/Gear_128x128.png;labelPerimeter=1;"),
+        QStringLiteral(""), QSizeF(52, 61), false, {});
+    addMisc(QStringLiteral("misc.imageVariableAspect"), QStringLiteral("Image (Variable Aspect)"),
+        QStringLiteral("shape=image;html=1;verticalLabelPosition=bottom;verticalAlign=top;imageAspect=0;image=img/clipart/Gear_128x128.png;labelPerimeter=1;"),
+        QStringLiteral(""), QSizeF(50, 60), false, {});
+    addMisc(QStringLiteral("misc.icon"), QStringLiteral("Icon"),
+        QStringLiteral("icon;html=1;image=img/clipart/Gear_128x128.png;labelPerimeter=1;"),
+        QStringLiteral("Icon"), QSizeF(60, 60), false, {});
+    addMisc(QStringLiteral("misc.label1"), QStringLiteral("Label 1"),
+        QStringLiteral("label;whiteSpace=wrap;html=1;image=img/clipart/Gear_128x128.png"),
+        QStringLiteral("Label"), QSizeF(140, 60), false, {});
+    addMisc(QStringLiteral("misc.label2"), QStringLiteral("Label 2"),
+        QStringLiteral("label;whiteSpace=wrap;html=1;align=center;verticalAlign=bottom;spacingLeft=0;spacingBottom=4;imageAlign=center;imageVerticalAlign=top;image=img/clipart/Gear_128x128.png"),
+        QStringLiteral("Label"), QSizeF(120, 80), false, {});
+    addMisc(QStringLiteral("misc.shapeGroup"), QStringLiteral("Shape Group"),
+        QStringLiteral("html=1;whiteSpace=wrap;container=1;recursiveResize=0;collapsible=0;"),
+        QStringLiteral("Label"), QSizeF(160, 70), false, {
+            child(QStringLiteral("triangle;html=1;whiteSpace=wrap;"), QStringLiteral(""), 20, 20, 20, 30)});
+    addMisc(QStringLiteral("misc.partialRectangle1"), QStringLiteral("Partial Rectangle"),
+        QStringLiteral("shape=partialRectangle;whiteSpace=wrap;html=1;left=0;right=0;fillColor=none;"),
+        QStringLiteral(""), QSizeF(120, 60), false, {});
+    addMisc(QStringLiteral("misc.partialRectangle2"), QStringLiteral("Partial Rectangle"),
+        QStringLiteral("shape=partialRectangle;whiteSpace=wrap;html=1;bottom=0;top=0;fillColor=none;"),
+        QStringLiteral(""), QSizeF(120, 60), false, {});
+    addMisc(QStringLiteral("misc.partialRectangle3"), QStringLiteral("Partial Rectangle"),
+        QStringLiteral("shape=partialRectangle;whiteSpace=wrap;html=1;bottom=1;right=1;left=1;top=0;fillColor=none;routingCenterX=-0.5;"),
+        QStringLiteral(""), QSizeF(120, 60), false, {});
+    addMisc(QStringLiteral("misc.waypoint"), QStringLiteral("Waypoint"),
+        QStringLiteral("shape=waypoint;sketch=0;fillStyle=solid;size=6;pointerEvents=1;points=[];fillColor=none;resizable=0;rotatable=0;perimeter=centerPerimeter;snapToPoint=1;"),
+        QStringLiteral(""), QSizeF(20, 20), false, {});
+    addMisc(QStringLiteral("misc.manualLine"), QStringLiteral("Manual Line"),
+        QStringLiteral("edgeStyle=segmentEdgeStyle;endArrow=classic;html=1;curved=0;rounded=0;endSize=8;startSize=8;defaultLabelBackgroundColor=page;"),
+        QStringLiteral(""), QSizeF(50, 50), true, {});
+    addMisc(QStringLiteral("misc.filledEdge"), QStringLiteral("Filled Edge"),
+        QStringLiteral("shape=filledEdge;curved=0;rounded=0;fixDash=1;endArrow=none;strokeWidth=10;fillColor=#ffffff;edgeStyle=orthogonalEdgeStyle;html=1;defaultLabelBackgroundColor=page;"),
+        QStringLiteral(""), QSizeF(60, 40), true, {});
+    addMisc(QStringLiteral("misc.taperedArrow"), QStringLiteral("Tapered Arrow"),
+        QStringLiteral("shape=taperedArrow;startWidth=12;endWidth=2;endArrow=block;endFill=1;html=1;rounded=0;defaultLabelBackgroundColor=page;"),
+        QStringLiteral(""), QSizeF(60, 40), true, {});
+    addMisc(QStringLiteral("misc.horizontalElbow"), QStringLiteral("Horizontal Elbow"),
+        QStringLiteral("edgeStyle=elbowEdgeStyle;elbow=horizontal;endArrow=classic;html=1;curved=0;rounded=0;endSize=8;startSize=8;defaultLabelBackgroundColor=page;"),
+        QStringLiteral(""), QSizeF(50, 50), true, {});
+    addMisc(QStringLiteral("misc.verticalElbow"), QStringLiteral("Vertical Elbow"),
+        QStringLiteral("edgeStyle=elbowEdgeStyle;elbow=vertical;endArrow=classic;html=1;curved=0;rounded=0;endSize=8;startSize=8;defaultLabelBackgroundColor=page;"),
+        QStringLiteral(""), QSizeF(50, 50), true, {});
+    addMisc(QStringLiteral("misc.arc"), QStringLiteral("Arc"),
+        QStringLiteral("shape=mxgraph.basic.arc;html=1;startAngle=0.3;endAngle=0.1;endArrow=classic;endFill=1;"),
+        QStringLiteral(""), QSizeF(50, 50), false, {});
+    addMisc(QStringLiteral("misc.zigzag"), QStringLiteral("Zigzag"),
+        QStringLiteral("shape=zigzag;html=1;fillColor=none;"),
+        QStringLiteral(""), QSizeF(160, 20), false, {});
 
     // --- advanced layouts ------------------------------------------------
     add(QStringLiteral("advanced.container"), QStringLiteral("Container"),
@@ -3150,8 +3451,9 @@ ShapeDefinition definition(const QString &key)
 
 bool isTextShape(const Cell &cell)
 {
-    const QString key = shapeKey(cell);
-    return key == QLatin1String("text") || key == QLatin1String("label");
+    // draw.io's mxLabel (shape=label) is a rectangle with an image, not a
+    // label-only text cell; only `text;` cells paint text without a shape.
+    return shapeKey(cell) == QLatin1String("text");
 }
 
 bool isImageShape(const Cell &cell)
@@ -3222,6 +3524,142 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         {
             return geometry.path;
         }
+    }
+
+    if (key == QLatin1String("table") || key == QLatin1String("tableRow"))
+    {
+        // TableShape extends mxSwimlane: its geometry is the cell rectangle.
+        // The grid lines are painted by the renderer from the child geometry
+        // (see paintTableLines) so the path only needs the outer frame.
+        path.addRect(rect);
+        return path;
+    }
+
+    if (key == QLatin1String("isoRectangle"))
+    {
+        // IsoRectangleShape.redrawPath: an isometric diamond. tan30Dx is
+        // (0.5 - tan(30deg))/2 and m is the side that fits the cell.
+        const double tan30 = std::tan(qDegreesToRadians(30.0));
+        const double tan30Dx = (0.5 - tan30) / 2.0;
+        const double m = qMin(w, h / tan30);
+        const double ox = (w - m) / 2.0;
+        const double oy = (h - m) / 2.0 + m / 4.0;
+
+        path.moveTo(point(ox, oy + 0.25 * m));
+        path.lineTo(point(ox + 0.5 * m, oy + m * tan30Dx));
+        path.lineTo(point(ox + m, oy + 0.25 * m));
+        path.lineTo(point(ox + 0.5 * m, oy + (0.5 - tan30Dx) * m));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("isoCube2"))
+    {
+        // IsoCubeShape2.paintVertexShape: isoAngle is halved (15 -> 7.5deg).
+        const double isoAngle = qBound(0.01, Style::number(probe.style,
+            QStringLiteral("isoAngle"), 15.0), 94.0) * M_PI / 200.0;
+        const double isoH = qMin(w * std::tan(isoAngle), h * 0.5);
+
+        path.moveTo(point(w * 0.5, 0));
+        path.lineTo(point(w, isoH));
+        path.lineTo(point(w, h - isoH));
+        path.lineTo(point(w * 0.5, h));
+        path.lineTo(point(0, h - isoH));
+        path.lineTo(point(0, isoH));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("curlyBracket"))
+    {
+        // CurlyBracketShape.redrawPath: an open path, never filled.
+        const double s = w * qBound(0.0, Style::number(probe.style,
+            QStringLiteral("size"), 0.5), 1.0);
+        const double arcSize = qMax(0.0,
+            Style::number(probe.style, QStringLiteral("arcSize"), 20.0)) / 2.0;
+        const bool rounded = probe.styleFlag(QStringLiteral("rounded"));
+
+        addPoints(path,
+                  {point(w, 0), point(s, 0), point(s, h / 2), point(0, h / 2),
+                   point(s, h / 2), point(s, h), point(w, h)},
+                  rounded, arcSize, false);
+        return path;
+    }
+
+    if (key == QLatin1String("crossbar"))
+    {
+        // CrossbarShape.redrawPath: two vertical end ticks and a middle bar.
+        path.moveTo(point(0, 0));
+        path.lineTo(point(0, h));
+        path.moveTo(point(w, 0));
+        path.lineTo(point(w, h));
+        path.moveTo(point(0, h / 2));
+        path.lineTo(point(w, h / 2));
+        return path;
+    }
+
+    if (key == QLatin1String("zigzag"))
+    {
+        // ZigzagShape.paintVertexShape: peaks inset by the stroke width.
+        const double size = qMax(5.0, Style::number(probe.style,
+            QStringLiteral("size"), 10.0));
+        const double strokeWidth = qMax(0.5, Style::number(probe.style,
+            QStringLiteral("strokeWidth"), 1.0));
+        const bool rounded = probe.styleFlag(QStringLiteral("rounded"));
+        const double inset = rounded ? strokeWidth / 2.0 : strokeWidth;
+        const double centerY = h / 2.0;
+        const double topY = inset;
+        const double bottomY = h - inset;
+        const int numFull = qBound(1, qRound(w / size) - 1, 10000);
+        const double halfWave = w / (numFull + 1.0);
+        const double halfEnd = halfWave / 2.0;
+
+        path.moveTo(point(0, centerY));
+
+        if (rounded)
+        {
+            const double k = 0.4;
+            path.quadTo(point(k * halfEnd, centerY - (centerY - topY) * k),
+                        point((1 - k) * halfEnd, topY));
+
+            for (int j = 0; j < numFull; ++j)
+            {
+                const double sx = halfEnd + j * halfWave;
+                const double ex = sx + halfWave;
+                const double sy = (j % 2 == 0) ? topY : bottomY;
+                const double ey = (j % 2 == 0) ? bottomY : topY;
+                path.quadTo(point(sx + k * halfWave, sy),
+                            point(ex - k * halfWave, ey));
+                path.lineTo(point(ex, ey));
+            }
+
+            const double lastX = halfEnd + numFull * halfWave;
+            const double lastY = (numFull % 2 == 0) ? topY : bottomY;
+            const double dirSign = (lastY == topY) ? 1.0 : -1.0;
+            path.quadTo(point(lastX + k * halfEnd, lastY),
+                        point(w - k * halfEnd,
+                              centerY - dirSign * (centerY - topY) * k));
+        }
+        else
+        {
+            path.lineTo(point(halfEnd, topY));
+
+            for (int j = 0; j < numFull; ++j)
+            {
+                const double ex = halfEnd + (j + 1) * halfWave;
+                const double ey = (j % 2 == 0) ? bottomY : topY;
+                path.lineTo(point(ex, ey));
+            }
+        }
+        return path;
+    }
+
+    if (key == QLatin1String("curvedText"))
+    {
+        // CurvedTextShape is an invisible rectangle; the text is painted on
+        // the curve by ShapeRenderer.
+        path.addRect(rect);
+        return path;
     }
 
     if (key == QLatin1String("ellipse") || key == QLatin1String("circle")
@@ -6382,8 +6820,7 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
-    if (key == QLatin1String("text") || key == QLatin1String("label")
-        || key == QLatin1String("image"))
+    if (key == QLatin1String("text") || key == QLatin1String("image"))
     {
         path.addRect(rect);
         return path;
@@ -6553,6 +6990,22 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
     }
 
     // Default: rectangle, optionally rounded.
+    if (key == QLatin1String("label"))
+    {
+        // mxLabel extends mxRectangleShape and the `label` named style is
+        // rounded by default (styles/default.xml).
+        if (Style::flag(Style::withDefaults(style), QStringLiteral("rounded"), true))
+        {
+            const double radius = cornerRadiusFor(Style::withDefaults(style), w, h);
+            path.addRoundedRect(rect, radius, radius);
+        }
+        else
+        {
+            path.addRect(rect);
+        }
+        return path;
+    }
+
     if (probe.styleFlag(QStringLiteral("rounded")) || key == QLatin1String("rounded"))
     {
         const double radius = cornerRadiusFor(style, w, h);
@@ -6674,6 +7127,24 @@ QVector<ShapeDecoration> decorationsForStyle(const StyleMap &style, const QRectF
         }
 
         decorations.append(mouth);
+        return decorations;
+    }
+
+    if (key == QLatin1String("isoCube2"))
+    {
+        // IsoCubeShape2.paintVertexShape: the two inner edges of the cube.
+        const double isoAngle = qBound(0.01, Style::number(style,
+            QStringLiteral("isoAngle"), 15.0), 94.0) * M_PI / 200.0;
+        const double isoH = qMin(w * std::tan(isoAngle), h * 0.5);
+
+        ShapeDecoration lines;
+        lines.strokeColor = QColor(); // cell stroke
+        lines.path.moveTo(point(0, isoH));
+        lines.path.lineTo(point(w * 0.5, 2.0 * isoH));
+        lines.path.lineTo(point(w, isoH));
+        lines.path.moveTo(point(w * 0.5, 2.0 * isoH));
+        lines.path.lineTo(point(w * 0.5, h));
+        decorations.append(lines);
         return decorations;
     }
 

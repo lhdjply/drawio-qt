@@ -46,6 +46,12 @@ struct ShapeDefinition
     QString category = QStringLiteral("basic");
     QString imagePath; // set for shapes rendered from a bundled SVG/PNG
 
+    /// draw.io UserObject metadata of a palette entry (the Link template
+    /// carries its URL, Timestamp/Variable carry placeholders).
+    QString link;
+    bool placeholders = false;
+    QString placeholderName;
+
     /// draw.io's General palette also holds edge templates (lines, arrows and
     /// connectors); those are inserted as floating edges, not vertices.
     bool edge = false;

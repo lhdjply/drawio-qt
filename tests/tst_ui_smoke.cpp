@@ -22,6 +22,7 @@
 #include <QPushButton>
 #include <QComboBox>
 #include <QGroupBox>
+#include <QKeyEvent>
 #include <QMenu>
 #include <QMenuBar>
 #include <QDragEnterEvent>
@@ -2111,6 +2112,119 @@ private slots:
         view->copySelection();
         view->paste();
         QCOMPARE(view->page()->cells().size(), before + 2);
+    }
+
+    void ctrlHoverShowsHandCursor()
+    {
+        MainWindow window;
+        window.resize(900, 700);
+        window.show();
+
+        DiagramView *view = window.view();
+        Page *page = view->page();
+
+        Cell *linked = page->addVertex(QRectF(200, 40, 80, 40),
+                                       Style::parse(QStringLiteral("whiteSpace=wrap;html=1;")),
+                                       QStringLiteral("B"));
+        linked->link = QStringLiteral("https://example.com/doc");
+
+        const QPoint point = view->toView(QPointF(240, 60)).toPoint();
+
+        // Hover without Ctrl keeps the arrow (clear any modifier state left by
+        // the previous test first).
+        QKeyEvent clear(QEvent::KeyRelease, Qt::Key_Control, Qt::NoModifier);
+        QCoreApplication::sendEvent(view, &clear);
+        QTest::mouseMove(view, point);
+        QCOMPARE(view->cursor().shape(), Qt::ArrowCursor);
+
+        // Hovering with Ctrl over the linked cell shows the hand.
+        QTest::mouseMove(view, point);
+        QKeyEvent press(QEvent::KeyPress, Qt::Key_Control, Qt::NoModifier);
+        QCoreApplication::sendEvent(view, &press);
+        QCOMPARE(view->cursor().shape(), Qt::PointingHandCursor);
+
+        QKeyEvent release(QEvent::KeyRelease, Qt::Key_Control, Qt::NoModifier);
+        QCoreApplication::sendEvent(view, &release);
+        QCOMPARE(view->cursor().shape(), Qt::ArrowCursor);
+    }
+
+    void ctrlClickOpensLink()
+    {
+        MainWindow window;
+        window.resize(900, 700);
+        window.show();
+
+        DiagramView *view = window.view();
+        Page *page = view->page();
+
+        Cell *plain = page->addVertex(QRectF(40, 40, 80, 40),
+                                      Style::parse(QStringLiteral("whiteSpace=wrap;html=1;")),
+                                      QStringLiteral("A"));
+        Cell *linked = page->addVertex(QRectF(200, 40, 80, 40),
+                                       Style::parse(QStringLiteral("whiteSpace=wrap;html=1;")),
+                                       QStringLiteral("B"));
+        linked->link = QStringLiteral("https://example.com/doc");
+
+        QString opened;
+        QObject::connect(view, &DiagramView::linkActivated, view,
+                         [&opened](const QString &url) { opened = url; });
+
+        // Ctrl+click on a linked cell requests the link.
+        const QPoint linkedPoint = view->toView(QPointF(240, 60)).toPoint();
+        QTest::mousePress(view, Qt::LeftButton, Qt::ControlModifier, linkedPoint);
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::ControlModifier, linkedPoint);
+        QCOMPARE(opened, QStringLiteral("https://example.com/doc"));
+
+        // Ctrl+click on a plain cell starts a connector instead.
+        opened.clear();
+        const QPoint plainPoint = view->toView(QPointF(80, 60)).toPoint();
+        QTest::mousePress(view, Qt::LeftButton, Qt::ControlModifier, plainPoint);
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::ControlModifier, plainPoint);
+        QVERIFY(opened.isEmpty());
+        Q_UNUSED(plain);
+    }
+
+    void miscLinkAndTimestampAreEditable()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *link = view->addShape(ShapeRegistry::definition(QStringLiteral("misc.link")),
+                                    QPointF(180, 160));
+        QVERIFY(link != nullptr);
+        QCOMPARE(link->value, QStringLiteral("Link"));
+        QCOMPARE(link->link, QStringLiteral("https://www.draw.io"));
+
+        view->setCellLink(link->id, QStringLiteral("https://example.com/doc"));
+        QCOMPARE(view->page()->cell(link->id)->link,
+                 QStringLiteral("https://example.com/doc"));
+
+        // The link survives a save/load cycle (UserObject metadata).
+        const QString xml = MxFileIO::documentToXml(*view->document(), false);
+        QVERIFY(xml.contains(QStringLiteral("UserObject")));
+        QVERIFY(xml.contains(QStringLiteral("https://example.com/doc")));
+        Document reopened;
+        QVERIFY(MxFileIO::documentFromXml(reopened, xml));
+        Cell *loaded = reopened.currentPage()->cell(link->id);
+        QVERIFY(loaded != nullptr);
+        QCOMPARE(loaded->link, QStringLiteral("https://example.com/doc"));
+        QCOMPARE(loaded->value, QStringLiteral("Link"));
+
+        Cell *timestamp = view->addShape(
+            ShapeRegistry::definition(QStringLiteral("misc.timestamp")),
+            QPointF(360, 160));
+        QVERIFY(timestamp != nullptr);
+        QVERIFY(timestamp->placeholders);
+        QVERIFY(timestamp->displayLabel().contains(
+            QString::number(QDate::currentDate().year())));
+        QVERIFY(!timestamp->displayLabel().contains(QStringLiteral("%date")));
+
+        Cell *variable = view->addShape(
+            ShapeRegistry::definition(QStringLiteral("misc.variable")),
+            QPointF(360, 220));
+        QVERIFY(variable != nullptr);
+        QCOMPARE(variable->displayLabel(), QStringLiteral("Variable Text"));
     }
 };
 

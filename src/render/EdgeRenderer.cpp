@@ -356,7 +356,116 @@ QPointF applyMarker(QPainter &painter, const Cell &edge, const QPointF &tip,
     return tip;
 }
 
-/// mxArrowConnector.paintEdgeShape(): the outline of flexArrow and link.
+/// TaperedArrowShape.paintTaperedLine + the block head that is part of the
+/// band outline: a polygon whose width goes from startWidth to endWidth.
+QPolygonF taperedArrowPath(const Cell &edge, const QVector<QPointF> &input)
+{
+    QVector<QPointF> points;
+
+    for (const QPointF &point : input)
+    {
+        if (points.isEmpty() || QLineF(points.last(), point).length() > 0.0001)
+        {
+            points.append(point);
+        }
+    }
+
+    if (points.size() < 2)
+    {
+        return {};
+    }
+
+    const StyleMap style = edgeStyle(edge);
+    const double startWidth = qMax(0.0, Style::number(style, QStringLiteral("startWidth"), 12.0));
+    const double endWidth = qMax(0.0, Style::number(style, QStringLiteral("endWidth"), 2.0));
+    const double strokeWidth = strokeWidthFor(edge);
+
+    QVector<QPointF> normals;
+    QVector<double> lengths{0.0};
+
+    for (int i = 1; i < points.size(); ++i)
+    {
+        const QPointF delta = points.at(i) - points.at(i - 1);
+        const double distance = std::hypot(delta.x(), delta.y());
+        normals.append(distance > 0.0001
+                           ? QPointF(-delta.y() / distance, delta.x() / distance)
+                           : QPointF(0, 1));
+        lengths.append(lengths.last() + distance);
+    }
+
+    const double total = lengths.last();
+
+    if (total <= 0.0001)
+    {
+        return {};
+    }
+
+    // The marker shortens the last point by its own length.
+    const QString arrow = Style::value(style, QStringLiteral("endArrow")).toLower();
+    const bool hasHead = !arrow.isEmpty() && arrow != QLatin1String("none");
+    const double markerSize = Style::number(style, QStringLiteral("endSize"), 6.0);
+    const double headLength = hasHead ? markerSize + endWidth : 0.0;
+    const double headOffset = hasHead ? strokeWidth * 1.118 : 0.0;
+    QPointF lastDirection(1, 0);
+
+    if (hasHead)
+    {
+        const QPointF delta = points.last() - points.at(points.size() - 2);
+        const double distance = std::hypot(delta.x(), delta.y());
+
+        if (distance > 0.0001)
+        {
+            lastDirection = delta / distance;
+            points.last() = points.last() - lastDirection * (headLength + headOffset);
+            lengths.last() = qMax(0.0, total - headLength - headOffset);
+        }
+    }
+
+    QVector<QPointF> left;
+    QVector<QPointF> right;
+
+    for (int i = 0; i < points.size(); ++i)
+    {
+        const double width = (startWidth + (endWidth - startWidth)
+                              * (total > 0.0 ? lengths.at(i) / total : 0.0)) / 2.0;
+        const QPointF n0 = normals.at(qMax(0, i - 1));
+        const QPointF n1 = normals.at(qMin(normals.size() - 1, i));
+        QPointF normal = n0 + n1;
+        const double length = std::hypot(normal.x(), normal.y());
+        const double cosine = length == 0.0 ? 0.0 : length / 2.0;
+        const double factor = width / qMax(0.5, cosine);
+        normal = length == 0.0 ? n1 : normal / length;
+
+        left.append(points.at(i) + normal * factor);
+        right.append(points.at(i) - normal * factor);
+    }
+
+    QPolygonF polygon;
+
+    for (const QPointF &point : left)
+    {
+        polygon << point;
+    }
+
+    if (hasHead)
+    {
+        const double half = headLength / 2.0;
+        const QPointF normal(-lastDirection.y(), lastDirection.x());
+        const QPointF base = points.last();
+        polygon << base + normal * half;
+        polygon << base + lastDirection * headLength;
+        polygon << base - normal * half;
+    }
+
+    for (int i = right.size() - 1; i >= 0; --i)
+    {
+        polygon << right.at(i);
+    }
+
+    return polygon;
+}
+
+/// mxArrowConnector.paintEdgeShape(): the outline of flexArrow and link./// mxArrowConnector.paintEdgeShape(): the outline of flexArrow and link.
 /// `openEnded` strokes two parallel lines instead of a closed outline.
 QPainterPath arrowConnectorPath(const Cell &edge, const QVector<QPointF> &input,
                                 bool openEnded, double defaultWidth,
@@ -1109,30 +1218,84 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
     }
 
     // Plain connectors: shorten the polyline for the markers, paint the line
-    // and then the markers on top.
+    // and then the markers on top. The filled edge and the tapered arrow
+    // paint their own band instead of a plain stroke.
     QVector<QPointF> points = route.points;
     const QPointF endDirection = points.last() - points.at(points.size() - 2);
     const QPointF startDirection = points.first() - points.at(1);
-    const QPointF endShortened = applyMarker(painter, edge, points.last(), endDirection, false, false);
-    const QPointF startShortened = applyMarker(painter, edge, points.first(), startDirection, true, false);
-    points.last() = endShortened;
-    points.first() = startShortened;
 
-    RoutedEdge shortenedRoute = route;
-    shortenedRoute.points = points;
-
-    QPen pen = edgePen(edge);
-    pen.setColor(color);
-    painter.setPen(pen);
-    painter.setBrush(Qt::NoBrush);
-
-    if (color.alpha() > 0)
+    if (shape == QLatin1String("fillededge"))
     {
-        painter.drawPath(pathFor(shortenedRoute, edge));
-    }
+        QPen pen = edgePen(edge);
+        pen.setColor(color);
+        pen.setJoinStyle(Qt::MiterJoin);
+        painter.setPen(pen);
+        painter.setBrush(Qt::NoBrush);
 
-    applyMarker(painter, edge, route.points.last(), endDirection, false, true);
-    applyMarker(painter, edge, route.points.first(), startDirection, true, true);
+        if (color.alpha() > 0)
+        {
+            painter.drawPath(pathFor(route, edge));
+        }
+
+        // FilledEdge.paintEdgeShape: strokeWidth >= 3 adds an inner line in
+        // fillColor, two pixels thinner, so the edge reads as a hollow pipe.
+        const QString fillValue = Style::value(style, QStringLiteral("fillColor"));
+
+        if (strokeWidth >= 3.0 && !fillValue.isEmpty()
+            && fillValue.compare(QLatin1String("default"), Qt::CaseInsensitive) != 0
+            && !Style::isNoneColor(fillValue))
+        {
+            const QColor inner = Style::parseColorValue(fillValue);
+
+            if (inner.isValid())
+            {
+                QPen innerPen(inner, qMax(1.0, strokeWidth - 2.0));
+                innerPen.setJoinStyle(Qt::MiterJoin);
+                innerPen.setCapStyle(Qt::FlatCap);
+                painter.setPen(innerPen);
+                painter.drawPath(pathFor(route, edge));
+            }
+        }
+    }
+    else if (shape == QLatin1String("taperedarrow"))
+    {
+        const QPolygonF band = taperedArrowPath(edge, route.points);
+
+        if (!band.isEmpty() && color.alpha() > 0)
+        {
+            QPen pen(color, strokeWidth);
+            pen.setJoinStyle(Qt::MiterJoin);
+            pen.setCapStyle(Qt::FlatCap);
+            painter.setPen(pen);
+            painter.setBrush(Qt::NoBrush);
+            painter.drawPolygon(band);
+        }
+    }
+    else
+    {
+        const QPointF endShortened = applyMarker(painter, edge, points.last(),
+                                                 endDirection, false, false);
+        const QPointF startShortened = applyMarker(painter, edge, points.first(),
+                                                   startDirection, true, false);
+        points.last() = endShortened;
+        points.first() = startShortened;
+
+        RoutedEdge shortenedRoute = route;
+        shortenedRoute.points = points;
+
+        QPen pen = edgePen(edge);
+        pen.setColor(color);
+        painter.setPen(pen);
+        painter.setBrush(Qt::NoBrush);
+
+        if (color.alpha() > 0)
+        {
+            painter.drawPath(pathFor(shortenedRoute, edge));
+        }
+
+        applyMarker(painter, edge, route.points.last(), endDirection, false, true);
+        applyMarker(painter, edge, route.points.first(), startDirection, true, true);
+    }
 
     painter.restore();
 

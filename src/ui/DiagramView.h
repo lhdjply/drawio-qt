@@ -132,6 +132,7 @@ public:
     bool applyEditorFontColor(const QString &value);
 
     void setCellValue(const QString &cellId, const QString &value);
+    void setCellLink(const QString &cellId, const QString &link);
     void applyStyle(const QString &key, const QString &value);
     void clearStyle(const QString &key);
     void applyGeometry(double x, double y, double width, double height);
@@ -176,6 +177,8 @@ signals:
     void cursorPositionChanged(const QPointF &scenePoint);
     void modified();
     void editStarted();
+    /// Ctrl+clicked a cell that carries a hyperlink; the window opens it.
+    void linkActivated(const QString &url);
     /// Emitted while a rich text label is edited, with the format at the cursor
     /// or selection so the format panel can mirror it.
     void editorCharFormatChanged(int pointSize, const QString &family,
@@ -318,6 +321,9 @@ private:
     QHash<QString, QRectF> m_foldedBounds;
 
     QString m_hoverCellId;
+    /// Modifiers of the last hover event, so the cursor follows Ctrl presses
+    /// that arrive without a mouse move.
+    Qt::KeyboardModifiers m_hoverModifiers = Qt::NoModifier;
 
     QUndoStack *m_undoStack = nullptr;
     QString m_pendingSnapshot;
