@@ -1,3 +1,15 @@
+drawio-qt (0.2.0) unstable; urgency=medium
+
+  * 形状库按 draw.io 官方定义对齐：通用、基本、流程图、箭头、杂项、高级。
+  * 形状库默认白底、黑边、2px 线宽；形状搜索支持中文。
+  * 标签支持逐字格式（字体/字号/颜色/粗斜下划线）、嵌套 span/font、HTML 列表与表格。
+  * 图形超出页边界时自动增加页面，空白页不显示。
+  * 容器支持折叠按钮、子元素裁剪与旋转时子单元跟随。
+  * 支持链接与 UserObject 占位符：Ctrl+点击打开链接，可编辑链接。
+  * 颜色选择对话框、格式面板（样式/文本标签页）统一为应用风格。
+
+ -- drawio-qt Maintainers <lhdjply@users.noreply.github.com>  Sat, 13 Nov 2026 15:50:00 +0800
+
 drawio-qt (0.1.3) unstable; urgency=medium
 
   * 新增设置界面、中英文切换与自定义快捷键。
