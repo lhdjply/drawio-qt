@@ -2,6 +2,7 @@
 
 #include "core/Cell.h"
 
+#include <QColor>
 #include <QPainterPath>
 #include <QSizeF>
 #include <QString>
@@ -18,6 +19,20 @@ struct ShapeChildDefinition
     QRectF geometry;
     QPointF offset;
     bool relative = false;
+};
+
+/// A stroke-only or differently filled detail painted on top of a shape's
+/// main outline (inner frames, hatch patterns, fold lines, bevels, eyes).
+struct ShapeDecoration
+{
+    QPainterPath path;
+    QColor fillColor;          // invalid => no fill
+    QColor strokeColor;        // invalid => the cell's stroke colour
+    double strokeWidth = -1.0; // < 0 => the cell's stroke width
+    Qt::PenJoinStyle join = Qt::MiterJoin;
+    double miterLimit = 4.0;
+    /// Paint before the main outline (stacked cards of layered_rect).
+    bool behind = false;
 };
 
 /// A shape offered by the left hand shape palette.
@@ -49,6 +64,10 @@ ShapeDefinition definition(const QString &key);
 /// Builds the outline for a vertex in local (cell) coordinates.
 QPainterPath pathFor(const Cell &cell);
 QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect);
+
+/// Details a shape paints after its main outline. Kept apart from
+/// pathForStyle(): adding them to the filled path would punch holes.
+QVector<ShapeDecoration> decorationsForStyle(const StyleMap &style, const QRectF &rect);
 
 /// Canonical shape key for a style map (handles mxgraph.basic stencil names).
 QString canonicalKey(const StyleMap &style);

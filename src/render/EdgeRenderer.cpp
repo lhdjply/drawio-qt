@@ -3,6 +3,7 @@
 #include "render/ShapeRenderer.h"
 
 #include <QLineF>
+#include <QLinearGradient>
 #include <QPainter>
 #include <QTextDocument>
 #include <QPolygonF>
@@ -908,6 +909,98 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
         if (!edge.value.isEmpty())
         {
             paintLabelAt(painter, edge, route.pointAt(0.5));
+        }
+
+        return;
+    }
+
+    if (shape == QLatin1String("mermaidsankeylink"))
+    {
+        // Mermaid flow band: sample the d3-sankey cubic M x0,y0 C mx,y0 mx,y1 x1,y1
+        // and offset it perpendicular to the tangent by half the style width.
+        const QPointF p0 = route.points.first();
+        const QPointF pe = route.points.last();
+        const double halfWidth = qMax(1.0,
+            Style::number(style, QStringLiteral("width"), 10.0)) / 2.0;
+        const double mx = (p0.x() + pe.x()) / 2.0;
+        const int steps = 32;
+        QVector<QPointF> side1;
+        QVector<QPointF> side2;
+
+        for (int i = 0; i <= steps; ++i)
+        {
+            const double t = static_cast<double>(i) / steps;
+            const double u = 1.0 - t;
+            const double px = u * u * u * p0.x() + 3.0 * u * u * t * mx
+                + 3.0 * u * t * t * mx + t * t * t * pe.x();
+            const double py = u * u * u * p0.y() + 3.0 * u * u * t * p0.y()
+                + 3.0 * u * t * t * pe.y() + t * t * t * pe.y();
+            double dx = 3.0 * u * u * (mx - p0.x()) + 3.0 * t * t * (pe.x() - mx);
+            double dy = 6.0 * u * t * (pe.y() - p0.y());
+            double length = std::hypot(dx, dy);
+
+            if (length == 0.0)
+            {
+                dx = 1.0;
+                dy = 0.0;
+                length = 1.0;
+            }
+
+            const double nx = -dy / length * halfWidth;
+            const double ny = dx / length * halfWidth;
+            side1.append(QPointF(px + nx, py + ny));
+            side2.append(QPointF(px - nx, py - ny));
+        }
+
+        QPainterPath band;
+        band.moveTo(side1.first());
+
+        for (int i = 1; i < side1.size(); ++i)
+        {
+            band.lineTo(side1.at(i));
+        }
+
+        for (int i = side2.size() - 1; i >= 0; --i)
+        {
+            band.lineTo(side2.at(i));
+        }
+
+        band.closeSubpath();
+
+        QColor fill = Style::color(style, QStringLiteral("fillColor"),
+                                   QColor(0xaf, 0x7a, 0xa1));
+        const QString gradientColor = Style::value(style, QStringLiteral("gradientColor"));
+        QBrush brush(fill);
+
+        if (!gradientColor.isEmpty() && !Style::isNoneColor(gradientColor))
+        {
+            const QColor second = Style::parseColorValue(gradientColor);
+            const double left = qMin(p0.x(), pe.x());
+            const double right = qMax(p0.x(), pe.x());
+            const double middle = (p0.y() + pe.y()) / 2.0;
+            QLinearGradient gradient(QPointF(left, middle), QPointF(right, middle));
+            gradient.setColorAt(0.0, fill);
+            gradient.setColorAt(1.0, second);
+            brush = gradient;
+        }
+
+        const double opacity = qBound(0.0,
+            Style::number(style, QStringLiteral("opacity"), 100.0) / 100.0, 1.0);
+
+        painter.save();
+        painter.setOpacity(opacity);
+        painter.setPen(Qt::NoPen);
+        painter.setBrush(brush);
+        painter.drawPath(band);
+        painter.restore();
+        painter.restore();
+
+        for (const Cell *child : edge.children)
+        {
+            if (child->visible)
+            {
+                paintChild(painter, edge, *child);
+            }
         }
 
         return;

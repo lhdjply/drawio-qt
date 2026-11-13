@@ -609,6 +609,201 @@ private slots:
         }
     }
 
+    void basicLibraryMatchesSidebar()
+    {
+        // Sidebar.prototype.addBasicPalette, in order and with its style
+        // strings verbatim (s/s2 are the prefixes used by that file).
+        const QString s = QStringLiteral("whiteSpace=wrap;html=1;shape=mxgraph.basic.");
+        const QString s2 = QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;"
+                                          "html=1;shape=mxgraph.basic.");
+        const QStringList official = {
+        s2 + QStringLiteral("rect;fillColor2=none;strokeWidth=1;size=20;indent=5;"),
+        QStringLiteral("shape=partialRectangle;whiteSpace=wrap;html=1;top=0;bottom=0;fillColor=none;"),
+        QStringLiteral("shape=partialRectangle;whiteSpace=wrap;html=1;right=0;top=0;bottom=0;fillColor=none;routingCenterX=-0.5;"),
+        QStringLiteral("shape=partialRectangle;whiteSpace=wrap;html=1;bottom=0;right=0;fillColor=none;"),
+        QStringLiteral("shape=partialRectangle;whiteSpace=wrap;html=1;top=0;left=0;fillColor=none;"),
+        s2 + QStringLiteral("polygon;polyCoords=[[0.25,0],[0.75,0],[1,0.25],[1,0.75],[0.75,1],[0.25,1],[0,0.75],[0,0.25]];polyline=0;"),
+        s2 + QStringLiteral("polygon;polyCoords=[[0.25,0],[0.75,0],[1,0.25],[1,0.75],[0.75,1],[0.25,1],[0,0.75],[0,0.25]];polyline=1;fillColor=none;"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=diag;step=5;fillStrokeWidth=0.2;fillStrokeColor=#dddddd;"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=diagRev;step=5;fillStrokeWidth=0.2;fillStrokeColor=#dddddd;"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=vert;step=5;fillStrokeWidth=0.2;fillStrokeColor=#dddddd;"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=hor;step=5;fillStrokeWidth=0.2;fillStrokeColor=#dddddd;"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=grid;step=5;fillStrokeWidth=0.2;fillStrokeColor=#dddddd;"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=diagGrid;step=5;fillStrokeWidth=0.2;fillStrokeColor=#dddddd;"),
+        s2 + QStringLiteral("4_point_star_2;dx=0.8;"),
+        s2 + QStringLiteral("6_point_star"),
+        s2 + QStringLiteral("8_point_star"),
+        s2 + QStringLiteral("banner"),
+        s + QStringLiteral("cloud_callout"),
+        s + QStringLiteral("cloud_rect"),
+        s2 + QStringLiteral("cone"),
+        s2 + QStringLiteral("cone2;dx=0.5;dy=0.9;"),
+        s + QStringLiteral("document"),
+        s2 + QStringLiteral("donut;dx=25;"),
+        s2 + QStringLiteral("drop"),
+        s2 + QStringLiteral("flash"),
+        s2 + QStringLiteral("half_circle"),
+        s2 + QStringLiteral("heart"),
+        QStringLiteral("shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;shapeInside=1;aspect=fixed;"),
+        QStringLiteral("html=1;shape=mxgraph.basic.isocube;isoAngle=15;"),
+        s + QStringLiteral("loud_callout"),
+        s2 + QStringLiteral("moon"),
+        s2 + QStringLiteral("no_symbol"),
+        s + QStringLiteral("octagon2;align=center;verticalAlign=middle;dx=15;"),
+        s2 + QStringLiteral("orthogonal_triangle"),
+        s2 + QStringLiteral("acute_triangle;dx=0.5;"),
+        s2 + QStringLiteral("obtuse_triangle;dx=0.25;"),
+        s + QStringLiteral("oval_callout"),
+        s + QStringLiteral("pentagon"),
+        s + QStringLiteral("pointed_oval"),
+        s2 + QStringLiteral("pyramid;dx1=0.4;dx2=0.6;dy1=0.9;dy2=0.8;"),
+        s2 + QStringLiteral("diag_snip_rect;dx=6;whiteSpace=wrap;"),
+        s2 + QStringLiteral("diag_round_rect;dx=6;whiteSpace=wrap;"),
+        s2 + QStringLiteral("corner_round_rect;dx=6;whiteSpace=wrap;"),
+        s2 + QStringLiteral("three_corner_round_rect;dx=6;whiteSpace=wrap;"),
+        s2 + QStringLiteral("plaque;dx=6;whiteSpace=wrap;"),
+        s2 + QStringLiteral("frame;dx=10;whiteSpace=wrap;"),
+        s2 + QStringLiteral("rounded_frame;dx=10;whiteSpace=wrap;"),
+        s2 + QStringLiteral("plaque_frame;dx=10;whiteSpace=wrap;"),
+        s2 + QStringLiteral("frame_corner;dx=10;whiteSpace=wrap;"),
+        s2 + QStringLiteral("diag_stripe;dx=10;"),
+        s + QStringLiteral("rectCallout;dx=30;dy=15;boundedLbl=1;"),
+        s + QStringLiteral("roundRectCallout;dx=30;dy=15;size=5;boundedLbl=1;"),
+        s + QStringLiteral("layered_rect;dx=10;outlineConnect=0;boundedLbl=1;"),
+        s2 + QStringLiteral("smiley"),
+        s2 + QStringLiteral("star"),
+        s2 + QStringLiteral("sun"),
+        s2 + QStringLiteral("tick"),
+        s2 + QStringLiteral("wave2;dy=0.3;"),
+        QStringLiteral("labelPosition=center;verticalLabelPosition=middle;align=center;html=1;shape=mxgraph.basic.button;dx=10;whiteSpace=wrap;"),
+        QStringLiteral("labelPosition=center;verticalLabelPosition=middle;align=center;html=1;shape=mxgraph.basic.shaded_button;dx=10;fillColor=#E6E6E6;strokeColor=none;whiteSpace=wrap;"),
+        s2 + QStringLiteral("x"),
+        s2 + QStringLiteral("pie;startAngle=0.2;endAngle=0.9;"),
+        s2 + QStringLiteral("arc;startAngle=0.3;endAngle=0.1;"),
+        s2 + QStringLiteral("partConcEllipse;startAngle=0.25;endAngle=0.1;arcWidth=0.5;"),
+        QStringLiteral("shape=message;html=1;html=1;outlineConnect=0;labelPosition=center;verticalLabelPosition=bottom;align=center;verticalAlign=top;"),
+        QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;size=15;lid=0;"),
+        QStringLiteral("shape=mindmapBang;whiteSpace=wrap;html=1;perimeter=ellipsePerimeter;"),
+        QStringLiteral("shape=gitTag;tabSize=8;tabInset=4;holeSize=1;whiteSpace=wrap;html=1;"),
+        QStringLiteral("shape=mermaidSankeyLink;width=20;fillColor=#AF7AA1;gradientColor=#76B7B2;gradientDirection=east;opacity=50;strokeColor=none;bendable=0;html=1;"),
+        QStringLiteral("shape=mermaidPerson;perimeter=mermaidPersonPerimeter;whiteSpace=wrap;html=1;"),
+        QStringLiteral("shape=mermaidUsecaseActor;actorType=normal;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;"),
+        QStringLiteral("shape=mermaidUsecaseActor;actorType=hollow;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;"),
+        QStringLiteral("shape=mermaidUsecaseActor;actorType=awesome;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;"),
+        QStringLiteral("shape=smileyFace;aspect=fixed;smileyType=happy;perimeter=ellipsePerimeter;fillColor=#FFF8DC;strokeColor=#999999;strokeWidth=2;whiteSpace=wrap;html=1;"),
+        QStringLiteral("shape=smileyFace;aspect=fixed;smileyType=neutral;perimeter=ellipsePerimeter;fillColor=#FFF8DC;strokeColor=#999999;strokeWidth=2;whiteSpace=wrap;html=1;"),
+        QStringLiteral("shape=smileyFace;aspect=fixed;smileyType=sad;perimeter=ellipsePerimeter;fillColor=#FFF8DC;strokeColor=#999999;strokeWidth=2;whiteSpace=wrap;html=1;"),
+        };
+
+        QStringList library;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category == QLatin1String("basic"))
+            {
+                library.append(definition.style);
+            }
+        }
+
+        QCOMPARE(library, official);
+    }
+
+    void basicStencilGeometryMatchesXml()
+    {
+        const auto path = [](const QString &style, const QRectF &rect)
+        {
+            return ShapeRegistry::pathForStyle(Style::parse(style), rect);
+        };
+        const auto near = [](double actual, double expected)
+        {
+            return qAbs(actual - expected) < 0.02;
+        };
+
+        // stencils/basic.xml: 4 Point Star (92 x 92), dx=0.8 scales the inner
+        // points to 0.5 * 0.8 * w.
+        const QPainterPath star4 = path(
+            QStringLiteral("shape=mxgraph.basic.4_point_star_2;dx=0.8;"),
+            QRectF(0, 0, 100, 100));
+        QCOMPARE(star4.elementCount(), 9);
+        QVERIFY(near(star4.elementAt(0).x, 0.0));
+        QVERIFY(near(star4.elementAt(0).y, 50.0));
+        QVERIFY(near(star4.elementAt(1).x, 40.0));
+        QVERIFY(near(star4.elementAt(1).y, 40.0));
+        QVERIFY(near(star4.elementAt(2).x, 50.0));
+        QVERIFY(near(star4.elementAt(2).y, 0.0));
+
+        // 6 Point Star is defined in a 96 x 84.5 box; the first point is
+        // (23, 28.9) in stencil units.
+        const QPainterPath star6 = path(
+            QStringLiteral("shape=mxgraph.basic.6_point_star;"), QRectF(0, 0, 100, 90));
+        QCOMPARE(star6.elementCount(), 13);
+        QVERIFY(near(star6.elementAt(0).x, 23.0 * 100.0 / 96.0));
+        QVERIFY(near(star6.elementAt(0).y, 28.9 * 90.0 / 84.5));
+
+        // Octagon (octagon2) cuts dx=15 * 2 = 30 units off each corner.
+        const QPainterPath octagon = path(
+            QStringLiteral("shape=mxgraph.basic.octagon2;dx=15;"), QRectF(0, 0, 100, 100));
+        QCOMPARE(octagon.elementCount(), 9);
+        QVERIFY(near(octagon.elementAt(0).x, 30.0));
+        QVERIFY(near(octagon.elementAt(0).y, 0.0));
+        QVERIFY(near(octagon.elementAt(2).x, 100.0));
+        QVERIFY(near(octagon.elementAt(2).y, 30.0));
+
+        // Cloud Rect is a single 212.54 x 175.05 path of 108 cubic curves.
+        const QPainterPath cloud = path(
+            QStringLiteral("shape=mxgraph.basic.cloud_rect;"), QRectF(0, 0, 120, 90));
+        int curves = 0;
+        for (int i = 0; i < cloud.elementCount(); ++i)
+        {
+            if (cloud.elementAt(i).type == QPainterPath::CurveToElement)
+            {
+                ++curves;
+            }
+        }
+        QCOMPARE(curves, 108);
+
+        // Pointed Oval: two 75 unit arcs over a 100 unit chord; the sagitta is
+        // 19.1, so the lens is narrower than the 50.93 unit stencil box.
+        const QPainterPath oval = path(
+            QStringLiteral("shape=mxgraph.basic.pointed_oval;"), QRectF(0, 0, 50.93, 100));
+        QVERIFY(qAbs(oval.boundingRect().width() - 38.2) < 0.5);
+    }
+
+    void basicDecorationsStayOutOfTheFillPath()
+    {
+        const auto decorations = [](const QString &style, const QRectF &rect)
+        {
+            return ShapeRegistry::decorationsForStyle(Style::parse(style), rect);
+        };
+
+        // The hatch lines of patternFillRect are a decoration with their own
+        // colour and width.
+        const QVector<ShapeDecoration> pattern = decorations(
+            QStringLiteral("shape=mxgraph.basic.patternFillRect;fillStyle=diag;"
+                           "step=5;fillStrokeWidth=0.2;fillStrokeColor=#dddddd;"),
+            QRectF(0, 0, 120, 60));
+        QCOMPARE(pattern.size(), 1);
+        QVERIFY(qAbs(pattern.first().strokeWidth - 0.2) < 0.001);
+        QVERIFY(pattern.first().path.elementCount() > 20);
+
+        // The banner fold lines and the frame's inner rectangle never end up
+        // in the filled outline (they would punch holes).
+        QCOMPARE(decorations(QStringLiteral("shape=mxgraph.basic.banner;"),
+                             QRectF(0, 0, 100, 50)).size(), 1);
+        QCOMPARE(decorations(QStringLiteral("shape=mxgraph.basic.frame;dx=10;"),
+                             QRectF(0, 0, 100, 60)).size(), 0);
+
+        // Smiley: mouth plus the two 6 unit eye ellipses.
+        const QVector<ShapeDecoration> smiley = decorations(
+            QStringLiteral("shape=mxgraph.basic.smiley;"), QRectF(0, 0, 100, 100));
+        QCOMPARE(smiley.size(), 3);
+        QVERIFY(qAbs(smiley.at(1).strokeWidth - 6.0 * 100.0 / 98.0) < 0.01);
+
+        // The tag's pierce hole is a filled decoration.
+        QCOMPARE(decorations(QStringLiteral("shape=gitTag;tabSize=8;tabInset=4;holeSize=1;"),
+                             QRectF(0, 0, 80, 20)).size(), 1);
+    }
+
     void bareIsocubeFallsBackToRectangle()
     {
         const QPainterPath bare = ShapeRegistry::pathForStyle(
@@ -639,6 +834,11 @@ private slots:
         // no_symbol is a circle plus a diagonal band, not a plain line.
         const QPainterPath noSymbol = path(QStringLiteral("mxgraph.basic.no_symbol"));
         QVERIFY(noSymbol.elementCount() > 12);
+
+        // Unregistered basic names fall back to a rectangle, exactly like
+        // mxGraph's default shape.
+        const QPainterPath unknown = path(QStringLiteral("mxgraph.basic.not_a_shape"));
+        QCOMPARE(unknown.elementCount(), 5);
 
         // Electrical stencils keep their lower case draw.io names.
         const QPainterPath battery = path(
@@ -702,8 +902,8 @@ private slots:
             QVERIFY2(!basic.contains(key), qPrintable(key));
         }
 
-        // The plain XOR stencil is not part of the General palette.
-        QVERIFY(basic.contains(QStringLiteral("xor")));
+        // Sidebar-Basic.js has no XOR entry; the logic gates live in General.
+        QVERIFY(!basic.contains(QStringLiteral("xor")));
     }
 
     void generalLibraryFollowsSidebar()
@@ -904,8 +1104,9 @@ private slots:
             QVERIFY2(!keys.contains(key), qPrintable(key));
         }
 
-        // Sidebar-Basic.js stencils stay in the basic library.
-        for (const QString &key : {QStringLiteral("basic.star4"), QStringLiteral("basic.banner"),
+        // Sidebar-Basic.js entries stay in the basic library.
+        for (const QString &key : {QStringLiteral("basic.fourPointStar2"),
+                                   QStringLiteral("basic.banner"),
                                    QStringLiteral("basic.cloudCallout"),
                                    QStringLiteral("basic.cone"), QStringLiteral("basic.donut"),
                                    QStringLiteral("basic.drop"), QStringLiteral("basic.flash"),
@@ -917,14 +1118,14 @@ private slots:
                                    QStringLiteral("basic.wave"), QStringLiteral("basic.button"),
                                    QStringLiteral("basic.polygon"),
                                    QStringLiteral("basic.cylinderStack"),
-                                   QStringLiteral("image")})
+                                   QStringLiteral("basic.smileySad")})
         {
             QVERIFY2(keys.contains(key), qPrintable(key));
         }
 
         QCOMPARE(ShapeRegistry::definition(QStringLiteral("rectangle")).category,
                  QStringLiteral("general"));
-        QCOMPARE(ShapeRegistry::definition(QStringLiteral("basic.star4")).category,
+        QCOMPARE(ShapeRegistry::definition(QStringLiteral("basic.banner")).category,
                  QStringLiteral("basic"));
     }
 
@@ -967,7 +1168,7 @@ private slots:
 
         QVERIFY(keys.contains(QStringLiteral("basic.orthogonalTriangle")));
         QVERIFY(keys.contains(QStringLiteral("basic.obtuseTriangle")));
-        QVERIFY(keys.contains(QStringLiteral("basic.cylinder")));
+        QVERIFY(keys.contains(QStringLiteral("basic.hexagon")));
         QVERIFY(keys.contains(QStringLiteral("basic.cylinderStack")));
     }
 
@@ -1018,11 +1219,19 @@ private slots:
                 "shape=mxgraph.basic.pyramid;dx1=0.4;dx2=0.6;dy1=0.9;dy2=0.8;")),
             QRectF(0, 0, 100, 100));
 
-        QVERIFY(path.elementCount() >= 6);
+        QCOMPARE(path.elementCount(), 5);
         QCOMPARE(path.elementAt(0).x, 40.0);
         QCOMPARE(path.elementAt(0).y, 0.0);
         QCOMPARE(path.elementAt(2).x, 60.0);
         QCOMPARE(path.elementAt(2).y, 100.0);
+
+        // The crease is a stroke-only decoration, not part of the filled path.
+        const QVector<ShapeDecoration> decorations = ShapeRegistry::decorationsForStyle(
+            Style::parse(QStringLiteral(
+                "shape=mxgraph.basic.pyramid;dx1=0.4;dx2=0.6;dy1=0.9;dy2=0.8;")),
+            QRectF(0, 0, 100, 100));
+        QCOMPARE(decorations.size(), 1);
+        QCOMPARE(decorations.first().path.elementCount(), 2);
     }
 
     void duplicateShapeKeepsAttachedEdgeInsideSelection()

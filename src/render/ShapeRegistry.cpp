@@ -1,27 +1,14 @@
 #include "render/ShapeRegistry.h"
 
 #include <QPainterPath>
-#include <QRegularExpression>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonValue>
 #include <QtMath>
 
 namespace dq {
 namespace ShapeRegistry {
 namespace {
-
-QString camelize(const QString &name)
-{
-    const QStringList parts = name.split(QLatin1Char('_'), Qt::SkipEmptyParts);
-    QString result;
-
-    for (int i = 0; i < parts.size(); ++i)
-    {
-        const QString part = parts.at(i);
-        result += i == 0 ? part.toLower()
-                         : part.left(1).toUpper() + part.mid(1).toLower();
-    }
-
-    return result;
-}
 
 /// Maps draw.io stencil names (mxgraph.basic.cloud_callout) to the canonical
 /// keys used by the renderer (cloudCallout).
@@ -76,29 +63,75 @@ QString normalizeStencilKey(const QString &shape)
 
     const QString prefix = QStringLiteral("mxgraph.basic.");
 
-    if (!shape.startsWith(prefix, Qt::CaseInsensitive))
+    if (shape.startsWith(prefix, Qt::CaseInsensitive))
     {
-        // Other stencil sets are matched by their lower case draw.io names.
-        return shape.startsWith(QLatin1String("mxgraph."), Qt::CaseInsensitive)
-            ? shape.toLower() : shape;
+        // Every name registered under mxgraph.basic keeps a stable key. Names
+        // draw.io does not register fall through to the rectangle fallback.
+        QString name = shape.mid(prefix.size()).toLower();
+        name.replace(QLatin1Char(' '), QLatin1Char('_'));
+        return QStringLiteral("basic.") + name;
     }
 
-    QString name = shape.mid(prefix.size()).toLower();
+    // Bare names used by older revisions of the bundled shape library. Only
+    // aliases of registered Basic shapes are listed: core shapes such as
+    // cloud, note, document or cross keep their own implementations.
+    static const QHash<QString, QString> aliases = {
+        {QStringLiteral("cloudCallout"), QStringLiteral("basic.cloud_callout")},
+        {QStringLiteral("cloudRect"), QStringLiteral("basic.cloud_rect")},
+        {QStringLiteral("cone"), QStringLiteral("basic.cone")},
+        {QStringLiteral("cone2"), QStringLiteral("basic.cone2")},
+        {QStringLiteral("donut"), QStringLiteral("basic.donut")},
+        {QStringLiteral("drop"), QStringLiteral("basic.drop")},
+        {QStringLiteral("flash"), QStringLiteral("basic.flash")},
+        {QStringLiteral("halfCircle"), QStringLiteral("basic.half_circle")},
+        {QStringLiteral("heart"), QStringLiteral("basic.heart")},
+        {QStringLiteral("loudCallout"), QStringLiteral("basic.loud_callout")},
+        {QStringLiteral("moon"), QStringLiteral("basic.moon")},
+        {QStringLiteral("noSymbol"), QStringLiteral("basic.no_symbol")},
+        {QStringLiteral("ovalCallout"), QStringLiteral("basic.oval_callout")},
+        {QStringLiteral("pointedOval"), QStringLiteral("basic.pointed_oval")},
+        {QStringLiteral("pyramid"), QStringLiteral("basic.pyramid")},
+        {QStringLiteral("smiley"), QStringLiteral("basic.smiley")},
+        {QStringLiteral("star6"), QStringLiteral("basic.6_point_star")},
+        {QStringLiteral("star8"), QStringLiteral("basic.8_point_star")},
+        {QStringLiteral("sun"), QStringLiteral("basic.sun")},
+        {QStringLiteral("tick"), QStringLiteral("basic.tick")},
+        {QStringLiteral("wave"), QStringLiteral("basic.wave2")},
+        {QStringLiteral("x"), QStringLiteral("basic.x")},
+        {QStringLiteral("button"), QStringLiteral("basic.button")},
+        {QStringLiteral("shadedButton"), QStringLiteral("basic.shaded_button")},
+        {QStringLiteral("octagon"), QStringLiteral("basic.octagon2")},
+        {QStringLiteral("pentagon"), QStringLiteral("basic.pentagon")},
+        {QStringLiteral("polygon"), QStringLiteral("basic.polygon")},
+        {QStringLiteral("acuteTriangle"), QStringLiteral("basic.acute_triangle")},
+        {QStringLiteral("obtuseTriangle"), QStringLiteral("basic.obtuse_triangle")},
+        {QStringLiteral("orthogonalTriangle"), QStringLiteral("basic.orthogonal_triangle")},
+        {QStringLiteral("diagSnipRect"), QStringLiteral("basic.diag_snip_rect")},
+        {QStringLiteral("diagRoundRect"), QStringLiteral("basic.diag_round_rect")},
+        {QStringLiteral("cornerRoundRect"), QStringLiteral("basic.corner_round_rect")},
+        {QStringLiteral("threeCornerRoundRect"), QStringLiteral("basic.three_corner_round_rect")},
+        {QStringLiteral("plaque"), QStringLiteral("basic.plaque")},
+        {QStringLiteral("frame"), QStringLiteral("basic.frame")},
+        {QStringLiteral("roundedFrame"), QStringLiteral("basic.rounded_frame")},
+        {QStringLiteral("plaqueFrame"), QStringLiteral("basic.plaque_frame")},
+        {QStringLiteral("frameCorner"), QStringLiteral("basic.frame_corner")},
+        {QStringLiteral("diagStripe"), QStringLiteral("basic.diag_stripe")},
+        {QStringLiteral("rectCallout"), QStringLiteral("basic.rectcallout")},
+        {QStringLiteral("roundRectCallout"), QStringLiteral("basic.roundrectcallout")},
+        {QStringLiteral("layeredRect"), QStringLiteral("basic.layered_rect")},
+        {QStringLiteral("patternFillRect"), QStringLiteral("basic.patternfillrect")},
+    };
 
-    if (name == QLatin1String("isocube"))
+    const auto alias = aliases.constFind(shape);
+
+    if (alias != aliases.constEnd())
     {
-        return QStringLiteral("isoCube");
+        return alias.value();
     }
 
-    static const QRegularExpression star(QStringLiteral("^(\\d+)_point_star(_2)?$"));
-    const QRegularExpressionMatch match = star.match(name);
-
-    if (match.hasMatch())
-    {
-        return QStringLiteral("star") + match.captured(1);
-    }
-
-    return camelize(name);
+    // Other stencil sets are matched by their lower case draw.io names.
+    return shape.startsWith(QLatin1String("mxgraph."), Qt::CaseInsensitive)
+        ? shape.toLower() : shape;
 }
 
 QString shapeKey(const Cell &cell)
@@ -374,6 +407,1319 @@ void addSvgArc(QPainterPath &path, const QPointF &from, const QPointF &to,
         path.lineTo(center.x() + rx * std::cos(angle), center.y() + ry * std::sin(angle));
     }
 }
+
+namespace {
+
+// ---------------------------------------------------------------------------
+// draw.io "Basic" palette geometry.
+//
+// The stencil set (stencils/basic.xml) is stored as a command stream: the
+// coordinates are the stencil's own units and are scaled onto the cell rect,
+// exactly like mxStencil.computeAspect() does. The registered shapes are
+// direct ports of the paintVertexShape() bodies in shapes/mxBasic.js and
+// grapheditor/Shapes.js.
+// ---------------------------------------------------------------------------
+
+enum StencilOp
+{
+    OpMove = 0,
+    OpLine,
+    OpCurve,
+    OpQuad,
+    OpArc,
+    OpEllipse,
+    OpRect,
+    OpRoundRect,
+    OpClose,
+    OpFillStroke,
+    OpStroke,
+    OpFill,
+    OpSave,
+    OpRestore,
+    OpStrokeWidth,
+    OpMiterLimit,
+    OpLineJoin
+};
+
+struct StencilCommand
+{
+    int op;
+    double v[7];
+};
+
+struct StencilDef
+{
+    const char *key;
+    double w;
+    double h;
+    const StencilCommand *commands;
+    int count;
+};
+
+// Generated from draw.io stencils/basic.xml (mxgraph.basic stencil set).
+// op: 0 move, 1 line, 2 curve, 3 quad, 4 svg arc, 5 ellipse, 6 rect,
+// 7 roundrect, 8 close, 9 fillstroke, 10 stroke, 11 fill, 12 save,
+// 13 restore, 14 strokewidth, 15 miterlimit, 16 linejoin.
+const StencilCommand k4PointStar[] = {
+    {0,46,0,0,0,0,0,0},{1,56,36,0,0,0,0,0},{1,92,46,0,0,0,0,0},{1,56,56,0,0,0,0,0},
+    {1,46,92,0,0,0,0,0},{1,36,56,0,0,0,0,0},{1,0,46,0,0,0,0,0},{1,36,36,0,0,0,0,0},
+    {8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand k6PointStar[] = {
+    {0,23,28.9,0,0,0,0,0},{1,23,0,0,0,0,0,0},{1,48,14.4,0,0,0,0,0},{1,73,0,0,0,0,0,0},
+    {1,73,28.9,0,0,0,0,0},{1,96,42.2,0,0,0,0,0},{1,73,55.6,0,0,0,0,0},{1,73,84.5,0,0,0,0,0},
+    {1,48,70,0,0,0,0,0},{1,23,84.5,0,0,0,0,0},{1,23,55.6,0,0,0,0,0},{1,0,42.2,0,0,0,0,0},
+    {8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand k8PointStar[] = {
+    {0,28,28,0,0,0,0,0},{1,28,0,0,0,0,0,0},{1,48,20,0,0,0,0,0},{1,68,0,0,0,0,0,0},
+    {1,68,28,0,0,0,0,0},{1,96,28,0,0,0,0,0},{1,76,48,0,0,0,0,0},{1,96,68,0,0,0,0,0},
+    {1,68,68,0,0,0,0,0},{1,68,96,0,0,0,0,0},{1,48,76,0,0,0,0,0},{1,28,96,0,0,0,0,0},
+    {1,28,68,0,0,0,0,0},{1,0,68,0,0,0,0,0},{1,20,48,0,0,0,0,0},{1,0,28,0,0,0,0,0},
+    {8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kBanner[] = {
+    {0,0,50,0,0,0,0,0},{1,38,50,0,0,0,0,0},{4,2.5,2.5,0,0,0,40.5,47.5},{1,40.5,40,0,0,0,0,0},
+    {1,55.5,40,0,0,0,0,0},{1,55.5,47.5,0,0,0,0,0},{4,2.5,2.5,0,0,0,58,50},{1,96,50,0,0,0,0,0},
+    {1,83,30,0,0,0,0,0},{1,96,10,0,0,0,0,0},{1,70.5,10,0,0,0,0,0},{1,70.5,2.5,0,0,0,0,0},
+    {4,2.5,2.5,0,0,0,68,0},{1,28,0,0,0,0,0,0},{4,2.5,2.5,0,0,0,25.5,2.5},{1,25.5,10,0,0,0,0,0},
+    {1,0,10,0,0,0,0,0},{1,13,30,0,0,0,0,0},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+    {0,40.5,47.5,0,0,0,0,0},{4,2.5,2.5,0,0,0,38,45},{1,28,45,0,0,0,0,0},{4,2.5,2.5,0,1,1,28,40},
+    {1,68,40,0,0,0,0,0},{4,2.5,2.5,0,0,1,68,45},{1,58,45,0,0,0,0,0},{4,2.5,2.5,0,0,0,55.5,47.5},
+    {0,25.5,42.5,0,0,0,0,0},{1,25.5,10,0,0,0,0,0},{0,70.5,42.5,0,0,0,0,0},{1,70.5,10,0,0,0,0,0},
+    {10,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kCloudCallout[] = {
+    {12,0,0,0,0,0,0,0},{0,12.1,31.8,0,0,0,0,0},{4,8,8,0,1,1,12.1,16.8},{4,12,12,0,0,1,33.1,8.8},
+    {4,14,14,0,0,1,59.1,8.8},{4,12,12,0,0,1,79.1,16.8},{4,8,8,0,1,1,79.1,31.8},{4,12,12,0,0,1,58.1,38.8},
+    {4,14,14,0,0,1,34.1,38.8},{4,10,8,0,0,1,12.1,31.8},{8,0,0,0,0,0,0,0},{16,1,0,0,0,0,0,0},
+    {9,0,0,0,0,0,0,0},{13,0,0,0,0,0,0,0},{6,0,0,0,0,0,0,0},{10,0,0,0,0,0,0,0},
+    {5,9.1,46.1,12,5.4,0,0,0},{9,0,0,0,0,0,0,0},{5,4.3,53.5,7.6,3.6,0,0,0},{9,0,0,0,0,0,0,0},
+    {5,0,58.8,4.8,2.6,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kCloudRect[] = {
+    {0,8.46,0,0,0,0,0,0},{2,3.79,0,0,3.79,0,8.46,0},{2,0,11.02,1.17,13.44,3.16,15.05,0},{2,1.16,16.65,0,19.08,0,21.64,0},
+    {2,0,24.2,1.17,26.62,3.16,28.22,0},{2,1.16,29.83,0,32.25,0,34.81,0},{2,0,37.38,1.17,39.8,3.16,41.4,0},{2,1.16,43.01,0,45.43,0,47.99,0},
+    {2,0,50.55,1.17,52.98,3.16,54.58,0},{2,1.16,56.18,0,58.61,0,61.17,0},{2,0,63.73,1.17,66.15,3.16,67.76,0},{2,1.16,69.36,0,71.79,0,74.35,0},
+    {2,0,76.91,1.17,79.33,3.16,80.93,0},{2,1.16,82.54,0,84.96,0,87.53,0},{2,0,90.09,1.17,92.51,3.16,94.11,0},{2,1.16,95.71,0,98.14,0,100.7,0},
+    {2,0,103.26,1.17,105.68,3.16,107.29,0},{2,1.16,108.89,0,111.32,0,113.88,0},{2,0,116.44,1.17,118.86,3.16,120.47,0},{2,1.16,122.07,0,124.49,0,127.06,0},
+    {2,0,129.62,1.17,132.04,3.16,133.64,0},{2,1.16,135.25,0,137.67,0,140.23,0},{2,0,142.79,1.17,145.22,3.16,146.82,0},{2,1.16,148.42,0,150.85,0,153.41,0},
+    {2,0,155.97,1.17,158.39,3.16,160,0},{2,1.16,161.6,0,164.03,0,166.59,0},{2,0,171.26,3.79,175.05,8.46,175.05,0},{2,11.29,175.05,13.94,173.63,15.5,171.27,0},
+    {2,17.07,173.63,19.71,175.05,22.55,175.05,0},{2,25.34,175.05,27.95,173.67,29.53,171.37,0},{2,31.1,173.67,33.71,175.05,36.5,175.05,0},{2,39.29,175.05,41.9,173.67,43.48,171.37,0},
+    {2,45.05,173.67,47.66,175.05,50.45,175.05,0},{2,53.24,175.05,55.85,173.67,57.43,171.37,0},{2,59,173.67,61.61,175.05,64.4,175.05,0},{2,67.19,175.05,69.8,173.67,71.38,171.37,0},
+    {2,72.95,173.67,75.56,175.05,78.35,175.05,0},{2,81.14,175.05,83.75,173.67,85.33,171.37,0},{2,86.91,173.67,89.51,175.05,92.3,175.05,0},{2,95.09,175.05,97.7,173.67,99.28,171.37,0},
+    {2,100.86,173.67,103.46,175.05,106.25,175.05,0},{2,109.04,175.05,111.65,173.67,113.23,171.37,0},{2,114.81,173.67,117.41,175.05,120.2,175.05,0},{2,122.99,175.05,125.61,173.67,127.18,171.37,0},
+    {2,128.76,173.67,131.36,175.05,134.15,175.05,0},{2,136.94,175.05,139.56,173.67,141.13,171.37,0},{2,142.71,173.67,145.32,175.05,148.1,175.05,0},{2,150.9,175.05,153.51,173.67,155.08,171.37,0},
+    {2,156.66,173.67,159.27,175.05,162.06,175.05,0},{2,164.85,175.05,167.46,173.67,169.03,171.37,0},{2,170.61,173.67,173.22,175.05,176,175.05,0},{2,178.8,175.05,181.41,173.67,182.98,171.37,0},
+    {2,184.56,173.67,187.17,175.05,189.96,175.05,0},{2,192.8,175.05,195.45,173.61,197.02,171.24,0},{2,198.58,173.62,201.23,175.05,204.08,175.05,0},{2,208.75,175.05,212.54,171.26,212.54,166.59,0},
+    {2,212.54,164.03,211.38,161.61,209.38,160,0},{2,211.38,158.4,212.54,155.97,212.54,153.41,0},{2,212.54,150.85,211.38,148.43,209.38,146.83,0},{2,211.38,145.22,212.54,142.8,212.54,140.23,0},
+    {2,212.54,137.67,211.38,135.25,209.38,133.65,0},{2,211.38,132.04,212.54,129.62,212.54,127.06,0},{2,212.54,124.5,211.38,122.08,209.38,120.47,0},{2,211.38,118.87,212.54,116.44,212.54,113.88,0},
+    {2,212.54,111.32,211.38,108.9,209.38,107.29,0},{2,211.38,105.69,212.54,103.26,212.54,100.7,0},{2,212.54,98.14,211.38,95.72,209.38,94.12,0},{2,211.38,92.51,212.54,90.09,212.54,87.53,0},
+    {2,212.54,84.97,211.38,82.54,209.38,80.94,0},{2,211.38,79.33,212.54,76.91,212.54,74.35,0},{2,212.54,71.79,211.38,69.37,209.38,67.76,0},{2,211.38,66.16,212.54,63.73,212.54,61.17,0},
+    {2,212.54,58.61,211.38,56.19,209.38,54.58,0},{2,211.38,52.98,212.54,50.56,212.54,47.99,0},{2,212.54,45.43,211.38,43.01,209.38,41.41,0},{2,211.38,39.8,212.54,37.38,212.54,34.81,0},
+    {2,212.54,32.25,211.38,29.83,209.38,28.23,0},{2,211.38,26.62,212.54,24.2,212.54,21.64,0},{2,212.54,19.08,211.38,16.66,209.38,15.05,0},{2,211.38,13.45,212.54,11.02,212.54,8.46,0},
+    {2,212.54,3.79,208.75,0,204.08,0,0},{2,201.24,0,198.58,1.44,197.02,3.81,0},{2,195.46,1.43,192.8,0,189.96,0,0},{2,187.16,0,184.55,1.38,182.98,3.68,0},
+    {2,181.4,1.38,178.79,0,176,0,0},{2,173.21,0,170.6,1.38,169.02,3.68,0},{2,167.45,1.38,164.84,0,162.06,0,0},{2,159.26,0,156.65,1.38,155.07,3.68,0},
+    {2,153.5,1.38,150.89,0,148.1,0,0},{2,145.31,0,142.7,1.38,141.12,3.68,0},{2,139.55,1.38,136.94,0,134.15,0,0},{2,131.36,0,128.75,1.38,127.17,3.68,0},
+    {2,125.6,1.38,122.99,0,120.2,0,0},{2,117.41,0,114.8,1.38,113.22,3.68,0},{2,111.65,1.38,109.04,0,106.25,0,0},{2,103.46,0,100.85,1.38,99.27,3.68,0},
+    {2,97.7,1.38,95.09,0,92.3,0,0},{2,89.51,0,86.9,1.38,85.32,3.68,0},{2,83.75,1.38,81.14,0,78.35,0,0},{2,75.56,0,72.95,1.38,71.37,3.68,0},
+    {2,69.79,1.38,67.19,0,64.4,0,0},{2,61.61,0,59,1.38,57.42,3.68,0},{2,55.84,1.38,53.24,0,50.45,0,0},{2,47.66,0,45.05,1.38,43.47,3.68,0},
+    {2,41.89,1.38,39.29,0,36.5,0,0},{2,33.71,0,31.09,1.38,29.52,3.68,0},{2,27.94,1.38,25.34,0,22.55,0,0},{2,19.71,0,17.07,1.42,15.5,3.78,0},
+    {2,13.94,1.42,11.29,0,8.46,0,0},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kCone[] = {
+    {0,49.5,0,0,0,0,0,0},{1,99,88,0,0,0,0,0},{4,25,4.5,0,1,1,0,88},{8,0,0,0,0,0,0,0},
+    {9,0,0,0,0,0,0,0},{0,0,88,0,0,0,0,0},{4,25,4.5,0,1,1,99,88},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kCross[] = {
+    {0,0,34,0,0,0,0,0},{1,34,34,0,0,0,0,0},{1,34,0,0,0,0,0,0},{1,64,0,0,0,0,0,0},
+    {1,64,34,0,0,0,0,0},{1,98,34,0,0,0,0,0},{1,98,64,0,0,0,0,0},{1,64,64,0,0,0,0,0},
+    {1,64,98,0,0,0,0,0},{1,34,98,0,0,0,0,0},{1,34,64,0,0,0,0,0},{1,0,64,0,0,0,0,0},
+    {8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kDocument[] = {
+    {0,98,14,0,0,0,0,0},{1,98,98,0,0,0,0,0},{1,0,98,0,0,0,0,0},{1,0,0,0,0,0,0,0},
+    {1,84,0,0,0,0,0,0},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},{0,84,0,0,0,0,0,0},
+    {4,18,10,0,0,1,79,9},{1,98,14.3,0,0,0,0,0},{10,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kFlash[] = {
+    {0,0,95.5,0,0,0,0,0},{1,20,75.5,0,0,0,0,0},{1,3,61.5,0,0,0,0,0},{1,20,49.5,0,0,0,0,0},
+    {1,3,31.5,0,0,0,0,0},{1,34,0,0,0,0,0,0},{1,60,25.5,0,0,0,0,0},{1,36,39.5,0,0,0,0,0},
+    {1,50,53.5,0,0,0,0,0},{1,29,65.5,0,0,0,0,0},{1,42,76.5,0,0,0,0,0},{8,0,0,0,0,0,0,0},
+    {15,6,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kHalfCircle[] = {
+    {0,0,0,0,0,0,0,0},{4,44.5,44.5,0,1,0,98,0},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kHeart[] = {
+    {0,51.94,94.74,0,0,0,0,0},{2,55.79,90.78,77.8,68.16,91.56,54.03,0},{2,103.89,41.37,103.62,22.91,92.42,11.46,0},{2,81.21,0,63.09,0.05,51.94,11.56,0},
+    {2,40.79,0.05,22.67,0,11.47,11.45,0},{2,0.26,22.9,0,41.36,12.32,54.03,0},{2,26.08,68.16,48.09,90.78,51.94,94.74,0},{8,0,0,0,0,0,0,0},
+    {9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kLoudCallout[] = {
+    {0,14.9,43.9,0,0,0,0,0},{1,9.3,46.7,0,0,0,0,0},{1,11.1,40.9,0,0,0,0,0},{1,6.6,43.9,0,0,0,0,0},
+    {1,8.3,39.2,0,0,0,0,0},{1,2.8,40.8,0,0,0,0,0},{1,6.6,36.4,0,0,0,0,0},{1,0.9,36.2,0,0,0,0,0},
+    {1,5.8,32.7,0,0,0,0,0},{1,0,30.8,0,0,0,0,0},{1,5.3,28.2,0,0,0,0,0},{1,0.3,25.6,0,0,0,0,0},
+    {1,5.9,24.19,0,0,0,0,0},{1,0.8,19.9,0,0,0,0,0},{1,6.5,19.8,0,0,0,0,0},{1,2.8,15.1,0,0,0,0,0},
+    {1,8.2,16.1,0,0,0,0,0},{1,5.9,11.3,0,0,0,0,0},{1,11.5,13.2,0,0,0,0,0},{1,10.2,8.7,0,0,0,0,0},
+    {1,15.7,10.6,0,0,0,0,0},{1,14.9,6.15,0,0,0,0,0},{1,19.2,9.3,0,0,0,0,0},{1,19.8,4.3,0,0,0,0,0},
+    {1,23.4,8,0,0,0,0,0},{1,23.8,3.4,0,0,0,0,0},{1,28.5,6.9,0,0,0,0,0},{1,30.3,1.3,0,0,0,0,0},
+    {1,33.3,6.2,0,0,0,0,0},{1,34.7,0.6,0,0,0,0,0},{1,38.2,6,0,0,0,0,0},{1,40.6,0,0,0,0,0,0},
+    {1,42.8,5.8,0,0,0,0,0},{1,45.6,0,0,0,0,0,0},{1,47.1,6,0,0,0,0,0},{1,51.3,1,0,0,0,0,0},
+    {1,50.8,6.3,0,0,0,0,0},{1,55.4,0.6,0,0,0,0,0},{1,55.1,6.6,0,0,0,0,0},{1,60.5,1.4,0,0,0,0,0},
+    {1,61.1,7.1,0,0,0,0,0},{1,66.1,2.7,0,0,0,0,0},{1,66.2,8.7,0,0,0,0,0},{1,71.9,4.4,0,0,0,0,0},
+    {1,70.5,10,0,0,0,0,0},{1,77.6,6.2,0,0,0,0,0},{1,74.9,11.8,0,0,0,0,0},{1,83.9,7.8,0,0,0,0,0},
+    {1,80.1,13.6,0,0,0,0,0},{1,88.1,11.9,0,0,0,0,0},{1,85.2,17,0,0,0,0,0},{1,91.2,16.9,0,0,0,0,0},
+    {1,87,20.1,0,0,0,0,0},{1,93.3,21.2,0,0,0,0,0},{1,87.9,24,0,0,0,0,0},{1,93.2,25.8,0,0,0,0,0},
+    {1,86.8,26.8,0,0,0,0,0},{1,92.4,30.3,0,0,0,0,0},{1,86.6,30.8,0,0,0,0,0},{1,90.9,34.8,0,0,0,0,0},
+    {1,84.2,33.5,0,0,0,0,0},{1,87.8,38.8,0,0,0,0,0},{1,82,36.6,0,0,0,0,0},{1,84.7,41.7,0,0,0,0,0},
+    {1,79.2,40.7,0,0,0,0,0},{1,79.8,46,0,0,0,0,0},{1,76.3,42.9,0,0,0,0,0},{1,75.6,48.6,0,0,0,0,0},
+    {1,72,44.7,0,0,0,0,0},{1,71.7,51.2,0,0,0,0,0},{1,68,46,0,0,0,0,0},{1,66.2,52.1,0,0,0,0,0},
+    {1,63.7,46.6,0,0,0,0,0},{1,61.2,53.7,0,0,0,0,0},{1,59.7,47.6,0,0,0,0,0},{1,56.9,53.8,0,0,0,0,0},
+    {1,55,48.1,0,0,0,0,0},{1,52.8,53.9,0,0,0,0,0},{1,50.9,48.1,0,0,0,0,0},{1,48.4,54.5,0,0,0,0,0},
+    {1,47,48.1,0,0,0,0,0},{1,44.4,53.7,0,0,0,0,0},{1,43.2,47.4,0,0,0,0,0},{1,40.1,54.2,0,0,0,0,0},
+    {1,38.8,47.4,0,0,0,0,0},{1,36.3,54.7,0,0,0,0,0},{1,35.6,47.8,0,0,0,0,0},{1,32.4,55.1,0,0,0,0,0},
+    {1,30.9,46.6,0,0,0,0,0},{1,28.6,53.3,0,0,0,0,0},{1,26.8,47.8,0,0,0,0,0},{1,3.8,59.9,0,0,0,0,0},
+    {8,0,0,0,0,0,0,0},{15,10,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kMoon[] = {
+    {0,37.05,0,0,0,0,0,0},{4,48,48,0,1,0,77.05,92},{4,60,60,0,0,1,37.05,0},{8,0,0,0,0,0,0,0},
+    {9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kNoSymbol[] = {
+    {0,0,50,0,0,0,0,0},{4,35,35,0,0,1,100,50},{4,35,35,0,0,1,0,50},{8,0,0,0,0,0,0,0},
+    {0,78.95,69.7,0,0,0,0,0},{4,35,35,0,0,0,30.3,21.05},{8,0,0,0,0,0,0,0},{0,21.15,30.3,0,0,0,0,0},
+    {4,35,35,0,0,0,69.7,79},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kOctagon[] = {
+    {0,0,29,0,0,0,0,0},{1,29,0,0,0,0,0,0},{1,69,0,0,0,0,0,0},{1,98,29,0,0,0,0,0},
+    {1,98,69,0,0,0,0,0},{1,69,98,0,0,0,0,0},{1,29,98,0,0,0,0,0},{1,0,69,0,0,0,0,0},
+    {8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kOrthogonalTriangle[] = {
+    {0,0,97,0,0,0,0,0},{1,0,0,0,0,0,0,0},{1,97,97,0,0,0,0,0},{8,0,0,0,0,0,0,0},
+    {9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kOvalCallout[] = {
+    {0,20.53,46.15,0,0,0,0,0},{4,49,25,0,1,1,31.53,50.15},{4,30,30,0,0,1,9.03,63.15},{4,30,30,0,0,0,20.53,46.15},
+    {8,0,0,0,0,0,0,0},{15,15,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kParallelepiped[] = {
+    {0,0,60,0,0,0,0,0},{1,23.5,0,0,0,0,0,0},{1,97,0,0,0,0,0,0},{1,73.5,60,0,0,0,0,0},
+    {8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kPentagon[] = {
+    {0,18.5,90,0,0,0,0,0},{1,0,33,0,0,0,0,0},{1,48.5,0,0,0,0,0,0},{1,97,33,0,0,0,0,0},
+    {1,78.5,90,0,0,0,0,0},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kPointedOval[] = {
+    {0,25.46,0,0,0,0,0,0},{4,75,75,0,0,0,25.46,100},{4,75,75,0,0,0,25.46,0},{8,0,0,0,0,0,0,0},
+    {9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kRectangularCallout[] = {
+    {0,15,43,0,0,0,0,0},{1,0,43,0,0,0,0,0},{1,0,0,0,0,0,0,0},{1,98,0,0,0,0,0,0},
+    {1,98,43,0,0,0,0,0},{1,29,43,0,0,0,0,0},{1,4,60,0,0,0,0,0},{8,0,0,0,0,0,0,0},
+    {15,10,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kRoundedRectangularCallout[] = {
+    {0,15.5,43,0,0,0,0,0},{1,5,43,0,0,0,0,0},{4,5,5,0,0,1,0,38},{1,0,5,0,0,0,0,0},
+    {4,5,5,0,0,1,5,0},{1,93,0,0,0,0,0,0},{4,5,5,0,0,1,98,5},{1,98,38,0,0,0,0,0},
+    {4,5,5,0,0,1,93,43},{1,29,43,0,0,0,0,0},{4,30,30,0,0,1,4,60},{4,30,30,0,0,0,15.5,43},
+    {8,0,0,0,0,0,0,0},{15,15,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kSmiley[] = {
+    {12,0,0,0,0,0,0,0},{5,0,0,98,98,0,0,0},{9,0,0,0,0,0,0,0},{14,2,0,0,0,0,0,0},
+    {0,11,54,0,0,0,0,0},{4,38,27,0,1,0,87,54},{10,0,0,0,0,0,0,0},{13,0,0,0,0,0,0,0},
+    {6,0,0,0,0,0,0,0},{10,0,0,0,0,0,0,0},{0,16,51,0,0,0,0,0},{1,6,57,0,0,0,0,0},
+    {9,0,0,0,0,0,0,0},{0,82,51,0,0,0,0,0},{1,92,57,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+    {14,6,0,0,0,0,0,0},{5,24,27,6,16,0,0,0},{9,0,0,0,0,0,0,0},{5,68,27,6,16,0,0,0},
+    {9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kStar[] = {
+    {0,0,33,0,0,0,0,0},{1,36.4,33,0,0,0,0,0},{1,47.5,0,0,0,0,0,0},{1,58.6,33,0,0,0,0,0},
+    {1,95,33,0,0,0,0,0},{1,66,55.1,0,0,0,0,0},{1,77.5,90,0,0,0,0,0},{1,47.5,68.4,0,0,0,0,0},
+    {1,17.5,90,0,0,0,0,0},{1,29,55.1,0,0,0,0,0},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kSun[] = {
+    {5,17.5,17.5,60,60,0,0,0},{9,0,0,0,0,0,0,0},{0,42.5,14.5,0,0,0,0,0},{1,47.5,0,0,0,0,0,0},
+    {1,52.5,14.5,0,0,0,0,0},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},{0,42.5,80.5,0,0,0,0,0},
+    {1,47.5,95,0,0,0,0,0},{1,52.5,80.5,0,0,0,0,0},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+    {0,14.5,42.5,0,0,0,0,0},{1,0,47.5,0,0,0,0,0},{1,14.5,52.5,0,0,0,0,0},{8,0,0,0,0,0,0,0},
+    {9,0,0,0,0,0,0,0},{0,80.5,42.5,0,0,0,0,0},{1,95,47.5,0,0,0,0,0},{1,80.5,52.5,0,0,0,0,0},
+    {8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},{0,67.5,20.5,0,0,0,0,0},{1,81.2,13.9,0,0,0,0,0},
+    {1,74.5,27.5,0,0,0,0,0},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},{0,67.5,74.5,0,0,0,0,0},
+    {1,81.2,81.1,0,0,0,0,0},{1,74.5,67.5,0,0,0,0,0},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+    {0,27.5,20.5,0,0,0,0,0},{1,13.8,13.9,0,0,0,0,0},{1,20.5,27.5,0,0,0,0,0},{8,0,0,0,0,0,0,0},
+    {9,0,0,0,0,0,0,0},{0,27.5,74.5,0,0,0,0,0},{1,13.8,81.1,0,0,0,0,0},{1,20.5,67.5,0,0,0,0,0},
+    {8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kTick[] = {
+    {0,0.36,66.69,0,0,0,0,0},{4,12,12,0,0,1,16.36,58.69},{4,20,20,0,0,1,26.36,69.69},{4,200,200,0,0,1,63.36,5.69},
+    {4,18,18,0,0,1,80.36,1.69},{4,4.5,4.5,0,0,1,83.36,8.69},{4,230,230,0,0,0,35.36,94.69},{4,20,20,0,0,1,17.36,94.69},
+    {4,100,100,0,0,0,0.36,68.69},{4,2,2,0,0,1,0.36,66.69},{8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kTrapezoid[] = {
+    {0,0,98,0,0,0,0,0},{1,23.5,0,0,0,0,0,0},{1,73.5,0,0,0,0,0,0},{1,97,98,0,0,0,0,0},
+    {8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kWave[] = {
+    {0,0,8.7,0,0,0,0,0},{4,20,20,0,0,1,33,8.7},{4,20,20,0,0,0,65,8.7},{4,20,20,0,0,1,98,8.7},
+    {1,98,48.7,0,0,0,0,0},{4,20,20,0,0,0,65,48.7},{4,20,20,0,0,1,33,48.7},{4,20,20,0,0,0,0,48.7},
+    {8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilCommand kX[] = {
+    {0,0,0,0,0,0,0,0},{1,28,0,0,0,0,0,0},{1,48,29,0,0,0,0,0},{1,68,0,0,0,0,0,0},
+    {1,96,0,0,0,0,0,0},{1,62,49,0,0,0,0,0},{1,96,98,0,0,0,0,0},{1,68,98,0,0,0,0,0},
+    {1,48,69,0,0,0,0,0},{1,28,98,0,0,0,0,0},{1,0,98,0,0,0,0,0},{1,32,49,0,0,0,0,0},
+    {8,0,0,0,0,0,0,0},{9,0,0,0,0,0,0,0},
+};
+
+const StencilDef kBasicStencils[] = {
+    {"basic.4_point_star", 92, 92, k4PointStar, 10},
+    {"basic.6_point_star", 96, 84.5, k6PointStar, 14},
+    {"basic.8_point_star", 96, 96, k8PointStar, 18},
+    {"basic.banner", 96, 50, kBanner, 33},
+    {"basic.cloud_callout", 90.41, 61.4, kCloudCallout, 22},
+    {"basic.cloud_rect", 212.54, 175.05, kCloudRect, 111},
+    {"basic.cone", 99, 96.91, kCone, 8},
+    {"basic.cross", 98, 98, kCross, 14},
+    {"basic.document", 99, 98, kDocument, 11},
+    {"basic.flash", 60, 95.5, kFlash, 14},
+    {"basic.half_circle", 98, 49, kHalfCircle, 4},
+    {"basic.heart", 103.89, 94.74, kHeart, 9},
+    {"basic.loud_callout", 93.3, 59.9, kLoudCallout, 95},
+    {"basic.moon", 77.05, 103.05, kMoon, 5},
+    {"basic.no_symbol", 100, 100, kNoSymbol, 11},
+    {"basic.octagon", 98, 98, kOctagon, 10},
+    {"basic.orthogonal_triangle", 97, 97, kOrthogonalTriangle, 5},
+    {"basic.oval_callout", 109.43, 63.15, kOvalCallout, 7},
+    {"basic.parallelepiped", 97, 60, kParallelepiped, 6},
+    {"basic.pentagon", 97, 90, kPentagon, 7},
+    {"basic.pointed_oval", 50.93, 100, kPointedOval, 5},
+    {"basic.rectangular_callout", 98, 60, kRectangularCallout, 10},
+    {"basic.rounded_rectangular_callout", 98, 60, kRoundedRectangularCallout, 15},
+    {"basic.smiley", 98, 98, kSmiley, 21},
+    {"basic.star", 95, 90, kStar, 12},
+    {"basic.sun", 95, 95, kSun, 42},
+    {"basic.tick", 84.4, 97.54, kTick, 12},
+    {"basic.trapezoid", 97, 98, kTrapezoid, 6},
+    {"basic.wave", 98, 56.7, kWave, 10},
+    {"basic.x", 96, 98, kX, 14},
+};
+
+struct BasicGeometry
+{
+    QPainterPath path;
+    QVector<ShapeDecoration> decorations;
+};
+
+Qt::PenJoinStyle joinStyle(double value)
+{
+    if (value == 1.0)
+    {
+        return Qt::RoundJoin;
+    }
+
+    if (value == 2.0)
+    {
+        return Qt::BevelJoin;
+    }
+
+    return Qt::MiterJoin;
+}
+
+void addArcCommand(QPainterPath &path, const QPointF &to, double rx, double ry,
+                   double largeArc, double sweep)
+{
+    // mxStencil <arc> uses the current point as start; x-axis-rotation is
+    // always 0 in the basic stencil set.
+    addSvgArc(path, path.currentPosition(), to, rx, ry,
+              largeArc != 0.0, sweep != 0.0);
+}
+
+const StencilDef *findStencil(const QString &key)
+{
+    for (const StencilDef &def : kBasicStencils)
+    {
+        if (key == QLatin1String(def.key))
+        {
+            return &def;
+        }
+    }
+
+    return nullptr;
+}
+
+/// Runs one stencil description: fill operations become the filled path,
+/// stroke operations become decorations (they must not punch holes).
+void runStencil(const StencilDef &def, const QRectF &rect, double baseWidth,
+                BasicGeometry &out)
+{
+    const double sx = rect.width() / def.w;
+    const double sy = rect.height() / def.h;
+    const double minScale = qMin(sx, sy);
+    const auto pt = [&](double px, double py)
+    {
+        return QPointF(rect.x() + px * sx, rect.y() + py * sy);
+    };
+
+    QPainterPath buffer;
+    bool hasBuffer = false;
+
+    struct State
+    {
+        double width;
+        double miter;
+        Qt::PenJoinStyle join;
+    };
+
+    State state = { baseWidth, 4.0, Qt::MiterJoin };
+    QVector<State> stack;
+
+    const auto addDecoration = [&](const QPainterPath &path, const State &s)
+    {
+        if (path.isEmpty())
+        {
+            return;
+        }
+
+        ShapeDecoration decoration;
+        decoration.path = path;
+        decoration.strokeWidth = s.width;
+        decoration.join = s.join;
+        decoration.miterLimit = s.miter;
+        out.decorations.append(decoration);
+    };
+
+    const auto flush = [&](bool fill, bool stroke)
+    {
+        if (buffer.isEmpty())
+        {
+            return;
+        }
+
+        if (fill)
+        {
+            out.path.addPath(buffer);
+        }
+
+        if (stroke && !qFuzzyCompare(state.width, baseWidth))
+        {
+            // At the default width the outline of the filled path already
+            // provides the stroke; adding it again would darken the edge.
+            addDecoration(buffer, state);
+        }
+
+        buffer = QPainterPath();
+        hasBuffer = false;
+    };
+
+    for (int i = 0; i < def.count; ++i)
+    {
+        const StencilCommand &command = def.commands[i];
+        const double *v = command.v;
+
+        switch (command.op)
+        {
+        case OpMove:
+            buffer.moveTo(pt(v[0], v[1]));
+            hasBuffer = true;
+            break;
+        case OpLine:
+            if (!hasBuffer)
+            {
+                buffer.moveTo(pt(v[0], v[1]));
+                hasBuffer = true;
+            }
+            else
+            {
+                buffer.lineTo(pt(v[0], v[1]));
+            }
+            break;
+        case OpCurve:
+            buffer.cubicTo(pt(v[0], v[1]), pt(v[2], v[3]), pt(v[4], v[5]));
+            break;
+        case OpQuad:
+            buffer.quadTo(pt(v[0], v[1]), pt(v[2], v[3]));
+            break;
+        case OpArc:
+            addArcCommand(buffer, pt(v[5], v[6]), v[0] * sx, v[1] * sy, v[3], v[4]);
+            break;
+        case OpEllipse:
+            buffer.addEllipse(QRectF(pt(v[0], v[1]),
+                                     QSizeF(v[2] * sx, v[3] * sy)));
+            hasBuffer = true;
+            break;
+        case OpRect:
+            if (v[2] != 0.0 || v[3] != 0.0)
+            {
+                buffer.addRect(QRectF(pt(v[0], v[1]),
+                                      QSizeF(v[2] * sx, v[3] * sy)));
+                hasBuffer = true;
+            }
+            break;
+        case OpRoundRect:
+        {
+            double arcsize = v[4];
+
+            if (arcsize == 0.0)
+            {
+                arcsize = 15.0;
+            }
+
+            const double rw = v[2] * sx;
+            const double rh = v[3] * sy;
+            const double r = qMin(rw * arcsize / 100.0, rh * arcsize / 100.0);
+            buffer.addRoundedRect(QRectF(pt(v[0], v[1]), QSizeF(rw, rh)), r, r);
+            hasBuffer = true;
+            break;
+        }
+        case OpClose:
+            if (!buffer.isEmpty())
+            {
+                buffer.closeSubpath();
+            }
+            break;
+        case OpFillStroke:
+            flush(true, true);
+            break;
+        case OpStroke:
+            addDecoration(buffer, state);
+            buffer = QPainterPath();
+            hasBuffer = false;
+            break;
+        case OpFill:
+            flush(true, false);
+            break;
+        case OpSave:
+            stack.append(state);
+            break;
+        case OpRestore:
+            if (!stack.isEmpty())
+            {
+                state = stack.takeLast();
+            }
+            break;
+        case OpStrokeWidth:
+            state.width = v[0] * (v[1] != 0.0 ? 1.0 : minScale);
+            break;
+        case OpMiterLimit:
+            state.miter = v[0];
+            break;
+        case OpLineJoin:
+            state.join = joinStyle(v[0]);
+            break;
+        default:
+            break;
+        }
+    }
+
+    flush(true, true);
+    out.path.setFillRule(Qt::WindingFill);
+}
+
+void addPolygon(const StyleMap &style, double w, double h, BasicGeometry &out)
+{
+    const QString coordsText = Style::value(style, QStringLiteral("polyCoords"));
+    const QJsonDocument document = QJsonDocument::fromJson(coordsText.toUtf8());
+    const QJsonArray coords = document.isArray() ? document.array() : QJsonArray();
+
+    if (coords.isEmpty())
+    {
+        return;
+    }
+
+    const bool polyline = Style::flag(style, QStringLiteral("polyline"));
+    const auto pointAt = [&](const QJsonValue &value)
+    {
+        const QJsonArray pair = value.toArray();
+        const double px = pair.size() > 0 ? pair.at(0).toDouble() : 0.0;
+        const double py = pair.size() > 1 ? pair.at(1).toDouble() : 0.0;
+        return QPointF(px * w, py * h);
+    };
+
+    out.path.moveTo(pointAt(coords.at(0)));
+
+    for (int i = 1; i < coords.size(); ++i)
+    {
+        out.path.lineTo(pointAt(coords.at(i)));
+    }
+
+    if (!polyline)
+    {
+        out.path.closeSubpath();
+    }
+}
+
+void buildBasicShape(const QString &key, const StyleMap &style, const QRectF &rect,
+                     BasicGeometry &out)
+{
+    const double w = rect.width();
+    const double h = rect.height();
+    const double x = rect.x();
+    const double y = rect.y();
+    const auto pt = [&](double px, double py) { return QPointF(x + px, y + py); };
+    const auto clamp = [](double value, double low, double high)
+    {
+        return qBound(low, value, high);
+    };
+    const auto number = [&](const char *name, double fallback)
+    {
+        return Style::number(style, QString::fromLatin1(name), fallback);
+    };
+
+    if (const StencilDef *stencil = findStencil(key))
+    {
+        runStencil(*stencil, rect,
+                   Style::number(style, QStringLiteral("strokeWidth"), 1.0), out);
+        return;
+    }
+
+    if (key == QLatin1String("basic.rect"))
+    {
+        out.path.addRect(rect);
+        return;
+    }
+
+    if (key == QLatin1String("basic.patternfillrect"))
+    {
+        out.path.addRect(rect);
+
+        const QString fillStyle = Style::value(style, QStringLiteral("fillStyle"),
+                                               QStringLiteral("none"));
+        const double fillWidth = number("fillStrokeWidth", 1.0);
+        double step = number("step", 5.0);
+
+        if (step <= 0.0)
+        {
+            return;
+        }
+
+        QPainterPath lines;
+
+        if (fillStyle == QLatin1String("diag") || fillStyle == QLatin1String("diagGrid"))
+        {
+            step *= 1.41;
+
+            for (double i = 0.0; i < h + w && lines.elementCount() < 10000; i += step)
+            {
+                if (i <= h)
+                {
+                    lines.moveTo(0, i);
+                    lines.lineTo(i <= w ? QPointF(i, 0) : QPointF(w, i - w));
+                }
+                else
+                {
+                    lines.moveTo(i - h, h);
+                    lines.lineTo(i <= w ? QPointF(i, 0) : QPointF(w, i - w));
+                }
+            }
+        }
+
+        if (fillStyle == QLatin1String("vert") || fillStyle == QLatin1String("grid"))
+        {
+            for (double i = 0.0; i <= w && lines.elementCount() < 10000; i += step)
+            {
+                lines.moveTo(i, 0);
+                lines.lineTo(i, h);
+            }
+        }
+
+        if (fillStyle == QLatin1String("diagRev") || fillStyle == QLatin1String("diagGrid"))
+        {
+            if (fillStyle == QLatin1String("diagRev"))
+            {
+                step *= 1.41;
+            }
+
+            for (double i = 0.0; i < h + w && lines.elementCount() < 10000; i += step)
+            {
+                if (i <= h)
+                {
+                    lines.moveTo(w, i);
+                    lines.lineTo(i <= w ? QPointF(w - i, 0) : QPointF(0, i - w));
+                }
+                else
+                {
+                    lines.moveTo(w - i + h, h);
+                    lines.lineTo(i <= w ? QPointF(w - i, 0) : QPointF(0, i - w));
+                }
+            }
+        }
+
+        if (fillStyle == QLatin1String("hor") || fillStyle == QLatin1String("grid"))
+        {
+            for (double i = 0.0; i <= h && lines.elementCount() < 10000; i += step)
+            {
+                lines.moveTo(0, i);
+                lines.lineTo(w, i);
+            }
+        }
+
+        if (!lines.isEmpty())
+        {
+            ShapeDecoration decoration;
+            decoration.path = lines;
+            decoration.strokeWidth = fillWidth;
+            decoration.strokeColor = Style::parseColorValue(
+                Style::value(style, QStringLiteral("fillStrokeColor"),
+                             QStringLiteral("#cccccc")));
+            out.decorations.append(decoration);
+        }
+
+        return;
+    }
+
+    if (key == QLatin1String("basic.polygon"))
+    {
+        addPolygon(style, w, h, out);
+        return;
+    }
+
+    if (key == QLatin1String("basic.4_point_star_2"))
+    {
+        const double dx = 0.5 * clamp(number("dx", 0.8), 0.0, w);
+
+        out.path.moveTo(pt(0, h * 0.5));
+        out.path.lineTo(pt(dx * w, dx * h));
+        out.path.lineTo(pt(w * 0.5, 0));
+        out.path.lineTo(pt(w - dx * w, dx * h));
+        out.path.lineTo(pt(w, h * 0.5));
+        out.path.lineTo(pt(w - dx * w, h - dx * h));
+        out.path.lineTo(pt(w * 0.5, h));
+        out.path.lineTo(pt(dx * w, h - dx * h));
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.isocube"))
+    {
+        const double angle = clamp(number("isoAngle", 15.0), 0.01, 94.0) * M_PI / 200.0;
+        const double isoH = qMin(w * std::tan(angle), h * 0.5);
+
+        out.path.moveTo(pt(w * 0.5, 0));
+        out.path.lineTo(pt(w, isoH));
+        out.path.lineTo(pt(w, h - isoH));
+        out.path.lineTo(pt(w * 0.5, h));
+        out.path.lineTo(pt(0, h - isoH));
+        out.path.lineTo(pt(0, isoH));
+        out.path.closeSubpath();
+
+        QPainterPath lines;
+        lines.moveTo(0, isoH);
+        lines.lineTo(w * 0.5, 2 * isoH);
+        lines.lineTo(w, isoH);
+        lines.moveTo(w * 0.5, 2 * isoH);
+        lines.lineTo(w * 0.5, h);
+
+        ShapeDecoration decoration;
+        decoration.path = lines.translated(x, y);
+        out.decorations.append(decoration);
+        return;
+    }
+
+    if (key == QLatin1String("basic.acute_triangle")
+        || key == QLatin1String("basic.obtuse_triangle"))
+    {
+        const double dx = w * clamp(number("dx", 0.5), 0.0, w);
+
+        if (key == QLatin1String("basic.acute_triangle"))
+        {
+            out.path.moveTo(pt(0, h));
+            out.path.lineTo(pt(dx, 0));
+            out.path.lineTo(pt(w, h));
+        }
+        else
+        {
+            out.path.moveTo(pt(dx, h));
+            out.path.lineTo(pt(0, 0));
+            out.path.lineTo(pt(w, h));
+        }
+
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.drop"))
+    {
+        const double r = qMin(h, w) * 0.5;
+        const double d = h - r;
+        const double a = std::sqrt(qMax(0.0, d * d - r * r));
+        const double angle = std::atan2(a, r);
+        const double x1 = r * std::sin(angle);
+        const double y1 = r * std::cos(angle);
+
+        out.path.moveTo(pt(w * 0.5, 0));
+        out.path.lineTo(pt(w * 0.5 + x1, h - r - y1));
+        addArcCommand(out.path, pt(w * 0.5 + r, h - r), r, r, 0, 1);
+        addArcCommand(out.path, pt(w * 0.5, h), r, r, 0, 1);
+        addArcCommand(out.path, pt(w * 0.5 - r, h - r), r, r, 0, 1);
+        addArcCommand(out.path, pt(w * 0.5 - x1, h - r - y1), r, r, 0, 1);
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.cone2"))
+    {
+        const double dx = w * clamp(number("dx", 0.5), 0.0, w);
+        const double dy = h * clamp(number("dy", 0.9), 0.0, h);
+        const double ry = h - dy;
+
+        out.path.moveTo(pt(dx, 0));
+
+        if (ry > 0.0)
+        {
+            out.path.lineTo(pt(w, h - ry));
+            addArcCommand(out.path, pt(w * 0.5, h), w * 0.5, ry, 0, 1);
+            addArcCommand(out.path, pt(0, h - ry), w * 0.5, ry, 0, 1);
+        }
+        else
+        {
+            out.path.lineTo(pt(w, h));
+            out.path.lineTo(pt(0, h));
+        }
+
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.pyramid"))
+    {
+        const double dx1 = w * clamp(number("dx1", 0.5), 0.0, w);
+        const double dx2 = w * clamp(number("dx2", 0.6), 0.0, w);
+        const double dy1 = h * clamp(number("dy1", 0.9), 0.0, h);
+        const double dy2 = h * clamp(number("dy2", 0.8), 0.0, h);
+
+        out.path.moveTo(pt(dx1, 0));
+        out.path.lineTo(pt(w, dy2));
+        out.path.lineTo(pt(dx2, h));
+        out.path.lineTo(pt(0, dy1));
+        out.path.closeSubpath();
+
+        ShapeDecoration decoration;
+        decoration.path.moveTo(pt(dx1, 0));
+        decoration.path.lineTo(pt(dx2, h));
+        out.decorations.append(decoration);
+        return;
+    }
+
+    if (key == QLatin1String("basic.diag_snip_rect")
+        || key == QLatin1String("basic.corner_round_rect")
+        || key == QLatin1String("basic.three_corner_round_rect")
+        || key == QLatin1String("basic.diag_round_rect"))
+    {
+        double dx = clamp(number("dx", 0.5), 0.0, w) * 2.0;
+        dx = qMin(qMin(w * 0.5, h * 0.5), dx);
+
+        if (key == QLatin1String("basic.diag_snip_rect"))
+        {
+            out.path.moveTo(pt(dx, 0));
+            out.path.lineTo(pt(w, 0));
+            out.path.lineTo(pt(w, h - dx));
+            out.path.lineTo(pt(w - dx, h));
+            out.path.lineTo(pt(0, h));
+            out.path.lineTo(pt(0, dx));
+        }
+        else if (key == QLatin1String("basic.corner_round_rect"))
+        {
+            out.path.moveTo(pt(dx, 0));
+            out.path.lineTo(pt(w, 0));
+            out.path.lineTo(pt(w, h));
+            out.path.lineTo(pt(0, h));
+            out.path.lineTo(pt(0, dx));
+            addArcCommand(out.path, pt(dx, 0), dx, dx, 0, 1);
+        }
+        else if (key == QLatin1String("basic.three_corner_round_rect"))
+        {
+            out.path.moveTo(pt(dx, 0));
+            out.path.lineTo(pt(w - dx, 0));
+            addArcCommand(out.path, pt(w, dx), dx, dx, 0, 1);
+            out.path.lineTo(pt(w, h - dx));
+            addArcCommand(out.path, pt(w - dx, h), dx, dx, 0, 1);
+            out.path.lineTo(pt(0, h));
+            out.path.lineTo(pt(0, dx));
+            addArcCommand(out.path, pt(dx, 0), dx, dx, 0, 1);
+        }
+        else
+        {
+            out.path.moveTo(pt(dx, 0));
+            out.path.lineTo(pt(w, 0));
+            out.path.lineTo(pt(w, h - dx));
+            addArcCommand(out.path, pt(w - dx, h), dx, dx, 0, 1);
+            out.path.lineTo(pt(0, h));
+            out.path.lineTo(pt(0, dx));
+            addArcCommand(out.path, pt(dx, 0), dx, dx, 0, 1);
+        }
+
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.plaque"))
+    {
+        double dx = clamp(number("dx", 0.5), 0.0, w) * 2.0;
+        dx = qMin(qMin(w * 0.5, h * 0.5), dx);
+
+        out.path.moveTo(pt(w - dx, 0));
+        addArcCommand(out.path, pt(w, dx), dx, dx, 0, 0);
+        out.path.lineTo(pt(w, h - dx));
+        addArcCommand(out.path, pt(w - dx, h), dx, dx, 0, 0);
+        out.path.lineTo(pt(dx, h));
+        addArcCommand(out.path, pt(0, h - dx), dx, dx, 0, 0);
+        out.path.lineTo(pt(0, dx));
+        addArcCommand(out.path, pt(dx, 0), dx, dx, 0, 0);
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.frame"))
+    {
+        double dx = clamp(number("dx", 0.5), 0.0, w);
+        dx = qMin(qMin(w * 0.5, h * 0.5), dx);
+
+        out.path.moveTo(pt(w, 0));
+        out.path.lineTo(pt(w, h));
+        out.path.lineTo(pt(0, h));
+        out.path.lineTo(pt(0, 0));
+        out.path.closeSubpath();
+        out.path.moveTo(pt(dx, dx));
+        out.path.lineTo(pt(dx, h - dx));
+        out.path.lineTo(pt(w - dx, h - dx));
+        out.path.lineTo(pt(w - dx, dx));
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.plaque_frame"))
+    {
+        double dx = clamp(number("dx", 0.5), 0.0, w);
+        dx = qMin(qMin(w * 0.25, h * 0.25), dx);
+
+        out.path.moveTo(pt(w - dx, 0));
+        addArcCommand(out.path, pt(w, dx), dx, dx, 0, 0);
+        out.path.lineTo(pt(w, h - dx));
+        addArcCommand(out.path, pt(w - dx, h), dx, dx, 0, 0);
+        out.path.lineTo(pt(dx, h));
+        addArcCommand(out.path, pt(0, h - dx), dx, dx, 0, 0);
+        out.path.lineTo(pt(0, dx));
+        addArcCommand(out.path, pt(dx, 0), dx, dx, 0, 0);
+        out.path.closeSubpath();
+
+        out.path.moveTo(pt(dx * 2, dx));
+        addArcCommand(out.path, pt(dx, dx * 2), dx * 2, dx * 2, 0, 1);
+        out.path.lineTo(pt(dx, h - 2 * dx));
+        addArcCommand(out.path, pt(dx * 2, h - dx), dx * 2, dx * 2, 0, 1);
+        out.path.lineTo(pt(w - 2 * dx, h - dx));
+        addArcCommand(out.path, pt(w - dx, h - 2 * dx), dx * 2, dx * 2, 0, 1);
+        out.path.lineTo(pt(w - dx, dx * 2));
+        addArcCommand(out.path, pt(w - 2 * dx, dx), dx * 2, dx * 2, 0, 1);
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.rounded_frame"))
+    {
+        double dx = clamp(number("dx", 0.5), 0.0, w);
+        dx = qMin(qMin(w * 0.25, h * 0.25), dx);
+
+        out.path.moveTo(pt(w - 2 * dx, 0));
+        addArcCommand(out.path, pt(w, 2 * dx), dx * 2, dx * 2, 0, 1);
+        out.path.lineTo(pt(w, h - 2 * dx));
+        addArcCommand(out.path, pt(w - 2 * dx, h), dx * 2, dx * 2, 0, 1);
+        out.path.lineTo(pt(dx * 2, h));
+        addArcCommand(out.path, pt(0, h - 2 * dx), dx * 2, dx * 2, 0, 1);
+        out.path.lineTo(pt(0, 2 * dx));
+        addArcCommand(out.path, pt(2 * dx, 0), dx * 2, dx * 2, 0, 1);
+        out.path.closeSubpath();
+
+        out.path.moveTo(pt(dx * 2, dx));
+        addArcCommand(out.path, pt(dx, dx * 2), dx, dx, 0, 0);
+        out.path.lineTo(pt(dx, h - 2 * dx));
+        addArcCommand(out.path, pt(dx * 2, h - dx), dx, dx, 0, 0);
+        out.path.lineTo(pt(w - 2 * dx, h - dx));
+        addArcCommand(out.path, pt(w - dx, h - 2 * dx), dx, dx, 0, 0);
+        out.path.lineTo(pt(w - dx, dx * 2));
+        addArcCommand(out.path, pt(w - 2 * dx, dx), dx, dx, 0, 0);
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.frame_corner"))
+    {
+        double dx = clamp(number("dx", 0.5), 0.0, w);
+        dx = qMin(qMin(w * 0.5, h * 0.5), dx);
+
+        out.path.moveTo(pt(0, 0));
+        out.path.lineTo(pt(w, 0));
+        out.path.lineTo(pt(w - dx, dx));
+        out.path.lineTo(pt(dx, dx));
+        out.path.lineTo(pt(dx, h - dx));
+        out.path.lineTo(pt(0, h));
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.diag_stripe"))
+    {
+        const double dx = qMin(qMin(w, h), number("dx", 0.5));
+
+        out.path.moveTo(pt(0, h));
+        out.path.lineTo(pt(w, 0));
+        out.path.lineTo(pt(w, qMin(dx * 100.0 / w, h)));
+        out.path.lineTo(pt(qMin(dx * 100.0 / h, w), h));
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.donut"))
+    {
+        const double dx = qMin(qMin(w * 0.5, h * 0.5), number("dx", 0.5));
+        const double rx = w * 0.5;
+        const double ry = h * 0.5;
+
+        out.path.moveTo(pt(0, h * 0.5));
+        addArcCommand(out.path, pt(w * 0.5, 0), rx, ry, 0, 1);
+        addArcCommand(out.path, pt(w, h * 0.5), rx, ry, 0, 1);
+        addArcCommand(out.path, pt(w * 0.5, h), rx, ry, 0, 1);
+        addArcCommand(out.path, pt(0, h * 0.5), rx, ry, 0, 1);
+        out.path.closeSubpath();
+
+        out.path.moveTo(pt(w * 0.5, dx));
+        addArcCommand(out.path, pt(dx, h * 0.5), rx - dx, ry - dx, 0, 0);
+        addArcCommand(out.path, pt(w * 0.5, h - dx), rx - dx, ry - dx, 0, 0);
+        addArcCommand(out.path, pt(w - dx, h * 0.5), rx - dx, ry - dx, 0, 0);
+        addArcCommand(out.path, pt(w * 0.5, dx), rx - dx, ry - dx, 0, 0);
+        out.path.closeSubpath();
+        out.path.setFillRule(Qt::WindingFill);
+        return;
+    }
+
+    if (key == QLatin1String("basic.layered_rect"))
+    {
+        // mxShapeBasicLayeredRect paints three filled cards back to front.
+        // Only the front card belongs to the fill path; the back cards are
+        // filled decorations so the front card covers their inner edges.
+        double dx = clamp(number("dx", 0.5), 0.0, w);
+        dx = qMin(qMin(w * 0.5, h * 0.5), dx);
+
+        QColor cardFill = Style::color(style, QStringLiteral("fillColor"),
+                                       QColor(255, 255, 255));
+
+        if (Style::isNoneColor(Style::value(style, QStringLiteral("fillColor"))))
+        {
+            cardFill = QColor();
+        }
+
+        const auto card = [&](double left, double top, double right, double bottom)
+        {
+            ShapeDecoration decoration;
+            decoration.fillColor = cardFill;
+            decoration.behind = true;
+            decoration.path.moveTo(pt(left, top));
+            decoration.path.lineTo(pt(right, top));
+            decoration.path.lineTo(pt(right, bottom));
+            decoration.path.lineTo(pt(left, bottom));
+            decoration.path.closeSubpath();
+            out.decorations.append(decoration);
+        };
+
+        card(dx, dx, w, h);
+        card(dx * 0.5, dx * 0.5, w - dx * 0.5, h - dx * 0.5);
+
+        out.path.moveTo(pt(0, 0));
+        out.path.lineTo(pt(w - dx, 0));
+        out.path.lineTo(pt(w - dx, h - dx));
+        out.path.lineTo(pt(0, h - dx));
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.button"))
+    {
+        double dx = clamp(number("dx", 0.5), 0.0, w);
+        dx = qMin(qMin(w * 0.5, h * 0.5), dx);
+
+        out.path.moveTo(pt(0, 0));
+        out.path.lineTo(pt(w, 0));
+        out.path.lineTo(pt(w, h));
+        out.path.lineTo(pt(0, h));
+        out.path.closeSubpath();
+
+        const auto bevel = [&](double ax, double ay, double bx, double by,
+                               double cx, double cy, double ex, double ey)
+        {
+            out.path.moveTo(pt(ax, ay));
+            out.path.lineTo(pt(bx, by));
+            out.path.lineTo(pt(cx, cy));
+            out.path.lineTo(pt(ex, ey));
+            out.path.closeSubpath();
+        };
+
+        bevel(0, h, 0, 0, dx, dx, dx, h - dx);
+        bevel(0, 0, w, 0, w - dx, dx, dx, dx);
+        bevel(w, 0, w, h, w - dx, h - dx, w - dx, dx);
+        bevel(0, h, dx, h - dx, w - dx, h - dx, w, h);
+        bevel(0, h, 0, 0, dx, dx, dx, h - dx);
+        return;
+    }
+
+    if (key == QLatin1String("basic.shaded_button"))
+    {
+        double dx = clamp(number("dx", 0.5), 0.0, w);
+        dx = qMin(qMin(w * 0.5, h * 0.5), dx);
+
+        out.path.addRect(QRectF(x, y, w, h));
+
+        const auto bevel = [&](const QColor &color, double ax, double ay, double bx,
+                               double by, double cx, double cy, double ex, double ey)
+        {
+            ShapeDecoration decoration;
+            decoration.fillColor = color;
+            decoration.strokeWidth = 0.0;
+            decoration.path.moveTo(pt(ax, ay));
+            decoration.path.lineTo(pt(bx, by));
+            decoration.path.lineTo(pt(cx, cy));
+            decoration.path.lineTo(pt(ex, ey));
+            decoration.path.closeSubpath();
+            out.decorations.append(decoration);
+        };
+
+        bevel(QColor(255, 255, 255, 64), 0, h, 0, 0, dx, dx, dx, h - dx);
+        bevel(QColor(255, 255, 255, 128), 0, 0, w, 0, w - dx, dx, dx, dx);
+        bevel(QColor(0, 0, 0, 64), w, 0, w, h, w - dx, h - dx, w - dx, dx);
+        bevel(QColor(0, 0, 0, 128), 0, h, dx, h - dx, w - dx, h - dx, w, h);
+        return;
+    }
+
+    if (key == QLatin1String("basic.pie"))
+    {
+        const double startSource = clamp(number("startAngle", 0.25), 0.0, 1.0);
+        const double endSource = clamp(number("endAngle", 0.75), 0.0, 1.0);
+        const double startAngle = 2.0 * M_PI * startSource;
+        const double endAngle = 2.0 * M_PI * endSource;
+        const double rx = w * 0.5;
+        const double ry = h * 0.5;
+
+        const double startX = rx + std::sin(startAngle) * rx;
+        const double startY = ry - std::cos(startAngle) * ry;
+        const double endX = rx + std::sin(endAngle) * rx;
+        const double endY = ry - std::cos(endAngle) * ry;
+
+        double diff = endAngle - startAngle;
+
+        if (diff < 0.0)
+        {
+            diff += 2.0 * M_PI;
+        }
+
+        const bool bigArc = diff >= M_PI;
+
+        out.path.moveTo(pt(rx, ry));
+        out.path.lineTo(pt(startX, startY));
+        addArcCommand(out.path, pt(endX, endY), rx, ry, bigArc ? 1 : 0, 1);
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.arc"))
+    {
+        const double startSource = clamp(number("startAngle", 0.25), 0.0, 1.0);
+        const double endSource = clamp(number("endAngle", 0.75), 0.0, 1.0);
+        const double startAngle = 2.0 * M_PI * startSource;
+        const double endAngle = 2.0 * M_PI * endSource;
+        const double cx = w * 0.5;
+        const double cy = h * 0.5;
+        const double rx = w * 0.5;
+        const double ry = h * 0.5;
+
+        const double startX = cx + std::sin(startAngle) * rx;
+        const double startY = cy - std::cos(startAngle) * ry;
+        const double endX = cx + std::sin(endAngle) * rx;
+        const double endY = cy - std::cos(endAngle) * ry;
+
+        double diff = endAngle - startAngle;
+
+        if (diff < 0.0)
+        {
+            diff += 2.0 * M_PI;
+        }
+
+        const bool bigArc = diff > M_PI;
+
+        out.path.moveTo(pt(startX, startY));
+        addArcCommand(out.path, pt(endX, endY), rx, ry, bigArc ? 1 : 0, 1);
+        return;
+    }
+
+    if (key == QLatin1String("basic.partconcellipse"))
+    {
+        double startAngle = 2.0 * M_PI * clamp(number("startAngle", 0.25), 0.0, 1.0);
+        const double endSource = clamp(number("endAngle", 0.75), 0.0, 1.0);
+        double endAngle = 2.0 * M_PI * endSource;
+        const double arcWidth = 1.0 - clamp(number("arcWidth", 0.5), 0.0, 1.0);
+        const double rx = w * 0.5;
+        const double ry = h * 0.5;
+        const double rx2 = rx * arcWidth;
+        const double ry2 = ry * arcWidth;
+
+        double diff = endAngle - startAngle;
+
+        if (diff < 0.0)
+        {
+            diff += 2.0 * M_PI;
+        }
+        else if (qFuzzyCompare(diff, M_PI))
+        {
+            endAngle += 0.00001;
+        }
+
+        const double startX = rx + std::sin(startAngle) * rx;
+        const double startY = ry - std::cos(startAngle) * ry;
+        const double innerStartX = rx + std::sin(startAngle) * rx2;
+        const double innerStartY = ry - std::cos(startAngle) * ry2;
+        const double endX = rx + std::sin(endAngle) * rx;
+        const double endY = ry - std::cos(endAngle) * ry;
+        const double innerEndX = rx + std::sin(endAngle) * rx2;
+        const double innerEndY = ry - std::cos(endAngle) * ry2;
+        const bool bigArc = diff >= M_PI;
+
+        out.path.moveTo(pt(startX, startY));
+        addArcCommand(out.path, pt(endX, endY), rx, ry, bigArc ? 1 : 0, 1);
+        out.path.lineTo(pt(innerEndX, innerEndY));
+        addArcCommand(out.path, pt(innerStartX, innerStartY), rx2, ry2,
+                      bigArc ? 1 : 0, 0);
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.octagon2"))
+    {
+        double dx = clamp(number("dx", 0.5), 0.0, w) * 2.0;
+        dx = qMin(qMin(w * 0.5, h * 0.5), dx);
+
+        out.path.moveTo(pt(dx, 0));
+        out.path.lineTo(pt(w - dx, 0));
+        out.path.lineTo(pt(w, dx));
+        out.path.lineTo(pt(w, h - dx));
+        out.path.lineTo(pt(w - dx, h));
+        out.path.lineTo(pt(dx, h));
+        out.path.lineTo(pt(0, h - dx));
+        out.path.lineTo(pt(0, dx));
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.wave2"))
+    {
+        const double dy = h * clamp(number("dy", 0.5), 0.0, h);
+        const double fy = 1.4;
+
+        out.path.moveTo(pt(0, dy / 2.0));
+        out.path.quadTo(pt(w / 6.0, dy * (1.0 - fy)), pt(w / 3.0, dy / 2.0));
+        out.path.quadTo(pt(w / 2.0, dy * fy), pt(w * 2.0 / 3.0, dy / 2.0));
+        out.path.quadTo(pt(w * 5.0 / 6.0, dy * (1.0 - fy)), pt(w, dy / 2.0));
+        out.path.lineTo(pt(w, h - dy / 2.0));
+        out.path.quadTo(pt(w * 5.0 / 6.0, h - dy * fy), pt(w * 2.0 / 3.0, h - dy / 2.0));
+        out.path.quadTo(pt(w / 2.0, h - dy * (1.0 - fy)), pt(w / 3.0, h - dy / 2.0));
+        out.path.quadTo(pt(w / 6.0, h - dy * fy), pt(0, h - dy / 2.0));
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.rectcallout"))
+    {
+        const double dx = clamp(number("dx", 0.5), 0.0, w);
+        const double dy = clamp(number("dy", 0.5), 0.0, h);
+
+        out.path.moveTo(pt(dx - dy * 0.5, h - dy));
+        out.path.lineTo(pt(0, h - dy));
+        out.path.lineTo(pt(0, 0));
+        out.path.lineTo(pt(w, 0));
+        out.path.lineTo(pt(w, h - dy));
+        out.path.lineTo(pt(dx + dy * 0.5, h - dy));
+        out.path.lineTo(pt(dx - dy, h));
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.roundrectcallout"))
+    {
+        double dx = clamp(number("dx", 0.5), 0.0, w);
+        double dy = clamp(number("dy", 0.5), 0.0, h);
+        double r = clamp(number("size", 10.0), 0.0, h);
+
+        r = qMin(qMin((h - dy) / 2.0, w / 2.0), r);
+        dx = qMax(r + dy * 0.5, dx);
+        dx = qMin(w - r - dy * 0.5, dx);
+
+        out.path.moveTo(pt(dx - dy * 0.5, h - dy));
+        out.path.lineTo(pt(r, h - dy));
+        addArcCommand(out.path, pt(0, h - dy - r), r, r, 0, 1);
+        out.path.lineTo(pt(0, r));
+        addArcCommand(out.path, pt(r, 0), r, r, 0, 1);
+        out.path.lineTo(pt(w - r, 0));
+        addArcCommand(out.path, pt(w, r), r, r, 0, 1);
+        out.path.lineTo(pt(w, h - dy - r));
+        addArcCommand(out.path, pt(w - r, h - dy), r, r, 0, 1);
+        out.path.lineTo(pt(dx + dy * 0.5, h - dy));
+        addArcCommand(out.path, pt(dx - dy, h), 1.9 * dy, 1.4 * dy, 0, 1);
+        addArcCommand(out.path, pt(dx - dy * 0.5, h - dy), 0.9 * dy, 1.4 * dy, 0, 0);
+        out.path.closeSubpath();
+        return;
+    }
+
+    if (key == QLatin1String("basic.cross2"))
+    {
+        const double dx = clamp(number("dx", 0.5), 0.0, w);
+
+        out.path.moveTo(pt(w * 0.5 + dx, 0));
+        out.path.lineTo(pt(w * 0.5 + dx, h * 0.5 - dx));
+        out.path.lineTo(pt(w, h * 0.5 - dx));
+        out.path.lineTo(pt(w, h * 0.5 + dx));
+        out.path.lineTo(pt(w * 0.5 + dx, h * 0.5 + dx));
+        out.path.lineTo(pt(w * 0.5 + dx, h));
+        out.path.lineTo(pt(w * 0.5 - dx, h));
+        out.path.lineTo(pt(w * 0.5 - dx, h * 0.5 + dx));
+        out.path.lineTo(pt(0, h * 0.5 + dx));
+        out.path.lineTo(pt(0, h * 0.5 - dx));
+        out.path.lineTo(pt(w * 0.5 - dx, h * 0.5 - dx));
+        out.path.lineTo(pt(w * 0.5 - dx, 0));
+        out.path.closeSubpath();
+        return;
+    }
+}
+
+} // namespace
+
 QString defaultVertexStyle()
 {
     return QStringLiteral("rounded=0;whiteSpace=wrap;html=1;");
@@ -410,6 +1756,15 @@ QVector<ShapeDefinition> toolboxShapes()
     // black outline defaults; edge templates stay exactly as draw.io defines
     // them and are inserted as floating edges.
     const QString vertexColors = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
+    // Shared colour fragments of the remaining palettes.
+    const QString blue = vertexColors;
+    const QString green = vertexColors;
+    const QString orange = vertexColors;
+    const QString purple = vertexColors;
+    const QString yellow = vertexColors;
+    const QString red = vertexColors;
+    const QString white = vertexColors;
+    const QString plain = QStringLiteral("whiteSpace=wrap;html=1;");
     const QString edgeLabelStyle =
         QStringLiteral("edgeLabel;resizable=0;html=1;inheritText=1;");
     const QString fieldStyle =
@@ -740,211 +2095,292 @@ QVector<ShapeDefinition> toolboxShapes()
     }
 
     // --- basic -----------------------------------------------------------
-    // Sidebar-Basic.js: the mxgraph.basic stencil collection plus the shapes
-    // that file registers itself.
-    add(QStringLiteral("basic.waypoint"), QStringLiteral("Waypoint"),
-        QStringLiteral("shape=waypoint;size=8;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(20, 20), QStringLiteral("basic"));
-    add(QStringLiteral("basic.orthogonalTriangle"), QStringLiteral("Orthogonal Triangle"),
-        QStringLiteral("shape=mxgraph.basic.orthogonal_triangle;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(110, 90), QStringLiteral("basic"));
-    add(QStringLiteral("basic.obtuseTriangle"), QStringLiteral("Obtuse Triangle"),
-        QStringLiteral("shape=mxgraph.basic.obtuse_triangle;dx=0.25;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(130, 90), QStringLiteral("basic"));
-    add(QStringLiteral("pentagon"), QStringLiteral("Pentagon"),
-        QStringLiteral("shape=pentagon;perimeter=pentagonPerimeter;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("octagon"), QStringLiteral("Octagon"),
-        QStringLiteral("shape=octagon;perimeter=octagonPerimeter;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("star"), QStringLiteral("Star"),
-        QStringLiteral("shape=star;perimeter=starPerimeter;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("cross"), QStringLiteral("Cross"),
-        QStringLiteral("shape=cross;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(100, 100), QStringLiteral("basic"));
-    add(QStringLiteral("doubleEllipse"), QStringLiteral("Double Ellipse"),
-        QStringLiteral("shape=doubleEllipse;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(130, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.cylinder"), QStringLiteral("Cylinder"),
-        QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;"
-                       "size=15;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(90, 110), QStringLiteral("basic"));
-    add(QStringLiteral("basic.cylinderStack"), QStringLiteral("Cylinder Stack"),
-        QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;"
-                       "size=15;lid=0;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(80, 100), QStringLiteral("basic"));
-    add(QStringLiteral("swimlane"), QStringLiteral("Swimlane"),
-        QStringLiteral("swimlane;html=1;startSize=23;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(240, 160), QStringLiteral("basic"));
-    add(QStringLiteral("line"), QStringLiteral("Line"),
-        QStringLiteral("line;strokeWidth=2;html=1;fillColor=none;strokeColor=#000000;"),
-        QSizeF(120, 60), QStringLiteral("basic"));
-    add(QStringLiteral("xor"), QStringLiteral("Xor"),
-        QStringLiteral("shape=xor;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(60, 80), QStringLiteral("basic"));
-    const QString blue = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
-    const QString green = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
-    const QString orange = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
-    const QString purple = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
-    const QString yellow = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
-    const QString red = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
-    const QString white = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
-    const QString plain = QStringLiteral("whiteSpace=wrap;html=1;");
+    // Exactly the entries of Sidebar.prototype.addBasicPalette in draw.io's
+    // diagramly/sidebar/Sidebar-Basic.js, in order and with its style strings
+    // verbatim. s/s2 are the two prefixes that file builds its styles from.
+    const QString s = QStringLiteral("whiteSpace=wrap;html=1;shape=mxgraph.basic.");
+    const QString s2 = QStringLiteral("verticalLabelPosition=bottom;verticalAlign=top;"
+                                      "html=1;shape=mxgraph.basic.");
 
-    // --- additional draw.io Basic shapes (Sidebar-Basic.js) --------------
-    add(QStringLiteral("basic.partialTopBottom"), QStringLiteral("Partial Top Bottom"),
-        QStringLiteral("shape=partialRectangle;top=0;bottom=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
-        QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.partialTop"), QStringLiteral("Partial Top"),
-        QStringLiteral("shape=partialRectangle;top=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
-        QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.partialBottom"), QStringLiteral("Partial Bottom"),
-        QStringLiteral("shape=partialRectangle;bottom=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
-        QSizeF(140, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.partialLeft"), QStringLiteral("Partial Left"),
-        QStringLiteral("shape=partialRectangle;left=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
-        QSizeF(140, 70), QStringLiteral("basic"));
+    add(QStringLiteral("basic.rect"), QStringLiteral("Partial Rectangle"),
+        s2 + QStringLiteral("rect;fillColor2=none;strokeWidth=1;size=20;indent=5;"),
+        QSizeF(120, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.partialTopBottom"), QStringLiteral("Partial Rectangle"),
+        QStringLiteral("shape=partialRectangle;whiteSpace=wrap;html=1;top=0;bottom=0;"
+                       "fillColor=none;"),
+        QSizeF(120, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.partialRightTopBottom"), QStringLiteral("Partial Rectangle"),
+        QStringLiteral("shape=partialRectangle;whiteSpace=wrap;html=1;right=0;top=0;"
+                       "bottom=0;fillColor=none;routingCenterX=-0.5;"),
+        QSizeF(120, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.partialBottomRight"), QStringLiteral("Partial Rectangle"),
+        QStringLiteral("shape=partialRectangle;whiteSpace=wrap;html=1;bottom=0;right=0;"
+                       "fillColor=none;"),
+        QSizeF(120, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.partialTopLeft"), QStringLiteral("Partial Rectangle"),
+        QStringLiteral("shape=partialRectangle;whiteSpace=wrap;html=1;top=0;left=0;"
+                       "fillColor=none;"),
+        QSizeF(120, 60), QStringLiteral("basic"));
     add(QStringLiteral("basic.polygon"), QStringLiteral("Polygon"),
-        QStringLiteral("shape=polygon;whiteSpace=wrap;html=1;") + blue,
-        QSizeF(120, 120), QStringLiteral("basic"));
-    add(QStringLiteral("basic.star4"), QStringLiteral("Star4"),
-        QStringLiteral("shape=star4;whiteSpace=wrap;html=1;") + yellow,
+        s2 + QStringLiteral("polygon;polyCoords=[[0.25,0],[0.75,0],[1,0.25],[1,0.75],"
+                            "[0.75,1],[0.25,1],[0,0.75],[0,0.25]];polyline=0;"),
         QSizeF(100, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.star6"), QStringLiteral("Star6"),
-        QStringLiteral("shape=star6;whiteSpace=wrap;html=1;") + yellow,
-        QSizeF(110, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.star8"), QStringLiteral("Star8"),
-        QStringLiteral("shape=star8;whiteSpace=wrap;html=1;") + yellow,
-        QSizeF(110, 110), QStringLiteral("basic"));
+    add(QStringLiteral("basic.polyline"), QStringLiteral("Polyline"),
+        s2 + QStringLiteral("polygon;polyCoords=[[0.25,0],[0.75,0],[1,0.25],[1,0.75],"
+                            "[0.75,1],[0.25,1],[0,0.75],[0,0.25]];polyline=1;"
+                            "fillColor=none;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.patternDiag"), QStringLiteral("Rectangle with diagonal fill"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=diag;step=5;fillStrokeWidth=0.2;"
+                            "fillStrokeColor=#dddddd;"),
+        QSizeF(120, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.patternDiagRev"),
+        QStringLiteral("Rectangle with reverse diagonal fill"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=diagRev;step=5;fillStrokeWidth=0.2;"
+                            "fillStrokeColor=#dddddd;"),
+        QSizeF(120, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.patternVertical"), QStringLiteral("Rectangle with vertical fill"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=vert;step=5;fillStrokeWidth=0.2;"
+                            "fillStrokeColor=#dddddd;"),
+        QSizeF(120, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.patternHorizontal"),
+        QStringLiteral("Rectangle with horizontal fill"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=hor;step=5;fillStrokeWidth=0.2;"
+                            "fillStrokeColor=#dddddd;"),
+        QSizeF(120, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.patternGrid"), QStringLiteral("Rectangle with grid fill"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=grid;step=5;fillStrokeWidth=0.2;"
+                            "fillStrokeColor=#dddddd;"),
+        QSizeF(120, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.patternDiagGrid"),
+        QStringLiteral("Rectangle with diagonal grid fill"),
+        s2 + QStringLiteral("patternFillRect;fillStyle=diagGrid;step=5;fillStrokeWidth=0.2;"
+                            "fillStrokeColor=#dddddd;"),
+        QSizeF(120, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.fourPointStar2"), QStringLiteral("4 Point Star"),
+        s2 + QStringLiteral("4_point_star_2;dx=0.8;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.star6"), QStringLiteral("6 Point Star"),
+        s2 + QStringLiteral("6_point_star"),
+        QSizeF(100, 90), QStringLiteral("basic"));
+    add(QStringLiteral("basic.star8"), QStringLiteral("8 Point Star"),
+        s2 + QStringLiteral("8_point_star"),
+        QSizeF(100, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.banner"), QStringLiteral("Banner"),
-        QStringLiteral("shape=banner;whiteSpace=wrap;html=1;") + orange,
-        QSizeF(180, 70), QStringLiteral("basic"));
+        s2 + QStringLiteral("banner"),
+        QSizeF(100, 50), QStringLiteral("basic"));
     add(QStringLiteral("basic.cloudCallout"), QStringLiteral("Cloud Callout"),
-        QStringLiteral("shape=cloudCallout;whiteSpace=wrap;html=1;") + purple,
-        QSizeF(160, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.cloudRect"), QStringLiteral("Cloud Rect"),
-        QStringLiteral("shape=cloudRect;whiteSpace=wrap;html=1;") + purple,
-        QSizeF(160, 90), QStringLiteral("basic"));
+        s + QStringLiteral("cloud_callout"),
+        QSizeF(90, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.cloudRect"), QStringLiteral("Cloud Rectangle"),
+        s + QStringLiteral("cloud_rect"),
+        QSizeF(120, 90), QStringLiteral("basic"));
     add(QStringLiteral("basic.cone"), QStringLiteral("Cone"),
-        QStringLiteral("shape=cone;whiteSpace=wrap;html=1;") + yellow,
-        QSizeF(100, 120), QStringLiteral("basic"));
-    add(QStringLiteral("basic.cone2"), QStringLiteral("Cone2"),
-        QStringLiteral("shape=cone2;whiteSpace=wrap;html=1;") + yellow,
-        QSizeF(100, 120), QStringLiteral("basic"));
+        s2 + QStringLiteral("cone"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.cone2"), QStringLiteral("Cone (adjustable)"),
+        s2 + QStringLiteral("cone2;dx=0.5;dy=0.9;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.document"), QStringLiteral("Document"),
+        s + QStringLiteral("document"),
+        QSizeF(100, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.donut"), QStringLiteral("Donut"),
-        QStringLiteral("shape=donut;whiteSpace=wrap;html=1;") + green,
-        QSizeF(110, 110), QStringLiteral("basic"));
+        s2 + QStringLiteral("donut;dx=25;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.drop"), QStringLiteral("Drop"),
-        QStringLiteral("shape=drop;whiteSpace=wrap;html=1;") + blue,
-        QSizeF(80, 110), QStringLiteral("basic"));
+        s2 + QStringLiteral("drop"),
+        QSizeF(70, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.flash"), QStringLiteral("Flash"),
-        QStringLiteral("shape=flash;whiteSpace=wrap;html=1;") + yellow,
-        QSizeF(80, 120), QStringLiteral("basic"));
+        s2 + QStringLiteral("flash"),
+        QSizeF(60, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.halfCircle"), QStringLiteral("Half Circle"),
-        QStringLiteral("shape=halfCircle;whiteSpace=wrap;html=1;") + green,
-        QSizeF(120, 70), QStringLiteral("basic"));
+        s2 + QStringLiteral("half_circle"),
+        QSizeF(100, 50), QStringLiteral("basic"));
     add(QStringLiteral("basic.heart"), QStringLiteral("Heart"),
-        QStringLiteral("shape=heart;whiteSpace=wrap;html=1;") + red,
-        QSizeF(110, 100), QStringLiteral("basic"));
+        s2 + QStringLiteral("heart"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.hexagon"), QStringLiteral("Regular Hexagon"),
+        QStringLiteral("shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;html=1;"
+                       "shapeInside=1;aspect=fixed;"),
+        QSizeF(100, 86.6), QStringLiteral("basic"));
     add(QStringLiteral("basic.isocube"), QStringLiteral("Isometric Cube"),
-        QStringLiteral("shape=mxgraph.basic.isocube;isoAngle=15;whiteSpace=wrap;html=1;") + blue,
-        QSizeF(110, 110), QStringLiteral("basic"));
+        QStringLiteral("html=1;shape=mxgraph.basic.isocube;isoAngle=15;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.loudCallout"), QStringLiteral("Loud Callout"),
-        QStringLiteral("shape=loudCallout;whiteSpace=wrap;html=1;") + orange,
-        QSizeF(150, 100), QStringLiteral("basic"));
+        s + QStringLiteral("loud_callout"),
+        QSizeF(100, 60), QStringLiteral("basic"));
     add(QStringLiteral("basic.moon"), QStringLiteral("Moon"),
-        QStringLiteral("shape=moon;whiteSpace=wrap;html=1;") + yellow,
-        QSizeF(90, 110), QStringLiteral("basic"));
+        s2 + QStringLiteral("moon"),
+        QSizeF(75, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.noSymbol"), QStringLiteral("No Symbol"),
-        QStringLiteral("shape=noSymbol;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
+        s2 + QStringLiteral("no_symbol"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.octagon2"), QStringLiteral("Octagon"),
+        s + QStringLiteral("octagon2;align=center;verticalAlign=middle;dx=15;"),
         QSizeF(100, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.orthogonalTriangle"), QStringLiteral("Orthogonal Triangle"),
-        QStringLiteral("shape=orthogonalTriangle;whiteSpace=wrap;html=1;") + green,
-        QSizeF(110, 90), QStringLiteral("basic"));
+        s2 + QStringLiteral("orthogonal_triangle"),
+        QSizeF(100, 70), QStringLiteral("basic"));
     add(QStringLiteral("basic.acuteTriangle"), QStringLiteral("Acute Triangle"),
-        QStringLiteral("shape=acuteTriangle;whiteSpace=wrap;html=1;") + green,
-        QSizeF(110, 80), QStringLiteral("basic"));
+        s2 + QStringLiteral("acute_triangle;dx=0.5;"),
+        QSizeF(100, 70), QStringLiteral("basic"));
     add(QStringLiteral("basic.obtuseTriangle"), QStringLiteral("Obtuse Triangle"),
-        QStringLiteral("shape=obtuseTriangle;whiteSpace=wrap;html=1;") + green,
-        QSizeF(110, 80), QStringLiteral("basic"));
+        s2 + QStringLiteral("obtuse_triangle;dx=0.25;"),
+        QSizeF(100, 70), QStringLiteral("basic"));
     add(QStringLiteral("basic.ovalCallout"), QStringLiteral("Oval Callout"),
-        QStringLiteral("shape=ovalCallout;whiteSpace=wrap;html=1;") + blue,
-        QSizeF(150, 100), QStringLiteral("basic"));
+        s + QStringLiteral("oval_callout"),
+        QSizeF(100, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.pentagon"), QStringLiteral("Pentagon"),
+        s + QStringLiteral("pentagon"),
+        QSizeF(100, 90), QStringLiteral("basic"));
     add(QStringLiteral("basic.pointedOval"), QStringLiteral("Pointed Oval"),
-        QStringLiteral("shape=pointedOval;whiteSpace=wrap;html=1;") + purple,
-        QSizeF(80, 110), QStringLiteral("basic"));
+        s + QStringLiteral("pointed_oval"),
+        QSizeF(50, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.pyramid"), QStringLiteral("Pyramid"),
-        QStringLiteral("shape=mxgraph.basic.pyramid;dx1=0.4;dx2=0.6;dy1=0.9;dy2=0.8;"
-                       "whiteSpace=wrap;html=1;") + yellow,
-        QSizeF(120, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.diagSnipRect"), QStringLiteral("Diag Snip Rect"),
-        QStringLiteral("shape=diagSnipRect;whiteSpace=wrap;html=1;") + blue,
-        QSizeF(140, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.diagRoundRect"), QStringLiteral("Diag Round Rect"),
-        QStringLiteral("shape=diagRoundRect;whiteSpace=wrap;html=1;") + blue,
-        QSizeF(140, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.cornerRoundRect"), QStringLiteral("Corner Round Rect"),
-        QStringLiteral("shape=cornerRoundRect;whiteSpace=wrap;html=1;") + blue,
-        QSizeF(140, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.threeCornerRoundRect"), QStringLiteral("Three Corner Round Rect"),
-        QStringLiteral("shape=threeCornerRoundRect;whiteSpace=wrap;html=1;") + blue,
-        QSizeF(140, 80), QStringLiteral("basic"));
+        s2 + QStringLiteral("pyramid;dx1=0.4;dx2=0.6;dy1=0.9;dy2=0.8;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.diagSnipRect"), QStringLiteral("Diagonal Snip Rectangle"),
+        s2 + QStringLiteral("diag_snip_rect;dx=6;whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.diagRoundRect"), QStringLiteral("Diagonal Rounded Rectangle"),
+        s2 + QStringLiteral("diag_round_rect;dx=6;whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.cornerRoundRect"), QStringLiteral("Corner Rounded Rectangle"),
+        s2 + QStringLiteral("corner_round_rect;dx=6;whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.threeCornerRoundRect"),
+        QStringLiteral("Rounded Rectangle (three corners)"),
+        s2 + QStringLiteral("three_corner_round_rect;dx=6;whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
     add(QStringLiteral("basic.plaque"), QStringLiteral("Plaque"),
-        QStringLiteral("shape=plaque;whiteSpace=wrap;html=1;") + orange,
-        QSizeF(140, 70), QStringLiteral("basic"));
+        s2 + QStringLiteral("plaque;dx=6;whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
     add(QStringLiteral("basic.frame"), QStringLiteral("Frame"),
-        QStringLiteral("shape=frame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
-        QSizeF(140, 100), QStringLiteral("basic"));
+        s2 + QStringLiteral("frame;dx=10;whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
     add(QStringLiteral("basic.roundedFrame"), QStringLiteral("Rounded Frame"),
-        QStringLiteral("shape=roundedFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
-        QSizeF(140, 100), QStringLiteral("basic"));
+        s2 + QStringLiteral("rounded_frame;dx=10;whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
     add(QStringLiteral("basic.plaqueFrame"), QStringLiteral("Plaque Frame"),
-        QStringLiteral("shape=plaqueFrame;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
-        QSizeF(140, 100), QStringLiteral("basic"));
+        s2 + QStringLiteral("plaque_frame;dx=10;whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
     add(QStringLiteral("basic.frameCorner"), QStringLiteral("Frame Corner"),
-        QStringLiteral("shape=frameCorner;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;"),
-        QSizeF(130, 90), QStringLiteral("basic"));
-    add(QStringLiteral("basic.diagStripe"), QStringLiteral("Diag Stripe"),
-        QStringLiteral("shape=diagStripe;whiteSpace=wrap;html=1;") + yellow,
-        QSizeF(140, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.rectCallout"), QStringLiteral("Rect Callout"),
-        QStringLiteral("shape=rectCallout;whiteSpace=wrap;html=1;") + blue,
-        QSizeF(150, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.roundRectCallout"), QStringLiteral("Round Rect Callout"),
-        QStringLiteral("shape=roundRectCallout;whiteSpace=wrap;html=1;") + blue,
-        QSizeF(150, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.layeredRect"), QStringLiteral("Layered Rect"),
-        QStringLiteral("shape=layeredRect;whiteSpace=wrap;html=1;") + green,
-        QSizeF(150, 90), QStringLiteral("basic"));
+        s2 + QStringLiteral("frame_corner;dx=10;whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.diagStripe"), QStringLiteral("Diagonal Stripe"),
+        s2 + QStringLiteral("diag_stripe;dx=10;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.rectCallout"), QStringLiteral("Rectangular Callout"),
+        s + QStringLiteral("rectCallout;dx=30;dy=15;boundedLbl=1;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.roundRectCallout"), QStringLiteral("Rounded Rectangular Callout"),
+        s + QStringLiteral("roundRectCallout;dx=30;dy=15;size=5;boundedLbl=1;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.layeredRect"), QStringLiteral("Layered Rectangle"),
+        s + QStringLiteral("layered_rect;dx=10;outlineConnect=0;boundedLbl=1;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
     add(QStringLiteral("basic.smiley"), QStringLiteral("Smiley"),
-        QStringLiteral("shape=mxgraph.basic.smiley;whiteSpace=wrap;html=1;") + yellow,
-        QSizeF(110, 110), QStringLiteral("basic"));
+        s2 + QStringLiteral("smiley"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.star"), QStringLiteral("Star"),
+        s2 + QStringLiteral("star"),
+        QSizeF(100, 95), QStringLiteral("basic"));
     add(QStringLiteral("basic.sun"), QStringLiteral("Sun"),
-        QStringLiteral("shape=mxgraph.basic.sun;whiteSpace=wrap;html=1;") + yellow,
-        QSizeF(110, 110), QStringLiteral("basic"));
+        s2 + QStringLiteral("sun"),
+        QSizeF(100, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.tick"), QStringLiteral("Tick"),
-        QStringLiteral("shape=mxgraph.basic.tick;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        s2 + QStringLiteral("tick"),
+        QSizeF(85, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.wave"), QStringLiteral("Wave"),
+        s2 + QStringLiteral("wave2;dy=0.3;"),
+        QSizeF(100, 60), QStringLiteral("basic"));
+    add(QStringLiteral("basic.button"), QStringLiteral("Button"),
+        QStringLiteral("labelPosition=center;verticalLabelPosition=middle;align=center;"
+                       "html=1;shape=mxgraph.basic.button;dx=10;whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("basic"), QStringLiteral("Button"));
+    add(QStringLiteral("basic.shadedButton"), QStringLiteral("Button (shaded)"),
+        QStringLiteral("labelPosition=center;verticalLabelPosition=middle;align=center;"
+                       "html=1;shape=mxgraph.basic.shaded_button;dx=10;"
+                       "fillColor=#E6E6E6;strokeColor=none;whiteSpace=wrap;"),
+        QSizeF(100, 60), QStringLiteral("basic"), QStringLiteral("Button"));
+    add(QStringLiteral("basic.x"), QStringLiteral("X"),
+        s2 + QStringLiteral("x"),
         QSizeF(100, 100), QStringLiteral("basic"));
     add(QStringLiteral("basic.pie"), QStringLiteral("Pie"),
-        QStringLiteral("shape=mxgraph.basic.pie;startAngle=0.2;endAngle=0.9;"
-                       "whiteSpace=wrap;html=1;") + blue,
-        QSizeF(110, 110), QStringLiteral("basic"));
-    add(QStringLiteral("basic.x"), QStringLiteral("X"),
-        QStringLiteral("shape=mxgraph.basic.x;whiteSpace=wrap;html=1;") + red,
+        s2 + QStringLiteral("pie;startAngle=0.2;endAngle=0.9;"),
         QSizeF(100, 100), QStringLiteral("basic"));
-    add(QStringLiteral("basic.wave"), QStringLiteral("Wave"),
-        QStringLiteral("shape=mxgraph.basic.wave2;dy=0.3;whiteSpace=wrap;html=1;") + blue,
-        QSizeF(160, 70), QStringLiteral("basic"));
-    add(QStringLiteral("basic.button"), QStringLiteral("Button"),
-        QStringLiteral("shape=button;whiteSpace=wrap;html=1;") + green,
-        QSizeF(120, 50), QStringLiteral("basic"));
+    add(QStringLiteral("basic.arc"), QStringLiteral("Arc"),
+        s2 + QStringLiteral("arc;startAngle=0.3;endAngle=0.1;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.partConcEllipse"), QStringLiteral("Partial Concentric Ellipse"),
+        s2 + QStringLiteral("partConcEllipse;startAngle=0.25;endAngle=0.1;arcWidth=0.5;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.message"), QStringLiteral("Message"),
+        QStringLiteral("shape=message;html=1;html=1;outlineConnect=0;labelPosition=center;"
+                       "verticalLabelPosition=bottom;align=center;verticalAlign=top;"),
+        QSizeF(60, 40), QStringLiteral("basic"));
+    add(QStringLiteral("basic.cylinderStack"), QStringLiteral("Cylinder Stack"),
+        QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;"
+                       "backgroundOutline=1;size=15;lid=0;"),
+        QSizeF(60, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.mindmapBang"), QStringLiteral("Bang"),
+        QStringLiteral("shape=mindmapBang;whiteSpace=wrap;html=1;"
+                       "perimeter=ellipsePerimeter;"),
+        QSizeF(140, 80), QStringLiteral("basic"));
+    add(QStringLiteral("basic.gitTag"), QStringLiteral("Tag"),
+        QStringLiteral("shape=gitTag;tabSize=8;tabInset=4;holeSize=1;"
+                       "whiteSpace=wrap;html=1;"),
+        QSizeF(80, 20), QStringLiteral("basic"));
+
+    {
+        // createEdgeTemplateEntry: inserted as a floating edge, not a vertex.
+        ShapeDefinition sankey;
+        sankey.key = QStringLiteral("basic.sankeyLink");
+        sankey.name = QStringLiteral("Sankey Link");
+        sankey.style = QStringLiteral(
+            "shape=mermaidSankeyLink;width=20;fillColor=#AF7AA1;"
+            "gradientColor=#76B7B2;gradientDirection=east;opacity=50;"
+            "strokeColor=none;bendable=0;html=1;");
+        sankey.size = QSizeF(100, 60);
+        sankey.category = QStringLiteral("basic");
+        sankey.edge = true;
+        shapes.append(sankey);
+    }
+
+    add(QStringLiteral("basic.mermaidPerson"), QStringLiteral("Person"),
+        QStringLiteral("shape=mermaidPerson;perimeter=mermaidPersonPerimeter;"
+                       "whiteSpace=wrap;html=1;"),
+        QSizeF(100, 100), QStringLiteral("basic"));
+    add(QStringLiteral("basic.actor"), QStringLiteral("Use Case Actor"),
+        QStringLiteral("shape=mermaidUsecaseActor;actorType=normal;"
+                       "verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "outlineConnect=0;"),
+        QSizeF(56, 72), QStringLiteral("basic"));
+    add(QStringLiteral("basic.actorHollow"), QStringLiteral("Hollow Use Case Actor"),
+        QStringLiteral("shape=mermaidUsecaseActor;actorType=hollow;"
+                       "verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "outlineConnect=0;"),
+        QSizeF(56, 72), QStringLiteral("basic"));
+    add(QStringLiteral("basic.actorAwesome"), QStringLiteral("Awesome Use Case Actor"),
+        QStringLiteral("shape=mermaidUsecaseActor;actorType=awesome;"
+                       "verticalLabelPosition=bottom;verticalAlign=top;html=1;"
+                       "outlineConnect=0;"),
+        QSizeF(56, 72), QStringLiteral("basic"));
+    add(QStringLiteral("basic.smileyHappy"), QStringLiteral("Smiley"),
+        QStringLiteral("shape=smileyFace;aspect=fixed;smileyType=happy;"
+                       "perimeter=ellipsePerimeter;fillColor=#FFF8DC;"
+                       "strokeColor=#999999;strokeWidth=2;whiteSpace=wrap;html=1;"),
+        QSizeF(40, 40), QStringLiteral("basic"));
+    add(QStringLiteral("basic.smileyNeutral"), QStringLiteral("Neutral Smiley"),
+        QStringLiteral("shape=smileyFace;aspect=fixed;smileyType=neutral;"
+                       "perimeter=ellipsePerimeter;fillColor=#FFF8DC;"
+                       "strokeColor=#999999;strokeWidth=2;whiteSpace=wrap;html=1;"),
+        QSizeF(40, 40), QStringLiteral("basic"));
+    add(QStringLiteral("basic.smileySad"), QStringLiteral("Sad Smiley"),
+        QStringLiteral("shape=smileyFace;aspect=fixed;smileyType=sad;"
+                       "perimeter=ellipsePerimeter;fillColor=#FFF8DC;"
+                       "strokeColor=#999999;strokeWidth=2;whiteSpace=wrap;html=1;"),
+        QSizeF(40, 40), QStringLiteral("basic"));
 
     // --- cloud -----------------------------------------------------------
     add(QStringLiteral("cloud.generic"), QStringLiteral("Generic"),
@@ -998,25 +2434,6 @@ QVector<ShapeDefinition> toolboxShapes()
     add(QStringLiteral("cloud.user"), QStringLiteral("User"),
         QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;")
             + blue, QSizeF(60, 110), QStringLiteral("cloud"));
-
-    add(QStringLiteral("basic.patternDiag"), QStringLiteral("Pattern Diag"),
-        QStringLiteral("shape=patternFillRect;fillStyle=diag;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(150, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.patternDiagRev"), QStringLiteral("Pattern Diag Rev"),
-        QStringLiteral("shape=patternFillRect;fillStyle=diagRev;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(150, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.patternVertical"), QStringLiteral("Pattern Vertical"),
-        QStringLiteral("shape=patternFillRect;fillStyle=vert;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(150, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.patternHorizontal"), QStringLiteral("Pattern Horizontal"),
-        QStringLiteral("shape=patternFillRect;fillStyle=hor;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(150, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.patternGrid"), QStringLiteral("Pattern Grid"),
-        QStringLiteral("shape=patternFillRect;fillStyle=grid;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(150, 80), QStringLiteral("basic"));
-    add(QStringLiteral("basic.patternDiagGrid"), QStringLiteral("Pattern Diag Grid"),
-        QStringLiteral("shape=patternFillRect;fillStyle=diagGrid;step=8;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(150, 80), QStringLiteral("basic"));
 
     // --- misc ------------------------------------------------------------
     add(QStringLiteral("misc.container"), QStringLiteral("Container"),
@@ -1503,11 +2920,6 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("rounded=1;arcSize=30;androidType=watch;fillColor=#ffffff;strokeColor=#000000;"),
         QSizeF(100, 100), QStringLiteral("software"));
 
-    add(QStringLiteral("image"), QStringLiteral("Image"),
-        QStringLiteral("shape=image;verticalLabelPosition=bottom;verticalAlign=top;imageAspect=0;"
-                       "html=1;strokeColor=none;fillColor=none;"),
-        QSizeF(140, 100), QStringLiteral("basic"));
-
     // --- electrical ------------------------------------------------------
     const QString lineArt = QStringLiteral("fillColor=none;strokeColor=#000000;strokeWidth=1.5;"
                                            "html=1;verticalLabelPosition=bottom;"
@@ -1753,6 +3165,7 @@ bool isLineArt(const Cell &cell)
     const QString key = shapeKey(cell);
     return key == QLatin1String("umlActor") || key == QLatin1String("actor")
         || key == QLatin1String("line") || key == QLatin1String("connector")
+        || key == QLatin1String("basic.arc")
         || key.startsWith(QLatin1String("mxgraph.electrical."));
 }
 
@@ -1797,6 +3210,19 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
     {
         return QPointF(x + px, y + py);
     };
+
+    if (key.startsWith(QLatin1String("basic.")))
+    {
+        BasicGeometry geometry;
+        buildBasicShape(key, probe.style, rect, geometry);
+
+        // A name draw.io does not register has no geometry: fall through to
+        // the rectangle fallback like mxGraph does for unknown shapes.
+        if (!geometry.path.isEmpty())
+        {
+            return geometry.path;
+        }
+    }
 
     if (key == QLatin1String("ellipse") || key == QLatin1String("circle")
         || key == QLatin1String("doubleEllipse"))
@@ -4963,6 +6389,169 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
+    if (key == QLatin1String("gitTag"))
+    {
+        // GitTagShape.redrawPath: paper tag with a pointed left tab.
+        const double tabSize = qBound(0.0,
+            Style::number(probe.style, QStringLiteral("tabSize"), 8.0), w);
+        const double tabInset = qBound(0.0,
+            Style::number(probe.style, QStringLiteral("tabInset"), 4.0), h);
+        const double tabY1 = (h - tabInset) / 2.0;
+        const double tabY2 = tabY1 + tabInset;
+
+        path.moveTo(point(0, tabY1));
+        path.lineTo(point(0, tabY2));
+        path.lineTo(point(tabSize, h));
+        path.lineTo(point(w, h));
+        path.lineTo(point(w, 0));
+        path.lineTo(point(tabSize, 0));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("mindmapBang"))
+    {
+        // MindmapBangShape.redrawPath: mermaid's bang silhouette.
+        const double W = w * 0.8;
+        const double H = h * 0.8;
+        const double r = W * 0.15;
+        const double r80 = r * 0.8;
+        double px = W * 0.10;
+        double py = H * 0.10;
+
+        path.moveTo(point(px, py));
+        px += W * 0.25; py += -H * 0.10;
+        addSvgArc(path, point(px - W * 0.25, py + H * 0.10), point(px, py), r, r, false, false);
+        px += W * 0.25;
+        addSvgArc(path, point(px - W * 0.25, py), point(px, py), r, r, false, false);
+        px += W * 0.25;
+        addSvgArc(path, point(px - W * 0.25, py), point(px, py), r, r, false, false);
+        px += W * 0.25; py += H * 0.10;
+        addSvgArc(path, point(px - W * 0.25, py - H * 0.10), point(px, py), r, r, false, false);
+
+        px += W * 0.15; py += H * 0.33;
+        addSvgArc(path, point(px - W * 0.15, py - H * 0.33), point(px, py), r, r, false, false);
+        py += H * 0.34;
+        addSvgArc(path, point(px, py - H * 0.34), point(px, py), r80, r80, false, false);
+        px += -W * 0.15; py += H * 0.33;
+        addSvgArc(path, point(px + W * 0.15, py - H * 0.33), point(px, py), r, r, false, false);
+
+        px += -W * 0.25; py += H * 0.15;
+        addSvgArc(path, point(px + W * 0.25, py - H * 0.15), point(px, py), r, r, false, false);
+        px += -W * 0.25;
+        addSvgArc(path, point(px + W * 0.25, py), point(px, py), r, r, false, false);
+        px += -W * 0.25;
+        addSvgArc(path, point(px + W * 0.25, py), point(px, py), r, r, false, false);
+        px += -W * 0.25; py += -H * 0.15;
+        addSvgArc(path, point(px + W * 0.25, py + H * 0.15), point(px, py), r, r, false, false);
+
+        px += -W * 0.10; py += -H * 0.33;
+        addSvgArc(path, point(px + W * 0.10, py + H * 0.33), point(px, py), r, r, false, false);
+        py += -H * 0.34;
+        addSvgArc(path, point(px, py + H * 0.34), point(px, py), r80, r80, false, false);
+        px += W * 0.10; py += -H * 0.33;
+        addSvgArc(path, point(px - W * 0.10, py + H * 0.33), point(px, py), r, r, false, false);
+
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("mermaidPerson"))
+    {
+        // MermaidPersonShape: circular head over a rounded body.
+        const double headRadius = qBound(16.0, w * 0.23, 56.0);
+        const double bodyTop = qMin(h, 2.0 * headRadius - headRadius * 0.27);
+        const double bodyHeight = h - bodyTop;
+        const double bodyRadius = qMax(0.0,
+            qMin(w * 0.177, bodyHeight * 0.45));
+
+        path.addRoundedRect(QRectF(x, y + bodyTop, w, bodyHeight),
+                            bodyRadius, bodyRadius);
+        path.addEllipse(QRectF(x + w / 2.0 - headRadius, y,
+                               headRadius * 2.0, headRadius * 2.0));
+        path.setFillRule(Qt::WindingFill);
+        return path;
+    }
+
+    if (key == QLatin1String("mermaidUsecaseActor"))
+    {
+        // MermaidUsecaseActorShape: the 56 x 72 mermaid figure.
+        const QString type = Style::value(probe.style, QStringLiteral("actorType"),
+                                          QStringLiteral("normal"));
+        const bool hollow = type == QLatin1String("hollow");
+        const bool awesome = type == QLatin1String("awesome");
+        const double sx = w / 56.0;
+        const double sy = h / 72.0;
+        const double cx = x + w / 2.0;
+        const double cy = y + h / 2.0;
+        const auto px = [&](double value) { return cx + value * sx; };
+        const auto py = [&](double value) { return cy + value * sy; };
+
+        const auto circle = [&](QPainterPath &target, double ccy, double r)
+        {
+            const double k = r * 0.55228;
+            target.moveTo(px(0), py(ccy + r));
+            target.cubicTo(px(k), py(ccy + r), px(r), py(ccy + k), px(r), py(ccy));
+            target.cubicTo(px(r), py(ccy - k), px(k), py(ccy - r), px(0), py(ccy - r));
+            target.cubicTo(px(-k), py(ccy - r), px(-r), py(ccy - k), px(-r), py(ccy));
+            target.cubicTo(px(-r), py(ccy + k), px(-k), py(ccy + r), px(0), py(ccy + r));
+            target.closeSubpath();
+        };
+
+        if (hollow)
+        {
+            circle(path, -23, 9);
+            path.moveTo(px(-22), py(-10));
+            path.lineTo(px(22), py(-10));
+            path.lineTo(px(22), py(0));
+            path.lineTo(px(6), py(0));
+            path.lineTo(px(22), py(17));
+            path.lineTo(px(13), py(28));
+            path.lineTo(px(0), py(13));
+            path.lineTo(px(-13), py(28));
+            path.lineTo(px(-22), py(17));
+            path.lineTo(px(-6), py(0));
+            path.lineTo(px(-22), py(0));
+            path.closeSubpath();
+            path.setFillRule(Qt::WindingFill);
+            return path;
+        }
+
+        if (awesome)
+        {
+            circle(path, -21, 13);
+            path.moveTo(px(-24), py(25));
+            path.cubicTo(px(-24), py(7), px(-14), py(-3), px(0), py(-3));
+            path.cubicTo(px(14), py(-3), px(24), py(7), px(24), py(25));
+            path.cubicTo(px(24), py(28), px(21), py(30), px(18), py(30));
+            path.lineTo(px(-18), py(30));
+            path.cubicTo(px(-21), py(30), px(-24), py(28), px(-24), py(25));
+            path.closeSubpath();
+            path.setFillRule(Qt::WindingFill);
+            return path;
+        }
+
+        circle(path, -24, 12);
+        path.moveTo(px(0), py(-12));
+        path.lineTo(px(0), py(8));
+        path.moveTo(px(-17), py(-5));
+        path.lineTo(px(17), py(-5));
+        path.moveTo(px(0), py(8));
+        path.lineTo(px(-15), py(28));
+        path.moveTo(px(0), py(8));
+        path.lineTo(px(15), py(28));
+        path.setFillRule(Qt::WindingFill);
+        return path;
+    }
+
+    if (key == QLatin1String("smileyFace"))
+    {
+        // SmileyFaceShape: the face circle; features are decorations.
+        const double r = qMin(w, h) / 2.0;
+        path.addEllipse(QRectF(x + w / 2.0 - r, y + h / 2.0 - r, r * 2.0, r * 2.0));
+        return path;
+    }
+
     // Default: rectangle, optionally rounded.
     if (probe.styleFlag(QStringLiteral("rounded")) || key == QLatin1String("rounded"))
     {
@@ -4973,6 +6562,122 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     path.addRect(rect);
     return path;
+}
+
+QVector<ShapeDecoration> decorationsForStyle(const StyleMap &style, const QRectF &rect)
+{
+    QVector<ShapeDecoration> decorations;
+    Cell probe(Cell::Kind::Vertex, QStringLiteral("probe"));
+    probe.style = style;
+
+    const QString key = shapeKey(probe);
+    const double w = rect.width();
+    const double h = rect.height();
+    const double x = rect.x();
+    const double y = rect.y();
+    const auto point = [&](double px, double py) { return QPointF(x + px, y + py); };
+
+    if (key.startsWith(QLatin1String("basic.")))
+    {
+        BasicGeometry geometry;
+        buildBasicShape(key, style, rect, geometry);
+        return geometry.decorations;
+    }
+
+    if (key == QLatin1String("gitTag"))
+    {
+        // GitTagShape.paintVertexShape: the pierce hole is filled with the
+        // font (or holeColor) colour.
+        const double holeSize = qMax(0.0,
+            Style::number(style, QStringLiteral("holeSize"), 1.0));
+
+        if (holeSize > 0.0)
+        {
+            const double tabSize = qMax(0.0,
+                Style::number(style, QStringLiteral("tabSize"), 8.0));
+            // draw.io resolves the default font colour (#000000) when the
+            // style has no explicit holeColor/fontColor.
+            const QColor color = Style::color(style, QStringLiteral("holeColor"),
+                Style::color(style, QStringLiteral("fontColor"), QColor(Qt::black)));
+
+            ShapeDecoration hole;
+            hole.fillColor = color;
+            hole.strokeColor = color;
+            hole.strokeWidth = -1.0;
+            hole.path.addEllipse(QRectF(point(tabSize / 2.0 - holeSize, h / 2.0 - holeSize),
+                                        QSizeF(holeSize * 2.0, holeSize * 2.0)));
+            decorations.append(hole);
+        }
+
+        return decorations;
+    }
+
+    if (key == QLatin1String("smileyFace"))
+    {
+        // Eyes and mouth of the mermaid journey face.
+        const QString type = Style::value(style, QStringLiteral("smileyType"),
+                                          QStringLiteral("happy"));
+        const QColor feature = Style::color(style, QStringLiteral("smileyFeatureColor"),
+                                            QColor(0x66, 0x66, 0x66));
+        const double s = qMin(w, h) / 30.0;
+        const double cx = x + w / 2.0;
+        const double cy = y + h / 2.0;
+        const double eyeR = 1.5 * s;
+        const double offset = 5.0 * s;
+
+        for (double sign : {-1.0, 1.0})
+        {
+            ShapeDecoration eye;
+            eye.fillColor = feature;
+            eye.strokeColor = feature;
+            eye.strokeWidth = 2.0 * s;
+            eye.path.addEllipse(QRectF(cx + sign * offset - eyeR,
+                                       cy - offset - eyeR,
+                                       eyeR * 2.0, eyeR * 2.0));
+            decorations.append(eye);
+        }
+
+        ShapeDecoration mouth;
+        mouth.strokeColor = feature;
+
+        if (type == QLatin1String("happy"))
+        {
+            mouth.fillColor = QColor(0, 0, 0);
+            mouth.strokeWidth = 1.0 * s;
+            const double mcy = cy + 2.0 * s;
+            mouth.path.moveTo(cx + 7.5 * s, mcy);
+            addSvgArc(mouth.path, QPointF(cx + 7.5 * s, mcy),
+                      QPointF(cx - 7.5 * s, mcy), 7.5 * s, 7.5 * s, true, true);
+            mouth.path.lineTo(cx - 6.818 * s, mcy);
+            addSvgArc(mouth.path, QPointF(cx - 6.818 * s, mcy),
+                      QPointF(cx + 6.818 * s, mcy), 6.818 * s, 6.818 * s, true, false);
+            mouth.path.closeSubpath();
+        }
+        else if (type == QLatin1String("sad"))
+        {
+            mouth.fillColor = QColor(0, 0, 0);
+            mouth.strokeWidth = 1.0 * s;
+            const double mcy = cy + 7.0 * s;
+            mouth.path.moveTo(cx - 7.5 * s, mcy);
+            addSvgArc(mouth.path, QPointF(cx - 7.5 * s, mcy),
+                      QPointF(cx + 7.5 * s, mcy), 7.5 * s, 7.5 * s, true, true);
+            mouth.path.lineTo(cx + 6.818 * s, mcy);
+            addSvgArc(mouth.path, QPointF(cx + 6.818 * s, mcy),
+                      QPointF(cx - 6.818 * s, mcy), 6.818 * s, 6.818 * s, true, false);
+            mouth.path.closeSubpath();
+        }
+        else
+        {
+            mouth.strokeWidth = 1.0 * s;
+            mouth.path.moveTo(cx - 5.0 * s, cy + 7.0 * s);
+            mouth.path.lineTo(cx + 5.0 * s, cy + 7.0 * s);
+        }
+
+        decorations.append(mouth);
+        return decorations;
+    }
+
+    return decorations;
 }
 
 void applyDefinition(Cell &cell, const ShapeDefinition &definition)

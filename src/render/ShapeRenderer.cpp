@@ -1501,6 +1501,45 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
             painter.restore();
         }
 
+        const QVector<ShapeDecoration> details =
+            ShapeRegistry::decorationsForStyle(cell.style, paintRect);
+        const auto paintDetail = [&painter](const ShapeDecoration &decoration)
+        {
+            painter.save();
+            QPen detailPen = painter.pen();
+
+            if (decoration.strokeWidth == 0.0)
+            {
+                detailPen = Qt::NoPen;
+            }
+            else if (decoration.strokeWidth > 0.0)
+            {
+                detailPen.setWidthF(decoration.strokeWidth);
+            }
+
+            if (decoration.strokeColor.isValid())
+            {
+                detailPen.setColor(decoration.strokeColor);
+            }
+
+            detailPen.setJoinStyle(decoration.join);
+            detailPen.setMiterLimit(decoration.miterLimit);
+            painter.setPen(detailPen);
+            painter.setBrush(decoration.fillColor.isValid()
+                                 ? QBrush(decoration.fillColor) : QBrush(Qt::NoBrush));
+            painter.drawPath(decoration.path);
+            painter.restore();
+        };
+
+        // Layers painted behind the main outline (stacked cards).
+        for (const ShapeDecoration &decoration : details)
+        {
+            if (decoration.behind)
+            {
+                paintDetail(decoration);
+            }
+        }
+
         if (!lineArt && fill.alpha() > 0)
         {
             const QString gradientColor = cell.styleValue(QStringLiteral("gradientColor"));
@@ -1578,6 +1617,17 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
                 qHash(cell.id) ^ static_cast<uint>(local.width() * 13 + local.height()));
             painter.setBrush(Qt::NoBrush);
             painter.drawPath(rough);
+        }
+
+        // Stroke-only details (inner frames, hatch patterns, fold lines,
+        // bevels, faces) are painted on top: keeping them in the filled path
+        // would punch holes.
+        for (const ShapeDecoration &decoration : details)
+        {
+            if (!decoration.behind)
+            {
+                paintDetail(decoration);
+            }
         }
 
         if (cell.styleFlag(QStringLiteral("glass")) && fill.alpha() > 0)
