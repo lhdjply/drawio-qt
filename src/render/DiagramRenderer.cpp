@@ -263,13 +263,40 @@ QRectF DiagramRenderer::contentBounds(const Page &page)
         }
         else if (cell->isVertex())
         {
-            bounds = cell->visualRect();
+            // transparentBounds containers are painted at the bounds derived
+            // from their children, not at their (empty) stored geometry.
+            if (ShapeRegistry::hasTransparentBounds(*cell))
+            {
+                bounds = ShapeRegistry::visibleRect(*cell);
+
+                // mxShape.augmentBoundingBox / getBoundingBox: a rotated shape
+                // contributes its rotated bounding box.
+                const double angle = cell->effectiveRotation();
+
+                if (!qFuzzyIsNull(angle))
+                {
+                    QTransform transform;
+                    transform.translate(bounds.center().x(), bounds.center().y());
+                    transform.rotate(angle);
+                    transform.translate(-bounds.center().x(), -bounds.center().y());
+                    bounds = transform.mapRect(bounds);
+                }
+            }
+            else
+            {
+                bounds = cell->visualRect();
+            }
+
+            if (bounds.isNull())
+            {
+                continue;
+            }
 
             // Some draw.io shapes (callout tails, cloud bubbles) draw outside
             // their geometry box, so include the painted path in the bounds.
             const QRectF local = ShapeRegistry::pathFor(*cell).boundingRect();
 
-            if (!local.isEmpty())
+            if (!local.isEmpty() && !ShapeRegistry::hasTransparentBounds(*cell))
             {
                 bounds = bounds.united(local.translated(cell->absolutePosition()));
             }
@@ -379,7 +406,7 @@ void DiagramRenderer::paint(QPainter &painter, const Page &page, const RenderOpt
             {
                 if (parent->isVertex() && parent->styleFlag(QStringLiteral("swimlane"), false))
                 {
-                    painter.setClipRect(parent->absoluteRect(), Qt::IntersectClip);
+                    painter.setClipRect(ShapeRegistry::visibleRect(*parent), Qt::IntersectClip);
                     break;
                 }
             }

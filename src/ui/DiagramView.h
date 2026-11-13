@@ -99,6 +99,9 @@ public:
     QStringList selectedCells() const;
     QVector<Cell *> selectedCellObjects() const;
     QRectF selectionBounds() const;
+    /// Cells a rubber band over \a sceneMarquee would select (top level cells
+    /// only; transparentBounds containers use their derived box).
+    QSet<QString> cellsInMarquee(const QRectF &sceneMarquee) const;
     bool hasSelection() const { return !m_selection.isEmpty(); }
 
     // --- editing ---------------------------------------------------------
@@ -225,9 +228,18 @@ private:
     int waypointAt(const QPointF &viewPoint, QString *edgeId) const;
     Cell *selectedEdgeAt(const QPointF &scenePoint, QPointF *projected) const;
     Cell *singleRotatedVertex() const;
+    /// The rectangle the selection outline and handles use: the derived box
+    /// for transparentBounds containers, the stored geometry otherwise.
+    QRectF selectionRectFor(const Cell &cell) const;
     QPointF rotationHandleCenter() const;
     bool rotationHandleHit(const QPointF &viewPoint) const;
     void beginRotate(const QPointF &scenePoint);
+    /// Remembers the starting geometry of a rotated cell's descendants so the
+    /// rotation can be re-applied from scratch on every drag move.
+    void collectRotatedDescendants(Cell *cell);
+    /// Rotates the children of \a cell around its centre by \a angle, like
+    /// mxVertexHandler.rotateCell().
+    void rotateDescendants(Cell *cell, double angle);
     void beginSegmentDrag(Cell *edge, const RoutedEdge &route, int index,
                           const QPointF &a, const QPointF &b,
                           const QPointF &startScene);
@@ -244,6 +256,10 @@ private:
     QPointF m_rotateCenter;
     double m_rotateStartAngle = 0.0;
     QVector<QPair<QString, double>> m_rotateInitial;
+    /// Starting geometry/rotation of every descendant of a rotated cell: a
+    /// rotated container carries its children around its centre.
+    QHash<QString, QRectF> m_rotateInitialGeometry;
+    QHash<QString, double> m_rotateInitialRotation;
     bool m_rotating = false;
     QString m_resizeRotatedCellId;
     double m_resizeRotatedAngle = 0.0;
@@ -281,6 +297,10 @@ private:
                              const QSet<QString> &beforeSelection,
                              const QSet<QString> &afterSelection,
                              const QString &text);
+
+    /// draw.io transparentBounds containers (live layout / tree) derive their
+    /// box from the children, so dragging them moves the children.
+    bool isTransparentBoundsContainer(const Cell *cell) const;
 
     void beginMove(const QPointF &scenePoint);
     void beginResize(int handle, const QPointF &scenePoint);

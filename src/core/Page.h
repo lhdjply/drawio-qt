@@ -62,7 +62,8 @@ public:
     Cell *addVertex(const QRectF &rect, const StyleMap &style = {},
                     const QString &value = {}, const QString &parentId = {});
     Cell *addEdge(const QString &sourceId, const QString &targetId,
-                  const StyleMap &style = {}, const QString &value = {});
+                  const StyleMap &style = {}, const QString &value = {},
+                  const QString &parentId = {});
     Cell *addCell(std::unique_ptr<Cell> cell);
     /// Removes a cell, its descendants and every edge attached to a removed
     /// vertex. Returns the number of removed cells.

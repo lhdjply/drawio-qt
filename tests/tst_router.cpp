@@ -10,12 +10,52 @@ class TestRouter : public QObject
     Q_OBJECT
 
 private slots:
+    void elbowEntersAtTheSideCentre()
+    {
+        // mxEdgeStyle.ElbowConnector connects at the routing centre of the
+        // side the wire leaves from (draw.io's org chart connectors).
+        Page page;
+        Cell *top = page.addVertex(QRectF(450, 2609, 120, 60));
+        Cell *left = page.addVertex(QRectF(390, 2709, 100, 60));
+        Cell *edge = page.addEdge(top->id, left->id, Style::parse(QStringLiteral(
+            "edgeStyle=elbowEdgeStyle;elbow=vertical;startArrow=none;endArrow=none;")));
+
+        const RoutedEdge route = EdgeRouter::route(page, *edge);
+        QCOMPARE(route.start(), QPointF(510, 2669));   // bottom centre of the source
+        QCOMPARE(route.end(), QPointF(440, 2709));     // top centre of the target
+        QCOMPARE(route.points.at(1), QPointF(510, 2689));
+        QCOMPARE(route.points.at(2), QPointF(440, 2689));
+    }
+
+    void partialRectangleConnectsToItsLine()
+    {
+        // The mindmap's Branch cells are shape=partialRectangle with a single
+        // bottom line; draw.io connects to that line, not to the invisible box.
+        Page page;
+        Cell *center = page.addVertex(QRectF(430, 2458, 100, 40),
+                                      Style::parse(QStringLiteral("ellipse;")));
+        Cell *branch = page.addVertex(QRectF(570, 2480, 72, 26), Style::parse(QStringLiteral(
+            "shape=partialRectangle;top=0;left=0;bottom=1;right=0;fillColor=none;"
+            "routingCenterY=0.5;whiteSpace=wrap;html=1;")));
+        Cell *edge = page.addEdge(center->id, branch->id, Style::parse(QStringLiteral(
+            "edgeStyle=entityRelationEdgeStyle;startArrow=none;endArrow=none;segment=10;"
+            "curved=1;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;")));
+
+        const RoutedEdge route = EdgeRouter::route(page, *edge);
+        QVERIFY(route.points.size() >= 2);
+
+        // The endpoint sits on the bottom line of the partial rectangle.
+        QCOMPARE(route.end(), QPointF(570, 2506));
+        QCOMPARE(route.start(), QPointF(530, 2478));
+    }
+
     void orthogonalRouteIsAxisAligned()
     {
         Page page;
         Cell *a = page.addVertex(QRectF(100, 100, 100, 60));
         Cell *b = page.addVertex(QRectF(400, 300, 100, 60));
-        Cell *edge = page.addEdge(a->id, b->id);
+        Cell *edge = page.addEdge(a->id, b->id,
+                                  Style::parse(QStringLiteral("edgeStyle=orthogonalEdgeStyle;")));
 
         const RoutedEdge route = EdgeRouter::route(page, *edge);
 

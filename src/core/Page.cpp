@@ -155,14 +155,15 @@ Cell *Page::addVertexInternal(const QRectF &rect, const StyleMap &style,
 }
 
 Cell *Page::addEdge(const QString &sourceId, const QString &targetId,
-                    const StyleMap &style, const QString &value)
+                    const StyleMap &style, const QString &value,
+                    const QString &parentId)
 {
     auto cell = std::make_unique<Cell>(Cell::Kind::Edge, newId());
     cell->sourceId = sourceId;
     cell->targetId = targetId;
     cell->style = style;
     cell->value = value;
-    cell->parentId = activeLayerId;
+    cell->parentId = parentId.isEmpty() ? activeLayerId : parentId;
 
     return addCell(std::move(cell));
 }

@@ -296,6 +296,166 @@ private slots:
         }
     }
 
+    void advancedPaletteEntriesInsertTheirChildren()
+    {
+        MainWindow window;
+        window.resize(1000, 700);
+        window.show();
+
+        DiagramView *view = window.view();
+        QVERIFY(view != nullptr);
+
+        int inserted = 0;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category != QLatin1String("advanced"))
+            {
+                continue;
+            }
+
+            Cell *cell = view->addShape(definition, QPointF(300, 300));
+            QVERIFY2(cell != nullptr, qPrintable(definition.key));
+            ++inserted;
+
+            int vertices = 0;
+            int edges = 0;
+
+            for (const ShapeChildDefinition &child : definition.children)
+            {
+                child.edge ? ++edges : ++vertices;
+            }
+
+            QCOMPARE(cell->children.size(), vertices + edges);
+
+            // The seeded nodes and connectors are children of the container.
+            for (Cell *child : cell->children)
+            {
+                QCOMPARE(child->parent, cell);
+
+                if (child->isEdge())
+                {
+                    QVERIFY(cell->page->cell(child->sourceId) != nullptr);
+                    QVERIFY(cell->page->cell(child->targetId) != nullptr);
+                }
+            }
+
+            // transparentBounds containers keep a zero sized stored geometry;
+            // the visible box is derived from the children and must surround
+            // them, wherever the entry was dropped.
+            if (definition.key.endsWith(QStringLiteral("Layout")))
+            {
+                QCOMPARE(cell->geometry.size(), QSizeF(0, 0));
+
+                const QRectF box = ShapeRegistry::visibleRect(*cell);
+                QVERIFY(!box.isEmpty());
+                QVERIFY2(box.contains(QPointF(300, 300)), qPrintable(definition.key));
+
+                for (Cell *child : cell->children)
+                {
+                    if (child->isVertex())
+                    {
+                        QVERIFY2(box.contains(child->absoluteRect()), qPrintable(definition.key));
+                    }
+                }
+            }
+        }
+
+        QCOMPARE(inserted, 42);
+    }
+
+    void layoutContainerIsHitTestable()
+    {
+        MainWindow window;
+        window.resize(1000, 700);
+        window.show();
+
+        DiagramView *view = window.view();
+        QVERIFY(view != nullptr);
+
+        // Drop a live layout container: its stored geometry is (0,0,0,0) and
+        // the visible box comes from the children, so hit testing and the
+        // marquee must use that box.
+        Cell *container = view->addShape(
+            ShapeRegistry::definition(QStringLiteral("advanced.verticalTreeLayout")),
+            QPointF(300, 300));
+        QVERIFY(container != nullptr);
+        QVERIFY(ShapeRegistry::hasTransparentBounds(*container));
+
+        const QRectF box = ShapeRegistry::visibleRect(*container);
+        QVERIFY(!box.isEmpty());
+
+        // A click inside the derived box (outside the child nodes) selects the
+        // container itself.
+        view->selectCell(QString());
+        QCOMPARE(view->cellAt(box.bottomLeft() + QPointF(6, -6)), container);
+
+        // A rubber band over the box selects the container.
+        const QSet<QString> marquee = view->cellsInMarquee(box.adjusted(-5, -5, 5, 5));
+        QVERIFY2(marquee.contains(container->id), "marquee must select the container");
+
+        // The selection bounds cover the whole derived box.
+        view->selectCell(container->id);
+        const QRectF selection = view->selectionBounds();
+        QVERIFY(selection.contains(box.topLeft()));
+        QVERIFY(selection.contains(box.bottomRight()));
+    }
+
+    void rotatingAContainerCarriesItsChildren()
+    {
+        MainWindow window;
+        window.resize(1000, 700);
+        window.show();
+
+        DiagramView *view = window.view();
+        QVERIFY(view != nullptr);
+
+        Cell *container = view->addShape(
+            ShapeRegistry::definition(QStringLiteral("advanced.verticalTreeLayout")),
+            QPointF(300, 300));
+        QVERIFY(container != nullptr);
+
+        const QRectF box = ShapeRegistry::visibleRect(*container);
+        const QPointF pivot = box.center();
+
+        QVector<Cell *> children;
+
+        for (Cell *child : container->children)
+        {
+            if (child->isVertex())
+            {
+                children.append(child);
+            }
+        }
+
+        QVERIFY(!children.isEmpty());
+
+        QVector<QPointF> before;
+
+        for (Cell *child : children)
+        {
+            before.append(child->geometry.center());
+        }
+
+        view->selectCell(container->id);
+        view->setRotation(90.0);
+
+        // The container itself is rotated and every child orbits the derived
+        // box centre by the same angle (mxVertexHandler.rotateCell).
+        QCOMPARE(container->effectiveRotation(), 90.0);
+
+        for (int i = 0; i < children.size(); ++i)
+        {
+            const QPointF center = children.at(i)->geometry.center();
+            const QPointF offset = before.at(i) - pivot;
+            const QPointF expected(pivot.x() - offset.y(), pivot.y() + offset.x());
+
+            QVERIFY2(QLineF(center, expected).length() < 0.01,
+                     qPrintable(QString::number(i)));
+            QCOMPARE(children.at(i)->effectiveRotation(), 90.0);
+        }
+    }
+
     void canvasSelectionAndUndo()
     {
         MainWindow window;
@@ -2112,6 +2272,37 @@ private slots:
         view->copySelection();
         view->paste();
         QCOMPARE(view->page()->cells().size(), before + 2);
+    }
+
+    void draggingTransparentContainerMovesChildren()
+    {
+        MainWindow window;
+        window.resize(900, 700);
+        window.show();
+
+        DiagramView *view = window.view();
+        Page *page = view->page();
+
+        Cell *container = page->addVertex(QRectF(),
+                                          Style::parse(QStringLiteral("swimlane;startSize=20;"
+                                                                      "transparentBounds=1;groupPadding=20;")),
+                                          QStringLiteral("Layout"));
+        Cell *child = page->addVertex(QRectF(40, 40, 100, 40),
+                                      Style::parse(QStringLiteral("whiteSpace=wrap;html=1;")),
+                                      QStringLiteral("Node"));
+        child->parentId = container->id;
+
+        view->selectCell(container->id, false);
+
+        const QPoint from = view->toView(QPointF(60, 60)).toPoint();
+        const QPoint to = view->toView(QPointF(160, 120)).toPoint();
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(view, to);
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, to);
+
+        // The container geometry stays at the origin, the child moved instead.
+        QCOMPARE(container->geometry, QRectF());
+        QVERIFY2(child->geometry.left() > 40.0, qPrintable(QString::number(child->geometry.left())));
     }
 
     void ctrlHoverShowsHandCursor()

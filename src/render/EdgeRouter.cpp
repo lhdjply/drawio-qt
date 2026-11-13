@@ -91,10 +91,97 @@ QPointF perimeterPoint(const Cell &cell, double exitX, double exitY)
     return point;
 }
 
+/// shape=partialRectangle paints only the sides selected by top/right/bottom/
+/// left. draw.io connects to the painted line (the mindmap's Branch cells are
+/// a single bottom line), so the terminal is the point of that line nearest to
+/// the other end of the edge.
+bool partialRectanglePoint(const Cell &cell, const QPointF &toward, QPointF *point)
+{
+    if (ShapeRegistry::canonicalKey(cell.style) != QLatin1String("partialRectangle"))
+    {
+        return false;
+    }
+
+    const QRectF rect = cell.absoluteRect();
+    const StyleMap style = Style::withDefaults(cell.style);
+    const auto flag = [&style](const char *key)
+    {
+        return Style::number(style, QString::fromLatin1(key), 1.0) != 0.0;
+    };
+
+    QVector<QLineF> segments;
+
+    if (flag("top"))
+    {
+        segments.append(QLineF(rect.topLeft(), rect.topRight()));
+    }
+
+    if (flag("bottom"))
+    {
+        segments.append(QLineF(rect.bottomLeft(), rect.bottomRight()));
+    }
+
+    if (flag("left"))
+    {
+        segments.append(QLineF(rect.topLeft(), rect.bottomLeft()));
+    }
+
+    if (flag("right"))
+    {
+        segments.append(QLineF(rect.topRight(), rect.bottomRight()));
+    }
+
+    QPointF best;
+    double bestDistance = std::numeric_limits<double>::max();
+
+    for (const QLineF &segment : segments)
+    {
+        const QPointF delta = segment.p2() - segment.p1();
+        const double lengthSquared = delta.x() * delta.x() + delta.y() * delta.y();
+        double t = 0.0;
+
+        if (lengthSquared > 0.0)
+        {
+            t = ((toward.x() - segment.p1().x()) * delta.x()
+                 + (toward.y() - segment.p1().y()) * delta.y()) / lengthSquared;
+            t = qBound(0.0, t, 1.0);
+        }
+
+        const QPointF candidate = segment.p1() + delta * t;
+        const double distance = QLineF(candidate, toward).length();
+
+        if (distance < bestDistance)
+        {
+            bestDistance = distance;
+            best = candidate;
+        }
+    }
+
+    if (bestDistance == std::numeric_limits<double>::max())
+    {
+        return false;
+    }
+
+    *point = best;
+    return true;
+}
+
 QPointF shapeIntersection(const Cell &cell, const QPointF &toward, QPointF *direction)
 {
     const QRectF rect = cell.visualRect();
     const QPointF center = rect.center();
+
+    QPointF linePoint;
+
+    if (partialRectanglePoint(cell, toward, &linePoint))
+    {
+        if (direction != nullptr)
+        {
+            *direction = axisDirection(toward - linePoint);
+        }
+
+        return linePoint;
+    }
 
     if (rect.width() <= 0.0 || rect.height() <= 0.0)
     {
@@ -350,6 +437,91 @@ QVector<QPointF> elbowRoute(const QPointF &start, const QPointF &end, bool horiz
     return simplify(points);
 }
 
+/// mxEdgeStyle.EntityRelation: a horizontal S-curve between the facing sides
+/// of the two terminal cells with a `segment` long stub on each side.
+QVector<QPointF> entityRelationRoute(const QRectF &source, const QRectF &target,
+                                     double segment)
+{
+    const bool sourceLeft = target.right() < source.left();
+    const bool targetLeft = source.right() < target.left();
+
+    const double x0 = sourceLeft ? source.left() : source.right();
+    const double y0 = source.center().y();
+    const double xe = targetLeft ? target.left() : target.right();
+    const double ye = target.center().y();
+
+    const QPointF dep(x0 + (sourceLeft ? -segment : segment), y0);
+    const QPointF arr(xe + (targetLeft ? -segment : segment), ye);
+
+    QVector<QPointF> points;
+
+    if (sourceLeft == targetLeft)
+    {
+        const double x = sourceLeft ? qMin(x0, xe) - segment : qMax(x0, xe) + segment;
+        points.append(QPointF(x, y0));
+        points.append(QPointF(x, ye));
+    }
+    else if ((dep.x() < arr.x()) == sourceLeft)
+    {
+        const double midY = y0 + (ye - y0) / 2.0;
+        points.append(dep);
+        points.append(QPointF(dep.x(), midY));
+        points.append(QPointF(arr.x(), midY));
+        points.append(arr);
+    }
+    else
+    {
+        points.append(dep);
+        points.append(arr);
+    }
+
+    return points;
+}
+
+/// The port constraint of an edge (mxConstants.STYLE_SOURCE_PORT_CONSTRAINT /
+/// STYLE_TARGET_PORT_CONSTRAINT) pins the terminal to one axis: eastwest
+/// leaves and enters through the left or right side, northsouth through the
+/// top or bottom side. Returns the side point and its outward direction.
+bool portConstraintPoint(const Cell &cell, const QString &constraint,
+                         const QPointF &toward, QPointF *point, QPointF *direction)
+{
+    const QRectF rect = ShapeRegistry::visibleRect(cell);
+
+    if (constraint == QLatin1String("eastwest"))
+    {
+        if (toward.x() < rect.center().x())
+        {
+            *point = QPointF(rect.left(), rect.center().y());
+            *direction = QPointF(-1, 0);
+        }
+        else
+        {
+            *point = QPointF(rect.right(), rect.center().y());
+            *direction = QPointF(1, 0);
+        }
+
+        return true;
+    }
+
+    if (constraint == QLatin1String("northsouth"))
+    {
+        if (toward.y() < rect.center().y())
+        {
+            *point = QPointF(rect.center().x(), rect.top());
+            *direction = QPointF(0, -1);
+        }
+        else
+        {
+            *point = QPointF(rect.center().x(), rect.bottom());
+            *direction = QPointF(0, 1);
+        }
+
+        return true;
+    }
+
+    return false;
+}
+
 RoutedEdge route(const Page &page, const Cell &edge)
 {
     RoutedEdge result;
@@ -379,7 +551,22 @@ RoutedEdge route(const Page &page, const Cell &edge)
     const QString entryX = edge.styleValue(QStringLiteral("entryX"));
     const QString entryY = edge.styleValue(QStringLiteral("entryY"));
 
-    if (result.sourceCell != nullptr)
+    const QString sourceConstraint = edge.styleValue(
+        QStringLiteral("sourcePortConstraint"));
+    const QString targetConstraint = edge.styleValue(
+        QStringLiteral("targetPortConstraint"));
+
+    if (result.sourceCell != nullptr && !sourceConstraint.isEmpty()
+        && portConstraintPoint(*result.sourceCell, sourceConstraint,
+                               edge.targetPoint.isNull() ? result.targetCell != nullptr
+                                                               ? result.targetCell->center()
+                                                               : QPointF()
+                                                         : edge.targetPoint,
+                               &start, &sourceDir))
+    {
+        // Fixed side port: skip the perimeter intersection below.
+    }
+    else if (result.sourceCell != nullptr)
     {
         if (!exitX.isEmpty() && !exitY.isEmpty())
         {
@@ -419,7 +606,17 @@ RoutedEdge route(const Page &page, const Cell &edge)
         sourceDir = axisDirection(targetReference - start);
     }
 
-    if (result.targetCell != nullptr)
+    if (result.targetCell != nullptr && !targetConstraint.isEmpty()
+        && portConstraintPoint(*result.targetCell, targetConstraint,
+                               edge.sourcePoint.isNull() ? result.sourceCell != nullptr
+                                                               ? result.sourceCell->center()
+                                                               : QPointF()
+                                                         : edge.sourcePoint,
+                               &end, &targetDir))
+    {
+        // Fixed side port.
+    }
+    else if (result.targetCell != nullptr)
     {
         if (!entryX.isEmpty() && !entryY.isEmpty())
         {
@@ -437,11 +634,70 @@ RoutedEdge route(const Page &page, const Cell &edge)
         targetDir = axisDirection(end - sourceReference);
     }
 
+    const QString edgeStyle = edge.styleValue(QStringLiteral("edgeStyle")).toLower();
+    const bool elbowStyle = edgeStyle == QLatin1String("elbowedgestyle");
+    const bool orthogonalStyle = edgeStyle == QLatin1String("orthogonaledgestyle");
+
+    // mxEdgeStyle.ElbowConnector / OrthConnector connect at the centre of the
+    // side the wire leaves from (getRoutingCenterX/Y), not at the perimeter
+    // intersection: a vertical elbow enters the target at its top centre.
+    if ((elbowStyle || orthogonalStyle)
+        && exitX.isEmpty() && exitY.isEmpty()
+        && entryX.isEmpty() && entryY.isEmpty()
+        && sourceConstraint.isEmpty() && targetConstraint.isEmpty())
+    {
+        const QRectF sourceRect = result.sourceCell != nullptr
+            ? ShapeRegistry::visibleRect(*result.sourceCell) : QRectF();
+        const QRectF targetRect = result.targetCell != nullptr
+            ? ShapeRegistry::visibleRect(*result.targetCell) : QRectF();
+
+        const QPointF sourceCenter = result.sourceCell != nullptr
+            ? sourceRect.center() : start;
+        const QPointF targetCenter = result.targetCell != nullptr
+            ? targetRect.center() : end;
+
+        bool vertical = elbowStyle
+            ? edge.styleValue(QStringLiteral("elbow")) != QLatin1String("horizontal")
+            : qAbs(targetCenter.y() - sourceCenter.y()) >= qAbs(targetCenter.x() - sourceCenter.x());
+
+        if (vertical)
+        {
+            if (result.sourceCell != nullptr)
+            {
+                start = QPointF(sourceCenter.x(), targetCenter.y() >= sourceCenter.y()
+                                                      ? sourceRect.bottom() : sourceRect.top());
+                sourceDir = QPointF(0, targetCenter.y() >= sourceCenter.y() ? 1 : -1);
+            }
+
+            if (result.targetCell != nullptr)
+            {
+                end = QPointF(targetCenter.x(), sourceCenter.y() <= targetCenter.y()
+                                                  ? targetRect.top() : targetRect.bottom());
+                targetDir = QPointF(0, sourceCenter.y() <= targetCenter.y() ? -1 : 1);
+            }
+        }
+        else
+        {
+            if (result.sourceCell != nullptr)
+            {
+                start = QPointF(targetCenter.x() >= sourceCenter.x()
+                                    ? sourceRect.right() : sourceRect.left(), sourceCenter.y());
+                sourceDir = QPointF(targetCenter.x() >= sourceCenter.x() ? 1 : -1, 0);
+            }
+
+            if (result.targetCell != nullptr)
+            {
+                end = QPointF(sourceCenter.x() <= targetCenter.x()
+                                  ? targetRect.left() : targetRect.right(), targetCenter.y());
+                targetDir = QPointF(sourceCenter.x() <= targetCenter.x() ? -1 : 1, 0);
+            }
+        }
+    }
+
     result.sourceDirection = sourceDir;
     result.targetDirection = targetDir;
 
     const bool floating = result.sourceCell == nullptr && result.targetCell == nullptr;
-    const QString edgeStyle = edge.styleValue(QStringLiteral("edgeStyle")).toLower();
     const bool routedStyle = !edgeStyle.isEmpty()
         && edgeStyle != QLatin1String("none");
 
@@ -475,23 +731,65 @@ RoutedEdge route(const Page &page, const Cell &edge)
         }
     }
 
+    const QVector<QPointF> waypoints = edge.waypoints;
+
+    // mxEdgeStyle.EntityRelation routes between the facing sides of the two
+    // terminals (the mindmap's curved connectors).
+    if (waypoints.isEmpty() && edgeStyle == QLatin1String("entityrelationedgestyle")
+        && result.sourceCell != nullptr && result.targetCell != nullptr)
+    {
+        const double segment = Style::number(Style::withDefaults(edge.style),
+                                             QStringLiteral("segment"), 10.0);
+        const QRectF sourceRect = ShapeRegistry::visibleRect(*result.sourceCell);
+        const QRectF targetRect = ShapeRegistry::visibleRect(*result.targetCell);
+        const QVector<QPointF> middle = entityRelationRoute(sourceRect, targetRect, segment);
+
+        start = connectionPoint(*result.sourceCell,
+                                middle.isEmpty() ? targetRect.center() : middle.first(),
+                                &sourceDir);
+        end = connectionPoint(*result.targetCell,
+                              middle.isEmpty() ? sourceRect.center() : middle.last(),
+                              &targetDir);
+
+        QVector<QPointF> routed{start};
+        routed.append(middle);
+        routed.append(end);
+
+        result.sourceDirection = sourceDir;
+        result.targetDirection = targetDir;
+        result.points = simplify(routed);
+
+        if (result.points.size() >= 2)
+        {
+            return result;
+        }
+    }
+
     QVector<QPointF> points;
     points.append(start);
 
-    const QVector<QPointF> waypoints = edge.waypoints;
-
     if (waypoints.isEmpty())
     {
+        // draw.io routes an edge without an edgeStyle as a straight polyline
+        // (mxEdgeStyle.Straight); only the explicit styles bend the wire.
         const bool orthogonal = edgeStyle == QLatin1String("orthogonaledgestyle")
-            || edgeStyle == QLatin1String("entityrelationedgestyle")
-            || edgeStyle.isEmpty();
+            || edgeStyle == QLatin1String("entityrelationedgestyle");
+
+        // draw.io routes an edge whose other end is a floating point with the
+        // same edge style: only the connection point of the terminal cell is
+        // fixed, the direction comes from the style (or from the relative
+        // position of the two anchors).
+        const bool oneTerminal = (result.sourceCell == nullptr)
+            != (result.targetCell == nullptr);
 
         if (floating && edgeStyle == QLatin1String("isometricedgestyle"))
         {
             points = isometricRoute(start, end,
                 edge.styleValue(QStringLiteral("elbow")) != QLatin1String("vertical"));
         }
-        else if (floating && edgeStyle == QLatin1String("elbowedgestyle"))
+        else if (edgeStyle == QLatin1String("elbowedgestyle")
+                 && (floating || oneTerminal || (result.sourceCell != nullptr
+                                                 && result.targetCell != nullptr)))
         {
             points = elbowRoute(start, end,
                 edge.styleValue(QStringLiteral("elbow")) != QLatin1String("vertical"));
@@ -517,8 +815,8 @@ RoutedEdge route(const Page &page, const Cell &edge)
             given.append(end);
             points = simplify(given);
         }
-        else if (orthogonal && result.sourceCell != nullptr
-                 && result.targetCell != nullptr)
+        else if (orthogonal && (result.sourceCell != nullptr
+                                || result.targetCell != nullptr))
         {
             points = orthogonalBetween(start, sourceDir, end, targetDir);
         }

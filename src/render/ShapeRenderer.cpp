@@ -17,6 +17,7 @@
 #include <QtMath>
 
 #include <algorithm>
+#include <cmath>
 
 namespace dq {
 namespace {
@@ -2028,9 +2029,24 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
 
     painter.save();
 
-    const QPointF position = absolutePosition != nullptr ? *absolutePosition
-                                                         : cell.absolutePosition();
-    const QRectF local(QPointF(0, 0), cell.geometry.size());
+    QPointF position = absolutePosition != nullptr ? *absolutePosition
+                                                   : cell.absolutePosition();
+    QRectF local(QPointF(0, 0), cell.geometry.size());
+
+    // Graph.getTransparentBounds(): a live layout / tree container keeps its
+    // stored geometry at (0,0,0,0); its visible box is derived from the
+    // children plus groupPadding and the title bar.
+    if (absolutePosition == nullptr && ShapeRegistry::hasTransparentBounds(cell))
+    {
+        const QRectF bounds = ShapeRegistry::transparentBounds(cell);
+
+        if (!bounds.isNull())
+        {
+            position = cell.absolutePosition() + bounds.topLeft();
+            local = QRectF(QPointF(0, 0), bounds.size());
+        }
+    }
+
     const QPointF center = position + local.center();
     const QString direction = cell.styleValue(QStringLiteral("direction")).toLower();
 
@@ -2186,6 +2202,19 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
         // <fillcolor color="accentColor" default="#ffff00"/>.
         fill = Style::color(cell.style, QStringLiteral("accentColor"),
                             QColor(0xff, 0xff, 0x00));
+    }
+
+    if (ShapeRegistry::canonicalKey(cell.style) == QLatin1String("swimlane"))
+    {
+        // mxSwimlane: the content area is filled with swimlaneFillColor (none
+        // by default); the cell fill only covers the title bar, which the
+        // decoration below paints.
+        const QString laneFill = Style::value(Style::withDefaults(cell.style),
+                                              QStringLiteral("swimlaneFillColor"));
+
+        fill = (laneFill.isEmpty() || Style::isNoneColor(laneFill))
+            ? QColor(Qt::transparent)
+            : Style::parseColorValue(laneFill);
     }
     const bool textShape = ShapeRegistry::isTextShape(cell);
     const bool imageShape = ShapeRegistry::isImageShape(cell);
@@ -2643,39 +2672,150 @@ void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
             painter.setBrush(Qt::NoBrush);
             painter.drawPath(folds);
         }
-        else if (key == QLatin1String("swimlane") || cell.styleFlag(QStringLiteral("swimlane")))
+        else if (key == QLatin1String("ext"))
         {
-            const double startSize = cell.styleNumber(QStringLiteral("startSize"), 23.0);
-
-            // Fold indicator: draw.io shows a small square with a minus (or a
-            // plus once collapsed) at the top left of collapsible containers.
-            if (cell.styleFlag(QStringLiteral("collapsible"), true)
-                && local.width() > 20.0 && local.height() > 20.0)
+            // ExtendedShape.paintForeground: with double=1 a second frame is
+            // painted inside the outline, inset by max(2, strokewidth + 1)
+            // plus the margin style, filled with the cell fill.
+            if (cell.styleNumber(QStringLiteral("double"), 0.0) == 1.0)
             {
-                const QRectF fold(4.0, 4.0, 9.0, 9.0);
-                const QColor fill = fillColor(cell);
-                painter.setPen(QPen(strokeColor(cell), 1.0));
-                painter.setBrush(fill.alpha() == 0 ? QColor(Qt::white) : fill);
-                painter.drawRect(fold);
-                painter.setBrush(Qt::NoBrush);
-                painter.drawLine(QPointF(fold.left() + 2.0, fold.center().y()),
-                                 QPointF(fold.right() - 2.0, fold.center().y()));
+                const double margin = qMax(2.0, cell.styleNumber(
+                    QStringLiteral("strokeWidth"), 1.0) + 1.0)
+                    + cell.styleNumber(QStringLiteral("margin"), 0.0);
+                const QRectF inner = local.adjusted(margin, margin, -margin, -margin);
 
-                if (cell.collapsed)
+                if (inner.width() > 0.0 && inner.height() > 0.0)
                 {
-                    painter.drawLine(QPointF(fold.center().x(), fold.top() + 2.0),
-                                     QPointF(fold.center().x(), fold.bottom() - 2.0));
+                    if (cell.styleFlag(QStringLiteral("rounded")))
+                    {
+                        const double f = qBound(0.0, cell.styleNumber(
+                            QStringLiteral("arcSize"), 15.0), 100.0) / 100.0;
+                        const double r = qMin(inner.width(), inner.height()) * f;
+                        painter.drawRoundedRect(inner, r, r);
+                    }
+                    else
+                    {
+                        painter.drawRect(inner);
+                    }
                 }
             }
+        }
+        else if (key == QLatin1String("doubleEllipse"))
+        {
+            // mxDoubleEllipse.paintForeground: an inner ellipse, stroke only.
+            const double margin = cell.styleNumber(QStringLiteral("margin"),
+                qMin(3.0 + cell.styleNumber(QStringLiteral("strokeWidth"), 1.0),
+                     qMin(local.width() / 5.0, local.height() / 5.0)));
+            const QRectF inner = local.adjusted(margin, margin, -margin, -margin);
 
-            // swimlane;horizontal=0 puts the title bar on the left edge.
-            if (cell.styleFlag(QStringLiteral("horizontal"), true))
+            if (inner.width() > 0.0 && inner.height() > 0.0)
             {
-                painter.drawLine(QPointF(0, startSize), QPointF(local.width(), startSize));
+                painter.setBrush(Qt::NoBrush);
+                painter.drawEllipse(inner);
+            }
+        }
+        else if (key == QLatin1String("tapeData"))
+        {
+            // TapeDataShape: the cut edge at the bottom right.
+            painter.drawLine(QPointF(local.width() / 2.0, local.height()),
+                             QPointF(local.width(), local.height()));
+        }
+        else if (key == QLatin1String("orEllipse"))
+        {
+            // OrEllipseShape: both axes.
+            painter.drawLine(QPointF(0, local.height() / 2.0),
+                             QPointF(local.width(), local.height() / 2.0));
+            painter.drawLine(QPointF(local.width() / 2.0, 0),
+                             QPointF(local.width() / 2.0, local.height()));
+        }
+        else if (key == QLatin1String("sumEllipse"))
+        {
+            // SumEllipseShape: the two diagonals, inset by 14.5%.
+            const double s2 = 0.145;
+            painter.drawLine(QPointF(local.width() * s2, local.height() * s2),
+                             QPointF(local.width() * (1.0 - s2),
+                                     local.height() * (1.0 - s2)));
+            painter.drawLine(QPointF(local.width() * (1.0 - s2), local.height() * s2),
+                             QPointF(local.width() * s2,
+                                     local.height() * (1.0 - s2)));
+        }
+        else if (key == QLatin1String("lineEllipse"))
+        {
+            // LineEllipseShape: a horizontal or vertical divider.
+            if (cell.styleValue(QStringLiteral("line")) == QLatin1String("vertical"))
+            {
+                painter.drawLine(QPointF(local.width() / 2.0, 0),
+                                 QPointF(local.width() / 2.0, local.height()));
             }
             else
             {
-                painter.drawLine(QPointF(startSize, 0), QPointF(startSize, local.height()));
+                painter.drawLine(QPointF(0, local.height() / 2.0),
+                                 QPointF(local.width(), local.height() / 2.0));
+            }
+        }
+        else if (key == QLatin1String("sortShape"))
+        {
+            // SortShape: the horizontal divider of the diamond.
+            painter.drawLine(QPointF(0, local.height() / 2.0),
+                             QPointF(local.width(), local.height() / 2.0));
+        }
+        else if (key == QLatin1String("datastore"))
+        {
+            // DataStoreShape: three arcs stacked below the lid.
+            const double dy = qMin(local.height() / 2.0,
+                std::round(local.height() / 8.0) + qMax(0.5,
+                    cell.styleNumber(QStringLiteral("strokeWidth"), 1.0)) - 1.0);
+
+            painter.setBrush(Qt::NoBrush);
+
+            for (int i = 0; i < 3; ++i)
+            {
+                const double offset = i * dy / 2.0;
+                QPainterPath ring;
+                ring.moveTo(0, dy + offset);
+                ring.cubicTo(QPointF(0, 2.0 * dy + offset),
+                             QPointF(local.width(), 2.0 * dy + offset),
+                             QPointF(local.width(), dy + offset));
+                painter.drawPath(ring);
+            }
+        }
+        else if (key == QLatin1String("swimlane") || cell.styleFlag(QStringLiteral("swimlane")))
+        {
+            // mxSwimlane.paintSwimlane(): the title bar is filled with the
+            // cell fill and stroked, then the divider line is stroked on top.
+            // draw.io does not paint a fold indicator in the shape.
+            const double startSize = qMax(0.0, cell.styleNumber(
+                QStringLiteral("startSize"), 23.0));
+            const bool horizontal = cell.styleFlag(QStringLiteral("horizontal"), true);
+            const double start = horizontal ? qMin(startSize, local.height())
+                                            : qMin(startSize, local.width());
+
+            if (start > 0.0)
+            {
+                QPainterPath head;
+
+                if (horizontal)
+                {
+                    head.moveTo(0, start);
+                    head.lineTo(0, 0);
+                    head.lineTo(local.width(), 0);
+                    head.lineTo(local.width(), start);
+                }
+                else
+                {
+                    head.moveTo(start, 0);
+                    head.lineTo(0, 0);
+                    head.lineTo(0, local.height());
+                    head.lineTo(start, local.height());
+                }
+
+                const QColor headFill = fillColor(cell);
+                painter.setBrush(headFill.alpha() > 0 ? QBrush(headFill) : QBrush(Qt::NoBrush));
+                painter.drawPath(head);
+                painter.setBrush(Qt::NoBrush);
+                painter.drawLine(horizontal ? QPointF(0, start) : QPointF(start, 0),
+                                 horizontal ? QPointF(local.width(), start)
+                                            : QPointF(start, local.height()));
             }
         }
         else if (key == QLatin1String("flowchart.annotation_2"))

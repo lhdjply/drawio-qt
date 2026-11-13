@@ -1,9 +1,10 @@
 #include "render/ShapeRegistry.h"
 
-#include <QPainterPath>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonValue>
+#include <QPainterPath>
+#include <QRegularExpression>
 #include <QtMath>
 
 namespace dq {
@@ -2753,37 +2754,393 @@ QVector<ShapeDefinition> toolboxShapes()
         QStringLiteral("shape=zigzag;html=1;fillColor=none;"),
         QStringLiteral(""), QSizeF(160, 20), false, {});
 
-    // --- advanced layouts ------------------------------------------------
-    add(QStringLiteral("advanced.container"), QStringLiteral("Container"),
-        QStringLiteral("swimlane;startSize=0;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(220, 160), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.horizontal"), QStringLiteral("Horizontal"),
-        QStringLiteral("swimlane;horizontal=0;startSize=30;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(220, 160), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.vertical"), QStringLiteral("Vertical"),
-        QStringLiteral("swimlane;startSize=30;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(220, 160), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.poolHorizontal"), QStringLiteral("Pool Horizontal"),
-        QStringLiteral("swimlane;horizontal=0;startSize=40;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(260, 180), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.poolVertical"), QStringLiteral("Pool Vertical"),
-        QStringLiteral("swimlane;startSize=40;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(260, 180), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.treeHorizontal"), QStringLiteral("Tree Horizontal"),
-        QStringLiteral("shape=advTreeH;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(220, 150), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.treeVertical"), QStringLiteral("Tree Vertical"),
-        QStringLiteral("shape=advTreeV;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(200, 190), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.treeBalloon"), QStringLiteral("Tree Balloon"),
-        QStringLiteral("shape=advTreeBalloon;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(220, 190), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.flowHorizontal"), QStringLiteral("Flow Horizontal"),
-        QStringLiteral("shape=advFlowH;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(260, 110), QStringLiteral("advanced"));
-    add(QStringLiteral("advanced.flowVertical"), QStringLiteral("Flow Vertical"),
-        QStringLiteral("shape=advFlowV;whiteSpace=wrap;html=1;fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(160, 240), QStringLiteral("advanced"));
+    // --- advanced --------------------------------------------------------
+    // Exactly the palette of Sidebar.prototype.createAdvancedShapes() plus the
+    // entries Sidebar-Advanced.js appends, in sidebar order and with its style
+    // strings verbatim (sizes and child cells included). The layout
+    // containers use the styles of Menus.layoutContainers (see the
+    // swimlane()/entry() helpers there).
+    {
+        auto addAdvanced = [&shapes](const QString &key, const QString &name,
+                                     const QString &style, const QSizeF &size,
+                                     const QString &value = QString())
+        {
+            ShapeDefinition definition;
+            definition.key = key;
+            definition.name = name;
+            definition.style = style;
+            definition.value = value;
+            definition.size = size;
+            definition.category = QStringLiteral("advanced");
+            shapes.append(definition);
+        };
+
+        // Child cells of a palette entry: a vertex at (x, y, w, h) or an edge
+        // between two of the entry's child vertices.
+        auto childVertex = [](const QString &style, const QString &value,
+                              double x, double y, double w, double h)
+        {
+            ShapeChildDefinition definition;
+            definition.style = style;
+            definition.value = value;
+            definition.geometry = QRectF(x, y, w, h);
+            return definition;
+        };
+
+        auto childEdge = [](const QString &style, int source, int target)
+        {
+            ShapeChildDefinition definition;
+            definition.style = style;
+            definition.edge = true;
+            definition.source = source;
+            definition.target = target;
+            return definition;
+        };
+
+        // Sidebar helper styles.
+        const QString wrap = QStringLiteral("whiteSpace=wrap;html=1;");
+        const QString fieldStyle = QStringLiteral(
+            "text;strokeColor=none;fillColor=none;align=left;verticalAlign=top;"
+            "spacingLeft=4;spacingRight=4;overflow=hidden;rotatable=0;"
+            "points=[[0,0.5],[1,0.5]];portConstraint=eastwest;whiteSpace=wrap;html=1;");
+        const QString stepStyle = QStringLiteral(
+            "shape=step;perimeter=stepPerimeter;fixedSize=1;points=[];"
+            "whiteSpace=wrap;html=1;");
+        const QString laneStyle = QStringLiteral("swimlane;startSize=20;horizontal=0;html=1;");
+        const QString layoutEdgeStyle = QStringLiteral(
+            "html=1;rounded=1;curved=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;"
+            "startSize=6;endSize=6;edgeStyle=orthogonalEdgeStyle;");
+        const QString balloonEdgeStyle = QStringLiteral(
+            "html=1;rounded=1;curved=0;sourcePerimeterSpacing=0;targetPerimeterSpacing=0;"
+            "startSize=6;endSize=6;startArrow=none;endArrow=none;");
+        const QString topPad = QStringLiteral("[top=40,left=20,bottom=20,right=20]");
+        const QString leftPad = QStringLiteral("[top=20,left=40,bottom=20,right=20]");
+
+        addAdvanced(QStringLiteral("advanced.doubleRectangle"),
+            QStringLiteral("Double Rectangle"),
+            QStringLiteral("shape=ext;double=1;rounded=0;whiteSpace=wrap;html=1;"),
+            QSizeF(120, 80));
+        addAdvanced(QStringLiteral("advanced.doubleRoundedRectangle"),
+            QStringLiteral("Double Rounded Rectangle"),
+            QStringLiteral("shape=ext;double=1;rounded=1;whiteSpace=wrap;html=1;"),
+            QSizeF(120, 80));
+        addAdvanced(QStringLiteral("advanced.doubleEllipse"), QStringLiteral("Double Ellipse"),
+            QStringLiteral("ellipse;shape=doubleEllipse;whiteSpace=wrap;html=1;"),
+            QSizeF(100, 60));
+        addAdvanced(QStringLiteral("advanced.doubleSquare"), QStringLiteral("Double Square"),
+            QStringLiteral("shape=ext;double=1;whiteSpace=wrap;html=1;aspect=fixed;"),
+            QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.doubleCircle"), QStringLiteral("Double Circle"),
+            QStringLiteral("ellipse;shape=doubleEllipse;whiteSpace=wrap;html=1;aspect=fixed;"),
+            QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.tapeData"), QStringLiteral("Tape Data"),
+            QStringLiteral("shape=tapeData;whiteSpace=wrap;html=1;perimeter=ellipsePerimeter;"),
+            QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.manualInput"), QStringLiteral("Manual Input"),
+            QStringLiteral("shape=manualInput;boundedLbl=1;whiteSpace=wrap;html=1;"),
+            QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.loopLimit"), QStringLiteral("Loop Limit"),
+            QStringLiteral("shape=loopLimit;whiteSpace=wrap;html=1;"), QSizeF(100, 80));
+        addAdvanced(QStringLiteral("advanced.offPageConnector"),
+            QStringLiteral("Off Page Connector"),
+            QStringLiteral("shape=offPageConnector;whiteSpace=wrap;html=1;"), QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.delay"), QStringLiteral("Delay"),
+            QStringLiteral("shape=delay;whiteSpace=wrap;html=1;"), QSizeF(80, 40));
+        addAdvanced(QStringLiteral("advanced.display"), QStringLiteral("Display"),
+            QStringLiteral("shape=display;whiteSpace=wrap;html=1;"), QSizeF(80, 40));
+        addAdvanced(QStringLiteral("advanced.arrowLeft"), QStringLiteral("Arrow Left"),
+            QStringLiteral("shape=singleArrow;direction=west;whiteSpace=wrap;html=1;"),
+            QSizeF(100, 60));
+        addAdvanced(QStringLiteral("advanced.arrowRight"), QStringLiteral("Arrow Right"),
+            QStringLiteral("shape=singleArrow;whiteSpace=wrap;html=1;"), QSizeF(100, 60));
+        addAdvanced(QStringLiteral("advanced.arrowUp"), QStringLiteral("Arrow Up"),
+            QStringLiteral("shape=singleArrow;direction=north;whiteSpace=wrap;html=1;"),
+            QSizeF(60, 100));
+        addAdvanced(QStringLiteral("advanced.arrowDown"), QStringLiteral("Arrow Down"),
+            QStringLiteral("shape=singleArrow;direction=south;whiteSpace=wrap;html=1;"),
+            QSizeF(60, 100));
+        addAdvanced(QStringLiteral("advanced.doubleArrow"), QStringLiteral("Double Arrow"),
+            QStringLiteral("shape=doubleArrow;whiteSpace=wrap;html=1;"), QSizeF(100, 60));
+        addAdvanced(QStringLiteral("advanced.doubleArrowVertical"),
+            QStringLiteral("Double Arrow Vertical"),
+            QStringLiteral("shape=doubleArrow;direction=south;whiteSpace=wrap;html=1;"),
+            QSizeF(60, 100));
+        addAdvanced(QStringLiteral("advanced.user"), QStringLiteral("User"),
+            QStringLiteral("shape=actor;whiteSpace=wrap;html=1;"), QSizeF(40, 60));
+        addAdvanced(QStringLiteral("advanced.cross"), QStringLiteral("Cross"),
+            QStringLiteral("shape=cross;whiteSpace=wrap;html=1;"), QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.corner"), QStringLiteral("Corner"),
+            QStringLiteral("shape=corner;whiteSpace=wrap;html=1;"), QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.tee"), QStringLiteral("Tee"),
+            QStringLiteral("shape=tee;whiteSpace=wrap;html=1;"), QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.dataStore"), QStringLiteral("Data Store"),
+            QStringLiteral("shape=datastore;whiteSpace=wrap;html=1;"), QSizeF(60, 60));
+        addAdvanced(QStringLiteral("advanced.or"), QStringLiteral("Or"),
+            QStringLiteral("shape=orEllipse;perimeter=ellipsePerimeter;whiteSpace=wrap;"
+                           "html=1;backgroundOutline=1;"),
+            QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.sum"), QStringLiteral("Sum"),
+            QStringLiteral("shape=sumEllipse;perimeter=ellipsePerimeter;whiteSpace=wrap;"
+                           "html=1;backgroundOutline=1;"),
+            QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.ellipseHorizontalDivider"),
+            QStringLiteral("Ellipse with horizontal divider"),
+            QStringLiteral("shape=lineEllipse;perimeter=ellipsePerimeter;whiteSpace=wrap;"
+                           "html=1;backgroundOutline=1;"),
+            QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.ellipseVerticalDivider"),
+            QStringLiteral("Ellipse with vertical divider"),
+            QStringLiteral("shape=lineEllipse;line=vertical;perimeter=ellipsePerimeter;"
+                           "whiteSpace=wrap;html=1;backgroundOutline=1;"),
+            QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.sort"), QStringLiteral("Sort"),
+            QStringLiteral("shape=sortShape;perimeter=rhombusPerimeter;whiteSpace=wrap;html=1;"),
+            QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.collate"), QStringLiteral("Collate"),
+            QStringLiteral("shape=collate;whiteSpace=wrap;html=1;"), QSizeF(80, 80));
+        addAdvanced(QStringLiteral("advanced.switch"), QStringLiteral("Switch"),
+            QStringLiteral("shape=switch;whiteSpace=wrap;html=1;"), QSizeF(60, 60));
+
+        // Process Bar: the swimlane of the sidebar's data entry with its three
+        // steps (the values and styles are the decoded template).
+        {
+            ShapeDefinition definition;
+            definition.key = QStringLiteral("advanced.processBar");
+            definition.name = QStringLiteral("Process Bar");
+            definition.style = QStringLiteral(
+                "swimlane;childLayout=stackLayout;horizontal=1;fillColor=none;"
+                "horizontalStack=1;resizeParent=1;resizeParentMax=0;resizeLast=0;"
+                "collapsible=0;strokeColor=none;stackBorder=10;stackSpacing=-12;"
+                "resizable=1;align=center;points=[];whiteSpace=wrap;html=1;");
+            definition.value = QStringLiteral("Process Bar");
+            definition.size = QSizeF(296, 100);
+            definition.category = QStringLiteral("advanced");
+            definition.children.append(childVertex(stepStyle, QStringLiteral("Step 1"),
+                                                   10, 33, 100, 57));
+            definition.children.append(childVertex(stepStyle, QStringLiteral("Step 2"),
+                                                   98, 33, 100, 57));
+            definition.children.append(childVertex(stepStyle, QStringLiteral("Step 3"),
+                                                   186, 33, 100, 57));
+            shapes.append(definition);
+        }
+
+        addAdvanced(QStringLiteral("advanced.container"), QStringLiteral("Container"),
+            QStringLiteral("swimlane;"), QSizeF(200, 200), QStringLiteral("Container"));
+
+        // List: the sidebar's List container with three field rows.
+        {
+            ShapeDefinition definition;
+            definition.key = QStringLiteral("advanced.list");
+            definition.name = QStringLiteral("List");
+            definition.style = QStringLiteral(
+                "swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;startSize=26;"
+                "fillColor=none;horizontalStack=0;resizeParent=1;resizeParentMax=0;"
+                "resizeLast=0;collapsible=1;marginBottom=0;html=1;");
+            definition.value = QStringLiteral("List");
+            definition.size = QSizeF(140, 110);
+            definition.category = QStringLiteral("advanced");
+            definition.children.append(childVertex(fieldStyle, QStringLiteral("Item 1"),
+                                                   0, 26, 140, 26));
+            definition.children.append(childVertex(fieldStyle, QStringLiteral("Item 2"),
+                                                   0, 52, 140, 26));
+            definition.children.append(childVertex(fieldStyle, QStringLiteral("Item 3"),
+                                                   0, 78, 140, 26));
+            shapes.append(definition);
+        }
+
+        addAdvanced(QStringLiteral("advanced.listItem"), QStringLiteral("List Item"),
+            fieldStyle, QSizeF(60, 26), QStringLiteral("List Item"));
+
+        // Horizontal Pool 1 / 2, Vertical Pool 1 / 2: the four addDataEntry()
+        // templates of Sidebar-Advanced.js, each a pool with three lanes.
+        {
+            struct PoolTemplate
+            {
+                const char *key;
+                const char *name;
+                const char *style;
+                double width;
+                double height;
+                bool poolHorizontal;
+                bool lanesHorizontal;
+            };
+
+            static const PoolTemplate pools[] = {
+                {"advanced.horizontalPool1", "Horizontal Pool 1",
+                 "swimlane;childLayout=stackLayout;resizeParent=1;resizeParentMax=0;"
+                 "horizontal=1;startSize=20;horizontalStack=0;html=1;", 480, 380, true, false},
+                {"advanced.horizontalPool2", "Horizontal Pool 2",
+                 "swimlane;childLayout=stackLayout;resizeParent=1;resizeParentMax=0;"
+                 "horizontal=0;startSize=20;horizontalStack=0;html=1;", 480, 360, false, false},
+                {"advanced.verticalPool1", "Vertical Pool 1",
+                 "swimlane;childLayout=stackLayout;resizeParent=1;resizeParentMax=0;"
+                 "startSize=20;html=1;", 360, 480, true, true},
+                {"advanced.verticalPool2", "Vertical Pool 2",
+                 "swimlane;childLayout=stackLayout;resizeParent=1;resizeParentMax=0;"
+                 "startSize=20;horizontal=0;horizontalStack=1;", 380, 480, false, true},
+            };
+
+            for (const PoolTemplate &pool : pools)
+            {
+                ShapeDefinition definition;
+                definition.key = QString::fromLatin1(pool.key);
+                definition.name = QString::fromLatin1(pool.name);
+                definition.style = QString::fromLatin1(pool.style);
+                definition.value = QStringLiteral("Pool");
+                definition.size = QSizeF(pool.width, pool.height);
+                definition.category = QStringLiteral("advanced");
+
+                // Lane 1..3 stacked below the pool title (horizontal=1) or
+                // beside it (horizontal=0), exactly as the data entries store
+                // them.
+                for (int lane = 0; lane < 3; ++lane)
+                {
+                    QRectF geometry;
+
+                    if (pool.lanesHorizontal)
+                    {
+                        geometry = QRectF((pool.poolHorizontal ? 0.0 : 20.0) + lane * 120.0,
+                                          pool.poolHorizontal ? 20.0 : 0.0, 120,
+                                          pool.poolHorizontal ? 460.0 : 480.0);
+                    }
+                    else
+                    {
+                        geometry = QRectF(pool.poolHorizontal ? 0.0 : 20.0,
+                                          (pool.poolHorizontal ? 20.0 : 0.0) + lane * 120.0,
+                                          pool.poolHorizontal ? 480.0 : 460.0, 120);
+                    }
+
+                    definition.children.append(childVertex(laneStyle,
+                        QStringLiteral("Lane %1").arg(lane + 1),
+                        geometry.x(), geometry.y(), geometry.width(), geometry.height()));
+                }
+
+                shapes.append(definition);
+            }
+        }
+
+        // Layout containers (Sidebar-Advanced.js addLayoutContainerEntry): the
+        // container is a transparentBounds swimlane whose box is derived from
+        // its children, seeded with the nodes and edges of the ELK layout.
+        {
+            struct NodeSeed
+            {
+                const char *value;
+                double x;
+                double y;
+            };
+
+            struct LayoutTemplate
+            {
+                const char *key;
+                const char *name;
+                QString style;
+                double width;
+                double height;
+                QVector<NodeSeed> nodes;
+                QVector<QPair<int, int>> edges;
+                QString edgeStyle;
+            };
+
+            const QString treeChildLayout = QStringLiteral("containerType=tree;childLayout=");
+
+            QVector<LayoutTemplate> layouts;
+            layouts.append({ "advanced.verticalTreeLayout", "Vertical Tree Layout",
+                QStringLiteral("swimlane;html=1;startSize=20;horizontal=1;resizable=0;"
+                               "fontSize=12;transparentBounds=1;groupPadding=20;") + treeChildLayout +
+                QStringLiteral("%5B%7B%22layout%22%3A%22elkTree%22%2C%22config%22%3A%7B%22elk.direction%22"
+                               "%3A%22DOWN%22%2C%22elk.spacing.nodeNode%22%3A%2240%22%2C%22elk.spacing."
+                               "edgeNode%22%3A%2220%22%2C%22elk.padding%22%3A%22%5Btop%3D40%2Cleft%3D20"
+                               "%2Cbottom%3D20%2Cright%3D20%5D%22%2C%22corners%22%3A%22rounded%22%2C"
+                               "%22resizeLayoutRoot%22%3Atrue%2C%22resizeNodes%22%3Afalse%7D%7D%5D;"),
+                280, 180,
+                {{"Root", 90, 40}, {"Child 1", 20, 120}, {"Child 2", 160, 120}},
+                {{0, 1}, {0, 2}}, layoutEdgeStyle });
+
+            layouts.append({ "advanced.horizontalTreeLayout", "Horizontal Tree Layout",
+                QStringLiteral("swimlane;html=1;startSize=20;horizontal=0;resizable=0;"
+                               "fontSize=12;transparentBounds=1;groupPadding=20;") + treeChildLayout +
+                QStringLiteral("%5B%7B%22layout%22%3A%22elkTree%22%2C%22config%22%3A%7B%22elk.direction%22"
+                               "%3A%22RIGHT%22%2C%22elk.spacing.nodeNode%22%3A%2240%22%2C%22elk.spacing."
+                               "edgeNode%22%3A%2220%22%2C%22elk.padding%22%3A%22%5Btop%3D20%2Cleft%3D40"
+                               "%2Cbottom%3D20%2Cright%3D20%5D%22%2C%22corners%22%3A%22rounded%22%2C"
+                               "%22resizeLayoutRoot%22%3Atrue%2C%22resizeNodes%22%3Afalse%7D%7D%5D;"),
+                300, 160,
+                {{"Root", 40, 60}, {"Child 1", 180, 20}, {"Child 2", 180, 100}},
+                {{0, 1}, {0, 2}}, layoutEdgeStyle });
+
+            layouts.append({ "advanced.balloonTreeLayout", "Balloon Tree Layout",
+                QStringLiteral("swimlane;html=1;startSize=20;horizontal=1;resizable=0;"
+                               "fontSize=12;transparentBounds=1;groupPadding=20;") + treeChildLayout +
+                QStringLiteral("%5B%7B%22layout%22%3A%22BalloonTreeLayout%22%2C%22config%22%3A"
+                               "%7B%22levelDistance%22%3A30%2C%22nodeDistance%22%3A10%2C"
+                               "%22arc%22%3A300%2C%22childArc%22%3A90%7D%7D%5D;"),
+                645, 537,
+                {{"Root", 272, 242}, {"Child 1", 392, 173}, {"Child 2", 272, 380},
+                 {"Child 3", 153, 173}, {"Child 1.1", 427, 40}, {"Child 1.2", 525, 209},
+                 {"Child 2.1", 370, 477}, {"Child 2.2", 175, 477}, {"Child 3.1", 20, 209},
+                 {"Child 3.2", 117, 40}},
+                {{0, 1}, {0, 2}, {0, 3}, {1, 4}, {1, 5}, {2, 6}, {2, 7}, {3, 8}, {3, 9}},
+                balloonEdgeStyle });
+
+            layouts.append({ "advanced.verticalFlowLayout", "Vertical Flow Layout",
+                QStringLiteral("swimlane;html=1;startSize=20;horizontal=1;resizable=0;"
+                               "fontSize=12;transparentBounds=1;groupPadding=20;") + treeChildLayout +
+                QStringLiteral("%5B%7B%22layout%22%3A%22elkLayered%22%2C%22config%22%3A%7B"
+                               "%22elk.direction%22%3A%22DOWN%22%2C%22elk.layered.spacing.nodeNode"
+                               "BetweenLayers%22%3A%2250%22%2C%22elk.layered.considerModelOrder."
+                               "strategy%22%3A%22NODES_AND_EDGES%22%2C%22elk.padding%22%3A%22%5Btop"
+                               "%3D40%2Cleft%3D20%2Cbottom%3D20%2Cright%3D20%5D%22%2C%22edgeStyle%22"
+                               "%3A%22orthogonalEdgeStyle%22%2C%22corners%22%3A%22rounded%22%2C"
+                               "%22extractIsolated%22%3Afalse%2C%22resizeLayoutRoot%22%3Atrue%2C"
+                               "%22resizeNodes%22%3Afalse%7D%7D%5D;"),
+                270, 280,
+                {{"Start", 36.67, 40}, {"Task", 20, 130}, {"Task", 150, 130},
+                 {"End", 36.67, 220}},
+                {{0, 1}, {0, 2}, {1, 3}, {2, 3}}, layoutEdgeStyle });
+
+            layouts.append({ "advanced.horizontalFlowLayout", "Horizontal Flow Layout",
+                QStringLiteral("swimlane;html=1;startSize=20;horizontal=0;resizable=0;"
+                               "fontSize=12;transparentBounds=1;groupPadding=20;") + treeChildLayout +
+                QStringLiteral("%5B%7B%22layout%22%3A%22elkLayered%22%2C%22config%22%3A%7B"
+                               "%22elk.direction%22%3A%22RIGHT%22%2C%22elk.layered.spacing.nodeNode"
+                               "BetweenLayers%22%3A%2250%22%2C%22elk.layered.considerModelOrder."
+                               "strategy%22%3A%22NODES_AND_EDGES%22%2C%22elk.padding%22%3A%22%5Btop"
+                               "%3D20%2Cleft%3D40%2Cbottom%3D20%2Cright%3D20%5D%22%2C%22edgeStyle%22"
+                               "%3A%22orthogonalEdgeStyle%22%2C%22corners%22%3A%22rounded%22%2C"
+                               "%22extractIsolated%22%3Afalse%2C%22resizeLayoutRoot%22%3Atrue%2C"
+                               "%22resizeNodes%22%3Afalse%7D%7D%5D;"),
+                460, 150,
+                {{"Start", 40, 26.67}, {"Task", 190, 20}, {"Task", 190, 90},
+                 {"End", 340, 26.67}},
+                {{0, 1}, {0, 2}, {1, 3}, {2, 3}}, layoutEdgeStyle });
+
+            for (const LayoutTemplate &layout : layouts)
+            {
+                ShapeDefinition definition;
+                definition.key = QString::fromLatin1(layout.key);
+                definition.name = QString::fromLatin1(layout.name);
+                definition.style = layout.style;
+                definition.value = QStringLiteral("Layout Container");
+                definition.size = QSizeF(layout.width, layout.height);
+                definition.category = QStringLiteral("advanced");
+
+                for (const NodeSeed &node : layout.nodes)
+                {
+                    definition.children.append(childVertex(wrap,
+                        QString::fromLatin1(node.value), node.x, node.y, 100, 40));
+                }
+
+                for (const QPair<int, int> &edge : layout.edges)
+                {
+                    definition.children.append(childEdge(layout.edgeStyle,
+                                                         edge.first, edge.second));
+                }
+
+                shapes.append(definition);
+            }
+        }
+    }
 
     // --- flowchart -------------------------------------------------------
     // Exactly the palette of Sidebar-Flowchart.js, using its style strings
@@ -3465,7 +3822,7 @@ bool isImageShape(const Cell &cell)
 bool isLineArt(const Cell &cell)
 {
     const QString key = shapeKey(cell);
-    return key == QLatin1String("umlActor") || key == QLatin1String("actor")
+    return key == QLatin1String("umlActor")
         || key == QLatin1String("line") || key == QLatin1String("connector")
         || key == QLatin1String("basic.arc")
         || key.startsWith(QLatin1String("mxgraph.electrical."));
@@ -3476,6 +3833,217 @@ bool isContainerShape(const Cell &cell)
     const QString key = shapeKey(cell);
     return cell.styleFlag(QStringLiteral("swimlane"))
         || key == QLatin1String("swimlane") || key == QLatin1String("group");
+}
+
+namespace {
+
+/// mxGraph.getSwimlaneDirection(): the side the title bar sits on.
+QString swimlaneDirection(const StyleMap &style)
+{
+    const QString direction = Style::value(style, QStringLiteral("direction"),
+                                           QStringLiteral("east")).toLower();
+    const bool flipH = Style::flag(style, QStringLiteral("flipH"));
+    const bool flipV = Style::flag(style, QStringLiteral("flipV"));
+    const bool horizontal = Style::flag(style, QStringLiteral("horizontal"), true);
+    int n = horizontal ? 0 : 3;
+
+    if (direction == QLatin1String("north"))
+    {
+        --n;
+    }
+    else if (direction == QLatin1String("west"))
+    {
+        n += 2;
+    }
+    else if (direction == QLatin1String("south"))
+    {
+        ++n;
+    }
+
+    const int mod = ((n % 2) + 2) % 2;
+
+    if (flipH && mod == 1)
+    {
+        n += 2;
+    }
+
+    if (flipV && mod == 0)
+    {
+        n += 2;
+    }
+
+    static const QStringList directions = {QStringLiteral("north"), QStringLiteral("east"),
+                                           QStringLiteral("south"), QStringLiteral("west")};
+    return directions.at(((n % 4) + 4) % 4);
+}
+
+/// mxGraph.getActualStartSize(): the title bar as a rectangle offset.
+QRectF actualStartSize(const Cell &cell)
+{
+    QRectF result;
+
+    if (!cell.styleFlag(QStringLiteral("swimlane")))
+    {
+        return result;
+    }
+
+    const StyleMap style = Style::withDefaults(cell.style);
+    const double startSize = Style::number(style, QStringLiteral("startSize"), 23.0);
+    const QString direction = swimlaneDirection(style);
+
+    // mxRectangle keeps the components independent, so build the offset
+    // directly: QRectF::setY()/setHeight() move the opposite edge.
+    if (direction == QLatin1String("north"))
+    {
+        result = QRectF(0, startSize, 0, 0);
+    }
+    else if (direction == QLatin1String("west"))
+    {
+        result = QRectF(startSize, 0, 0, 0);
+    }
+    else if (direction == QLatin1String("south"))
+    {
+        result = QRectF(0, 0, 0, startSize);
+    }
+    else
+    {
+        result = QRectF(0, 0, startSize, 0);
+    }
+
+    return result;
+}
+
+/// mxUtils.parsePadding(): CSS style 1-4 value shorthand (top, right, bottom,
+/// left). The result is stored as n, e, s, w in a QRectF's x/y/width/height.
+QRectF parsePadding(const QString &value)
+{
+    QString text = value;
+
+    // Style values written by the properties panel are URI encoded.
+    text.replace(QLatin1String("%20"), QLatin1String(" "));
+    const QStringList parts = text.trimmed().split(QRegularExpression(QStringLiteral("\\s+")),
+                                                   Qt::SkipEmptyParts);
+    QVector<double> numbers;
+
+    for (const QString &part : parts)
+    {
+        bool ok = false;
+        const double number = part.toDouble(&ok);
+
+        if (ok)
+        {
+            numbers.append(number);
+        }
+    }
+
+    if (numbers.isEmpty())
+    {
+        return QRectF();
+    }
+
+    const double top = numbers.at(0);
+    const double right = numbers.size() > 1 ? numbers.at(1) : top;
+    const double bottom = numbers.size() > 2 ? numbers.at(2) : top;
+    const double left = numbers.size() > 3 ? numbers.at(3) : right;
+
+    return QRectF(left, top, right, bottom);
+}
+
+} // namespace
+
+bool hasTransparentBounds(const Cell &cell)
+{
+    return cell.styleValue(QStringLiteral("transparentBounds")).trimmed()
+        == QLatin1String("1");
+}
+
+QRectF transparentBounds(const Cell &cell)
+{
+    QRectF bounds;
+
+    for (const Cell *child : cell.children)
+    {
+        QRectF rect;
+
+        if (child->isVertex())
+        {
+            if (child->relativeGeometry)
+            {
+                continue;
+            }
+
+            if (hasTransparentBounds(*child))
+            {
+                const QRectF local = transparentBounds(*child);
+
+                if (!local.isNull())
+                {
+                    rect = local.translated(child->geometry.topLeft());
+                }
+            }
+            else
+            {
+                rect = child->geometry;
+            }
+        }
+        else if (child->isEdge())
+        {
+            // Edges contribute their waypoints and free terminal points; the
+            // routed path of a connected edge stays within the terminals.
+            QVector<QPointF> points = child->waypoints;
+
+            if (child->sourceId.isEmpty() && !child->sourcePoint.isNull())
+            {
+                points.append(child->sourcePoint);
+            }
+
+            if (child->targetId.isEmpty() && !child->targetPoint.isNull())
+            {
+                points.append(child->targetPoint);
+            }
+
+            for (const QPointF &point : points)
+            {
+                const QRectF dot(point, QSizeF(0, 0));
+                rect = rect.isNull() ? dot : rect.united(dot);
+            }
+        }
+
+        if (!rect.isNull())
+        {
+            bounds = bounds.isNull() ? rect : bounds.united(rect);
+        }
+    }
+
+    if (bounds.isNull())
+    {
+        return QRectF();
+    }
+
+    const StyleMap style = Style::withDefaults(cell.style);
+    const QRectF padding = parsePadding(Style::value(style, QStringLiteral("groupPadding")));
+    const QRectF start = actualStartSize(cell);
+    return QRectF(bounds.x() - padding.x() - start.x(),
+                  bounds.y() - padding.y() - start.y(),
+                  bounds.width() + padding.x() + padding.width() + start.x() + start.width(),
+                  bounds.height() + padding.y() + padding.height() + start.y() + start.height());
+}
+
+QRectF visibleRect(const Cell &cell)
+{
+    if (hasTransparentBounds(cell))
+    {
+        const QRectF bounds = transparentBounds(cell);
+
+        if (!bounds.isNull())
+        {
+            // The derived box lives in the same coordinate space as the
+            // children, i.e. relative to the cell's own geometry origin.
+            return bounds.translated(cell.absolutePosition());
+        }
+    }
+
+    return cell.absoluteRect();
 }
 
 QPainterPath pathFor(const Cell &cell)
@@ -3665,14 +4233,9 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
     if (key == QLatin1String("ellipse") || key == QLatin1String("circle")
         || key == QLatin1String("doubleEllipse"))
     {
+        // mxDoubleEllipse paints the outer ellipse as background and the
+        // inner one as a stroke-only foreground (see ShapeRenderer).
         path.addEllipse(rect);
-
-        if (key == QLatin1String("doubleEllipse"))
-        {
-            const double inset = qMin(w, h) * 0.1;
-            path.addEllipse(rect.adjusted(inset, inset, -inset, -inset));
-        }
-
         return path;
     }
 
@@ -3959,7 +4522,24 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
-    if (key == QLatin1String("umlActor") || key == QLatin1String("actor"))
+    if (key == QLatin1String("actor"))
+    {
+        // mxActor.redrawPath (draw.io's default "actor"): a filled person
+        // silhouette, not the UML stick figure.
+        const double width = w / 3.0;
+
+        path.moveTo(point(0, h));
+        path.cubicTo(point(0, 3.0 * h / 5.0), point(0, 2.0 * h / 5.0), point(w / 2.0, 2.0 * h / 5.0));
+        path.cubicTo(point(w / 2.0 - width, 2.0 * h / 5.0), point(w / 2.0 - width, 0),
+                     point(w / 2.0, 0));
+        path.cubicTo(point(w / 2.0 + width, 0), point(w / 2.0 + width, 2.0 * h / 5.0),
+                     point(w / 2.0, 2.0 * h / 5.0));
+        path.cubicTo(point(w, 2.0 * h / 5.0), point(w, 3.0 * h / 5.0), point(w, h));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("umlActor"))
     {
         // UmlActorShape.paintBackground: head ellipse in the top quarter, the
         // body, arms at one third and legs from two thirds to the bottom.
@@ -3975,72 +4555,6 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         path.moveTo(point(w / 2.0, 2.0 * h / 3.0));
         path.lineTo(point(w, h));
         return path;
-    }
-
-    if (key == QLatin1String("singlearrow") || key == QLatin1String("arrow")
-        || key == QLatin1String("doublearrow"))
-    {
-        const bool doubleHeaded = key == QLatin1String("doublearrow");
-        const double shaftRatio = qBound(0.1, Style::number(style, QStringLiteral("arrowWidth"), 0.4), 0.9);
-        const double headRatio = qBound(0.15, Style::number(style, QStringLiteral("arrowSize"), 0.35), 0.85);
-        const double shaft = h * shaftRatio;
-        const double headLength = w * headRatio;
-        QPainterPath east;
-        east.moveTo(0, (h - shaft) / 2.0);
-
-        if (doubleHeaded)
-        {
-            east.lineTo(headLength, (h - shaft) / 2.0);
-            east.lineTo(headLength, 0);
-            east.lineTo(0, h / 2.0);
-            east.lineTo(headLength, h);
-            east.lineTo(headLength, (h + shaft) / 2.0);
-            east.lineTo(w - headLength, (h + shaft) / 2.0);
-            east.lineTo(w - headLength, h);
-            east.lineTo(w, h / 2.0);
-            east.lineTo(w - headLength, 0);
-            east.lineTo(w - headLength, (h - shaft) / 2.0);
-        }
-        else
-        {
-            east.lineTo(w - headLength, (h - shaft) / 2.0);
-            east.lineTo(w - headLength, 0);
-            east.lineTo(w, h / 2.0);
-            east.lineTo(w - headLength, h);
-            east.lineTo(w - headLength, (h + shaft) / 2.0);
-        }
-
-        east.lineTo(0, (h + shaft) / 2.0);
-        east.closeSubpath();
-
-        const QString direction = Style::value(style, QStringLiteral("direction"),
-                                               QStringLiteral("east")).toLower();
-        QTransform transform;
-
-        if (direction == QLatin1String("west"))
-        {
-            transform.translate(w, h);
-            transform.rotate(180);
-        }
-        else if (direction == QLatin1String("north"))
-        {
-            transform.translate(0, h);
-            transform.rotate(-90);
-            transform.scale(1.0, h / qMax(w, 0.001));
-        }
-        else if (direction == QLatin1String("south"))
-        {
-            transform.translate(w, 0);
-            transform.rotate(90);
-            transform.scale(1.0, h / qMax(w, 0.001));
-        }
-
-        if (!transform.isIdentity())
-        {
-            return transform.map(east);
-        }
-
-        return east;
     }
 
     if (key == QLatin1String("process"))
@@ -4063,7 +4577,30 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("swimlane") || key == QLatin1String("group"))
     {
-        path.addRect(rect);
+        // mxSwimlane.paintSwimlane() paints the title bar and the content
+        // area as two separate paths. The renderer draws the title bar
+        // (which takes the cell fill) and the divider itself, so the shape
+        // path here is only the content area.
+        const bool horizontal = probe.styleFlag(QStringLiteral("horizontal"), true);
+        const double startSize = qMax(0.0, Style::number(
+            Style::withDefaults(probe.style), QStringLiteral("startSize"), 23.0));
+        const double start = horizontal ? qMin(startSize, h) : qMin(startSize, w);
+
+        if (horizontal)
+        {
+            path.moveTo(point(0, start));
+            path.lineTo(point(0, h));
+            path.lineTo(point(w, h));
+            path.lineTo(point(w, start));
+        }
+        else
+        {
+            path.moveTo(point(start, 0));
+            path.lineTo(point(w, 0));
+            path.lineTo(point(w, h));
+            path.lineTo(point(start, h));
+        }
+
         return path;
     }
 
@@ -4942,79 +5479,6 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
-
-    if (key == QLatin1String("advTreeH") || key == QLatin1String("advTreeV")
-        || key == QLatin1String("advTreeBalloon"))
-    {
-        const bool vertical = key == QLatin1String("advTreeV");
-        const bool balloon = key == QLatin1String("advTreeBalloon");
-        const double nodeW = balloon ? w * 0.22 : (vertical ? w * 0.3 : w * 0.28);
-        const double nodeH = balloon ? h * 0.22 : (vertical ? h * 0.22 : h * 0.24);
-        const QRectF root = balloon
-            ? QRectF(x + (w - nodeW) / 2.0, y + (h - nodeH) / 2.0, nodeW, nodeH)
-            : (vertical ? QRectF(x + (w - nodeW) / 2.0, y, nodeW, nodeH)
-                        : QRectF(x, y + (h - nodeH) / 2.0, nodeW, nodeH));
-        path.addRoundedRect(root, 5, 5);
-
-        for (int i = 0; i < 3; ++i)
-        {
-            QRectF child;
-
-            if (balloon)
-            {
-                const double angle = -M_PI / 2.0 + i * 2.0 * M_PI / 3.0;
-                child = QRectF(root.center().x() + std::cos(angle) * w * 0.34 - nodeW / 2.0,
-                               root.center().y() + std::sin(angle) * h * 0.32 - nodeH / 2.0,
-                               nodeW, nodeH);
-            }
-            else if (vertical)
-            {
-                child = QRectF(x + w * (0.05 + i * 0.32), y + h - nodeH, nodeW, nodeH);
-            }
-            else
-            {
-                child = QRectF(x + w - nodeW, y + h * (0.03 + i * 0.34), nodeW, nodeH);
-            }
-
-            path.addRoundedRect(child, 5, 5);
-            const QPointF from = root.center();
-            const QPointF to = child.center();
-            path.moveTo(from);
-            path.lineTo(to);
-        }
-
-        return path;
-    }
-
-    if (key == QLatin1String("advFlowH") || key == QLatin1String("advFlowV"))
-    {
-        const bool vertical = key == QLatin1String("advFlowV");
-        const double nodeW = vertical ? w * 0.52 : w * 0.18;
-        const double nodeH = vertical ? h * 0.16 : h * 0.42;
-
-        for (int i = 0; i < 4; ++i)
-        {
-            const QRectF node = vertical
-                ? QRectF(x + (w - nodeW) / 2.0, y + h * (0.02 + i * 0.25), nodeW, nodeH)
-                : QRectF(x + w * (0.02 + i * 0.25), y + (h - nodeH) / 2.0, nodeW, nodeH);
-            path.addRoundedRect(node, 6, 6);
-
-            if (i > 0)
-            {
-                const QPointF previous = vertical
-                    ? QPointF(x + w / 2.0, y + h * (0.02 + (i - 1) * 0.25) + nodeH)
-                    : QPointF(x + w * (0.02 + (i - 1) * 0.25) + nodeW, y + h / 2.0);
-                const QPointF current = vertical
-                    ? QPointF(x + w / 2.0, y + h * (0.02 + i * 0.25))
-                    : QPointF(x + w * (0.02 + i * 0.25), y + h / 2.0);
-                path.moveTo(previous);
-                path.lineTo(current);
-            }
-        }
-
-        return path;
-    }
-
     if (key == QLatin1String("cloudServer"))
     {
         path.addRect(QRectF(x, y, w, h));
@@ -5631,27 +6095,6 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
-    if (key == QLatin1String("cross"))
-    {
-        const double t = qMin(w, h) * 0.32;
-        const double left = (w - t) / 2.0;
-        const double top = (h - t) / 2.0;
-        path.moveTo(point(left, 0));
-        path.lineTo(point(left + t, 0));
-        path.lineTo(point(left + t, top));
-        path.lineTo(point(w, top));
-        path.lineTo(point(w, top + t));
-        path.lineTo(point(left + t, top + t));
-        path.lineTo(point(left + t, h));
-        path.lineTo(point(left, h));
-        path.lineTo(point(left, top + t));
-        path.lineTo(point(0, top + t));
-        path.lineTo(point(0, top));
-        path.lineTo(point(left, top));
-        path.closeSubpath();
-        return path;
-    }
-
     // --- flowchart -------------------------------------------------------
     // Literal ports of the stencil set mxGraph.flowchart (flowchart.xml).
     // The <move>/<line>/<arc>/<ellipse>/<roundrect>/<close> commands are
@@ -6206,6 +6649,224 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
                          point(0, h - s)},
                   probe.styleFlag(QStringLiteral("rounded")), pointArcSizeFor(probe.style),
                   true);
+        return path;
+    }
+
+    // --- Advanced palette (Sidebar-Advanced.js / Shapes.js) ---------------
+    // Every shape below is a literal port of the draw.io implementation that
+    // createAdvancedShapes() puts in the "advanced" palette. Interior lines,
+    // the double outlines and the data store rings are painted as
+    // decorations by ShapeRenderer.cpp so they cannot punch holes into the
+    // filled outline.
+
+    // ExtendedShape (shape=ext): mxRectangleShape plus a foreground frame
+    // when double=1.
+    if (key == QLatin1String("ext"))
+    {
+        if (probe.styleFlag(QStringLiteral("rounded")))
+        {
+            const double r = cornerRadiusFor(probe.style, w, h);
+            path.addRoundedRect(rect, r, r);
+        }
+        else
+        {
+            path.addRect(rect);
+        }
+
+        return path;
+    }
+
+    // LoopLimitShape.redrawPath
+    if (key == QLatin1String("loopLimit"))
+    {
+        const double s = qMin(w / 2.0,
+            qMin(h, Style::number(probe.style, QStringLiteral("size"), 20.0)));
+
+        addPoints(path, {point(s, 0), point(w - s, 0), point(w, s * 0.8),
+                         point(w, h), point(0, h), point(0, s * 0.8)},
+                  probe.styleFlag(QStringLiteral("rounded")), pointArcSizeFor(probe.style),
+                  true);
+        return path;
+    }
+
+    // TapeDataShape, OrEllipseShape, SumEllipseShape, LineEllipseShape all
+    // extend mxEllipse; only their foreground lines differ.
+    if (key == QLatin1String("tapeData") || key == QLatin1String("orEllipse")
+        || key == QLatin1String("sumEllipse") || key == QLatin1String("lineEllipse"))
+    {
+        path.addEllipse(rect);
+        return path;
+    }
+
+    // SortShape extends mxRhombus.
+    if (key == QLatin1String("sortShape"))
+    {
+        path.moveTo(point(w / 2.0, 0));
+        path.lineTo(point(w, h / 2.0));
+        path.lineTo(point(w / 2.0, h));
+        path.lineTo(point(0, h / 2.0));
+        path.closeSubpath();
+        return path;
+    }
+
+    // CollateShape: two filled and stroked triangles meeting in the middle.
+    if (key == QLatin1String("collate"))
+    {
+        path.moveTo(point(0, 0));
+        path.lineTo(point(w, 0));
+        path.lineTo(point(w / 2.0, h / 2.0));
+        path.closeSubpath();
+        path.moveTo(point(0, h));
+        path.lineTo(point(w, h));
+        path.lineTo(point(w / 2.0, h / 2.0));
+        path.closeSubpath();
+        return path;
+    }
+
+    // DelayShape.redrawPath
+    if (key == QLatin1String("delay"))
+    {
+        const double dx = qMin(w, h / 2.0);
+
+        path.moveTo(point(0, 0));
+        path.lineTo(point(w - dx, 0));
+        path.quadTo(point(w, 0), point(w, h / 2.0));
+        path.quadTo(point(w, h), point(w - dx, h));
+        path.lineTo(point(0, h));
+        path.closeSubpath();
+        return path;
+    }
+
+    // DisplayShape.redrawPath
+    if (key == QLatin1String("display"))
+    {
+        const double dx = qMin(w, h / 2.0);
+        const double s = qMin(w - dx,
+            qMax(0.0, Style::number(probe.style, QStringLiteral("size"), 0.25)) * w);
+
+        path.moveTo(point(0, h / 2.0));
+        path.lineTo(point(s, 0));
+        path.lineTo(point(w - dx, 0));
+        path.quadTo(point(w, 0), point(w, h / 2.0));
+        path.quadTo(point(w, h), point(w - dx, h));
+        path.lineTo(point(s, h));
+        path.closeSubpath();
+        return path;
+    }
+
+    // CrossShape.redrawPath
+    if (key == QLatin1String("cross"))
+    {
+        const double m = qMin(h, w);
+        const double size = qMax(0.0, qMin(m,
+            m * Style::number(probe.style, QStringLiteral("size"), 0.2)));
+        const double t = (h - size) / 2.0;
+        const double b = t + size;
+        const double l = (w - size) / 2.0;
+        const double r = l + size;
+
+        path.moveTo(point(0, t));
+        path.lineTo(point(l, t));
+        path.lineTo(point(l, 0));
+        path.lineTo(point(r, 0));
+        path.lineTo(point(r, t));
+        path.lineTo(point(w, t));
+        path.lineTo(point(w, b));
+        path.lineTo(point(r, b));
+        path.lineTo(point(r, h));
+        path.lineTo(point(l, h));
+        path.lineTo(point(l, b));
+        path.lineTo(point(0, b));
+        path.closeSubpath();
+        return path;
+    }
+
+    // CornerShape.redrawPath
+    if (key == QLatin1String("corner"))
+    {
+        const double dx = qBound(0.0, Style::number(probe.style, QStringLiteral("dx"), 20.0), w);
+        const double dy = qBound(0.0, Style::number(probe.style, QStringLiteral("dy"), 20.0), h);
+
+        addPoints(path, {point(0, 0), point(w, 0), point(w, dy), point(dx, dy),
+                         point(dx, h), point(0, h)},
+                  probe.styleFlag(QStringLiteral("rounded")), pointArcSizeFor(probe.style),
+                  true);
+        return path;
+    }
+
+    // TeeShape.redrawPath
+    if (key == QLatin1String("tee"))
+    {
+        const double dx = qBound(0.0, Style::number(probe.style, QStringLiteral("dx"), 20.0), w);
+        const double dy = qBound(0.0, Style::number(probe.style, QStringLiteral("dy"), 20.0), h);
+
+        addPoints(path, {point(0, 0), point(w, 0), point(w, dy), point((w + dx) / 2.0, dy),
+                         point((w + dx) / 2.0, h), point((w - dx) / 2.0, h),
+                         point((w - dx) / 2.0, dy), point(0, dy)},
+                  probe.styleFlag(QStringLiteral("rounded")), pointArcSizeFor(probe.style),
+                  true);
+        return path;
+    }
+
+    // DataStoreShape.redrawPath (the body only; the three rings are stroked
+    // on top by ShapeRenderer).
+    if (key == QLatin1String("datastore"))
+    {
+        const double strokeWidth = Style::number(probe.style,
+            QStringLiteral("strokeWidth"), 1.0);
+        const double dy = qMin(h / 2.0,
+            std::round(h / 8.0) + strokeWidth - 1.0);
+
+        path.moveTo(point(0, dy));
+        path.cubicTo(point(0, -dy / 3.0), point(w, -dy / 3.0), point(w, dy));
+        path.lineTo(point(w, h - dy));
+        path.cubicTo(point(w, h + dy / 3.0), point(0, h + dy / 3.0), point(0, h - dy));
+        path.closeSubpath();
+        return path;
+    }
+
+    // SwitchShape.redrawPath
+    if (key == QLatin1String("switch"))
+    {
+        path.moveTo(point(0, 0));
+        path.quadTo(point(w / 2.0, h / 2.0), point(w, 0));
+        path.quadTo(point(w / 2.0, h / 2.0), point(w, h));
+        path.quadTo(point(w / 2.0, h / 2.0), point(0, h));
+        path.quadTo(point(w / 2.0, h / 2.0), point(0, 0));
+        return path;
+    }
+
+    // SingleArrowShape.redrawPath and DoubleArrowShape.redrawPath. draw.io
+    // rotates the whole shape for direction=north/west/south (mxShape.
+    // getShapeRotation), which ShapeRenderer::paint applies for every shape.
+    if (key == QLatin1String("singleArrow") || key == QLatin1String("doubleArrow"))
+    {
+        const bool doubleHeaded = key == QLatin1String("doubleArrow");
+        const double aw = h * qBound(0.0,
+            Style::number(probe.style, QStringLiteral("arrowWidth"), 0.3), 1.0);
+        const double as = w * qBound(0.0,
+            Style::number(probe.style, QStringLiteral("arrowSize"), 0.2), 1.0);
+        const double at = (h - aw) / 2.0;
+        const double ab = at + aw;
+        const bool rounded = probe.styleFlag(QStringLiteral("rounded"));
+        const double arcSize = pointArcSizeFor(probe.style);
+
+        if (doubleHeaded)
+        {
+            addPoints(path, {point(0, h / 2.0), point(as, 0), point(as, at),
+                             point(w - as, at), point(w - as, 0), point(w, h / 2.0),
+                             point(w - as, h), point(w - as, ab), point(as, ab),
+                             point(as, h)},
+                      rounded, arcSize, true);
+        }
+        else
+        {
+            addPoints(path, {point(0, at), point(w - as, at), point(w - as, 0),
+                             point(w, h / 2.0), point(w - as, h), point(w - as, ab),
+                             point(0, ab)},
+                      rounded, arcSize, true);
+        }
+
         return path;
     }
 

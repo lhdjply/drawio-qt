@@ -395,48 +395,14 @@ private slots:
         QVERIFY2(written.contains(QStringLiteral("alternateBounds")), qPrintable(written));
     }
 
-    void foldIconReflectsState()
+    void swimlanePaintsTitleBarLikeDrawio()
     {
-        const auto inkInFold = [](const QString &style, bool collapsed)
-        {
-            Cell container(Cell::Kind::Vertex, QStringLiteral("c"));
-            container.style = Style::parse(style);
-            container.collapsed = collapsed;
-            container.geometry = QRectF(0, 0, 200, 120);
-
-            QImage image(200, 120, QImage::Format_ARGB32_Premultiplied);
-            image.fill(Qt::white);
-            QPainter painter(&image);
-            ShapeRenderer::paint(painter, container);
-            painter.end();
-
-            int ink = 0;
-
-            for (int y = 3; y <= 14; ++y)
-            {
-                for (int x = 3; x <= 14; ++x)
-                {
-                    if (image.pixelColor(x, y).lightness() < 200)
-                    {
-                        ++ink;
-                    }
-                }
-            }
-
-            return ink;
-        };
-
-        const int expanded = inkInFold(QStringLiteral("swimlane;whiteSpace=wrap;html=1;"), false);
-        const int collapsed = inkInFold(QStringLiteral("swimlane;whiteSpace=wrap;html=1;"), true);
-
-        // The collapsed icon has an extra vertical bar (plus instead of minus).
-        QVERIFY2(collapsed > expanded, qPrintable(QString::number(expanded) + "/" + QString::number(collapsed)));
-    }
-
-    void containersDrawFoldIndicator()
-    {
+        // mxSwimlane: the title bar takes the cell fill, the content area only
+        // swimlaneFillColor (none by default) and the divider separates them.
+        // draw.io paints no fold indicator as part of the shape.
         Cell container(Cell::Kind::Vertex, QStringLiteral("c"));
-        container.style = Style::parse(QStringLiteral("swimlane;whiteSpace=wrap;html=1;"));
+        container.style = Style::parse(QStringLiteral(
+            "swimlane;whiteSpace=wrap;html=1;startSize=23;fillColor=#dae8fc;"));
         container.geometry = QRectF(0, 0, 200, 120);
 
         QImage image(200, 120, QImage::Format_ARGB32_Premultiplied);
@@ -445,21 +411,37 @@ private slots:
         ShapeRenderer::paint(painter, container);
         painter.end();
 
-        // The fold square sits at 4,4 and has ink for its border and minus.
-        int ink = 0;
+        QCOMPARE(image.pixelColor(100, 10), QColor(QStringLiteral("#dae8fc")));
+        QCOMPARE(image.pixelColor(100, 60), QColor(Qt::white));
+        QVERIFY(image.pixelColor(100, 23).lightness() < 200);
 
-        for (int y = 3; y <= 14; ++y)
-        {
-            for (int x = 3; x <= 14; ++x)
-            {
-                if (image.pixelColor(x, y).lightness() < 200)
-                {
-                    ++ink;
-                }
-            }
-        }
+        // No fold square in the top left corner.
+        QVERIFY(image.pixelColor(8, 8).lightness() > 200);
+    }
 
-        QVERIFY2(ink > 10, qPrintable(QString::number(ink)));
+    void transparentBoundsContainersDeriveTheirBox()
+    {
+        Page page;
+        Cell *container = page.addVertex(QRectF(0, 0, 0, 0), Style::parse(QStringLiteral(
+            "swimlane;html=1;startSize=20;horizontal=1;transparentBounds=1;groupPadding=20;"
+            "containerType=tree;")));
+        page.addVertex(QRectF(100, 50, 80, 40), Style::parse(QStringLiteral("whiteSpace=wrap;")),
+                       QString(), container->id);
+        page.addVertex(QRectF(100, 120, 80, 40), Style::parse(QStringLiteral("whiteSpace=wrap;")),
+                       QString(), container->id);
+
+        QVERIFY(ShapeRegistry::hasTransparentBounds(*container));
+
+        // Graph.getTransparentBounds(): children (100,50,80,110) grown by the
+        // 20px padding and the 20px title bar on top.
+        QCOMPARE(ShapeRegistry::transparentBounds(*container), QRectF(80, 10, 120, 170));
+        QCOMPARE(ShapeRegistry::visibleRect(*container), QRectF(80, 10, 120, 170));
+
+        // horizontal=0 puts the title bar on the left instead.
+        Cell *side = page.addVertex(QRectF(0, 0, 0, 0), Style::parse(QStringLiteral(
+            "swimlane;html=1;startSize=20;horizontal=0;transparentBounds=1;groupPadding=20;")));
+        page.addVertex(QRectF(100, 50, 80, 40), {}, QString(), side->id);
+        QCOMPARE(ShapeRegistry::transparentBounds(*side), QRectF(60, 30, 140, 80));
     }
 
     void edgeLabelKeepsInlineRuns()
@@ -1336,6 +1318,355 @@ private slots:
         }
 
         QCOMPARE(library, official);
+    }
+
+    void advancedLibraryMatchesSidebar()
+    {
+        // Sidebar.prototype.createAdvancedShapes() plus the entries
+        // Sidebar-Advanced.js appends: 42 palette entries in sidebar order
+        // with the sidebar's style strings verbatim.
+        const QStringList official = {
+            QStringLiteral("shape=ext;double=1;rounded=0;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=ext;double=1;rounded=1;whiteSpace=wrap;html=1;"),
+            QStringLiteral("ellipse;shape=doubleEllipse;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=ext;double=1;whiteSpace=wrap;html=1;aspect=fixed;"),
+            QStringLiteral("ellipse;shape=doubleEllipse;whiteSpace=wrap;html=1;aspect=fixed;"),
+            QStringLiteral("shape=tapeData;whiteSpace=wrap;html=1;perimeter=ellipsePerimeter;"),
+            QStringLiteral("shape=manualInput;boundedLbl=1;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=loopLimit;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=offPageConnector;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=delay;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=display;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=singleArrow;direction=west;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=singleArrow;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=singleArrow;direction=north;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=singleArrow;direction=south;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=doubleArrow;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=doubleArrow;direction=south;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=actor;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=cross;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=corner;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=tee;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=datastore;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=orEllipse;perimeter=ellipsePerimeter;whiteSpace=wrap;"
+                           "html=1;backgroundOutline=1;"),
+            QStringLiteral("shape=sumEllipse;perimeter=ellipsePerimeter;whiteSpace=wrap;"
+                           "html=1;backgroundOutline=1;"),
+            QStringLiteral("shape=lineEllipse;perimeter=ellipsePerimeter;whiteSpace=wrap;"
+                           "html=1;backgroundOutline=1;"),
+            QStringLiteral("shape=lineEllipse;line=vertical;perimeter=ellipsePerimeter;"
+                           "whiteSpace=wrap;html=1;backgroundOutline=1;"),
+            QStringLiteral("shape=sortShape;perimeter=rhombusPerimeter;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=collate;whiteSpace=wrap;html=1;"),
+            QStringLiteral("shape=switch;whiteSpace=wrap;html=1;"),
+            QStringLiteral("swimlane;childLayout=stackLayout;horizontal=1;fillColor=none;"
+                           "horizontalStack=1;resizeParent=1;resizeParentMax=0;resizeLast=0;"
+                           "collapsible=0;strokeColor=none;stackBorder=10;stackSpacing=-12;"
+                           "resizable=1;align=center;points=[];whiteSpace=wrap;html=1;"),
+            QStringLiteral("swimlane;"),
+            QStringLiteral("swimlane;fontStyle=0;childLayout=stackLayout;horizontal=1;"
+                           "startSize=26;fillColor=none;horizontalStack=0;resizeParent=1;"
+                           "resizeParentMax=0;resizeLast=0;collapsible=1;marginBottom=0;"
+                           "html=1;"),
+            QStringLiteral("text;strokeColor=none;fillColor=none;align=left;"
+                           "verticalAlign=top;spacingLeft=4;spacingRight=4;overflow=hidden;"
+                           "rotatable=0;points=[[0,0.5],[1,0.5]];portConstraint=eastwest;"
+                           "whiteSpace=wrap;html=1;"),
+            QStringLiteral("swimlane;childLayout=stackLayout;resizeParent=1;"
+                           "resizeParentMax=0;horizontal=1;startSize=20;horizontalStack=0;"
+                           "html=1;"),
+            QStringLiteral("swimlane;childLayout=stackLayout;resizeParent=1;"
+                           "resizeParentMax=0;horizontal=0;startSize=20;horizontalStack=0;"
+                           "html=1;"),
+            QStringLiteral("swimlane;childLayout=stackLayout;resizeParent=1;"
+                           "resizeParentMax=0;startSize=20;html=1;"),
+            QStringLiteral("swimlane;childLayout=stackLayout;resizeParent=1;"
+                           "resizeParentMax=0;startSize=20;horizontal=0;horizontalStack=1;"),
+        };
+
+        QStringList library;
+        QVector<ShapeDefinition> entries;
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category == QLatin1String("advanced"))
+            {
+                library.append(definition.style);
+                entries.append(definition);
+            }
+        }
+
+        // The five layout containers close the palette; their style strings
+        // carry the ELK childLayout of Menus.layoutContainers, so they are
+        // checked by prefix below.
+        QCOMPARE(library.size(), official.size() + 5);
+        QCOMPARE(library.mid(0, official.size()), official);
+
+        const QStringList layoutPrefixes = {
+            QStringLiteral("swimlane;html=1;startSize=20;horizontal=1;resizable=0;"
+                           "fontSize=12;transparentBounds=1;groupPadding=20;"
+                           "containerType=tree;childLayout=%5B%7B%22layout%22%3A%22elkTree%22"),
+            QStringLiteral("swimlane;html=1;startSize=20;horizontal=0;resizable=0;"
+                           "fontSize=12;transparentBounds=1;groupPadding=20;"
+                           "containerType=tree;childLayout=%5B%7B%22layout%22%3A%22elkTree%22"),
+            QStringLiteral("swimlane;html=1;startSize=20;horizontal=1;resizable=0;"
+                           "fontSize=12;transparentBounds=1;groupPadding=20;"
+                           "containerType=tree;childLayout=%5B%7B%22layout%22%3A"
+                           "%22BalloonTreeLayout%22"),
+            QStringLiteral("swimlane;html=1;startSize=20;horizontal=1;resizable=0;"
+                           "fontSize=12;transparentBounds=1;groupPadding=20;"
+                           "containerType=tree;childLayout=%5B%7B%22layout%22%3A"
+                           "%22elkLayered%22"),
+            QStringLiteral("swimlane;html=1;startSize=20;horizontal=0;resizable=0;"
+                           "fontSize=12;transparentBounds=1;groupPadding=20;"
+                           "containerType=tree;childLayout=%5B%7B%22layout%22%3A"
+                           "%22elkLayered%22"),
+        };
+
+        for (int i = 0; i < layoutPrefixes.size(); ++i)
+        {
+            const QString style = library.at(official.size() + i);
+            QVERIFY2(style.startsWith(layoutPrefixes.at(i)), qPrintable(style));
+        }
+
+        // Child cells: the process bar's steps, the list rows, the pool lanes
+        // and the layout containers' nodes and edges.
+        const auto childrenOf = [&entries](const QString &key)
+        {
+            for (const ShapeDefinition &definition : entries)
+            {
+                if (definition.key == key)
+                {
+                    return definition.children;
+                }
+            }
+
+            return QVector<ShapeChildDefinition>();
+        };
+
+        const QVector<ShapeChildDefinition> steps =
+            childrenOf(QStringLiteral("advanced.processBar"));
+        QCOMPARE(steps.size(), 3);
+        QCOMPARE(steps.at(0).geometry, QRectF(10, 33, 100, 57));
+        QCOMPARE(steps.at(2).geometry, QRectF(186, 33, 100, 57));
+        QCOMPARE(steps.at(0).value, QStringLiteral("Step 1"));
+
+        const QVector<ShapeChildDefinition> listRows =
+            childrenOf(QStringLiteral("advanced.list"));
+        QCOMPARE(listRows.size(), 3);
+        QCOMPARE(listRows.at(1).geometry, QRectF(0, 52, 140, 26));
+
+        // The four pools of Sidebar-Advanced.js: the lanes stack below or
+        // beside the pool title, exactly as the data entries store them.
+        const auto lanes = [&childrenOf](const QString &key)
+        {
+            const QVector<ShapeChildDefinition> children = childrenOf(key);
+            QVector<QRectF> rects;
+
+            for (const ShapeChildDefinition &child : children)
+            {
+                rects.append(child.geometry);
+            }
+
+            return rects;
+        };
+
+        QCOMPARE(lanes(QStringLiteral("advanced.horizontalPool1")),
+                 (QVector<QRectF>{QRectF(0, 20, 480, 120), QRectF(0, 140, 480, 120),
+                                  QRectF(0, 260, 480, 120)}));
+        QCOMPARE(lanes(QStringLiteral("advanced.horizontalPool2")),
+                 (QVector<QRectF>{QRectF(20, 0, 460, 120), QRectF(20, 120, 460, 120),
+                                  QRectF(20, 240, 460, 120)}));
+        QCOMPARE(lanes(QStringLiteral("advanced.verticalPool1")),
+                 (QVector<QRectF>{QRectF(0, 20, 120, 460), QRectF(120, 20, 120, 460),
+                                  QRectF(240, 20, 120, 460)}));
+        QCOMPARE(lanes(QStringLiteral("advanced.verticalPool2")),
+                 (QVector<QRectF>{QRectF(20, 0, 120, 480), QRectF(140, 0, 120, 480),
+                                  QRectF(260, 0, 120, 480)}));
+
+        const QVector<ShapeChildDefinition> balloon =
+            childrenOf(QStringLiteral("advanced.balloonTreeLayout"));
+        QCOMPARE(balloon.size(), 19);
+
+        int balloonEdges = 0;
+
+        for (const ShapeChildDefinition &child : balloon)
+        {
+            if (child.edge)
+            {
+                ++balloonEdges;
+                QVERIFY(child.source >= 0 && child.target >= 0);
+            }
+        }
+
+        QCOMPARE(balloonEdges, 9);
+
+        const QVector<ShapeChildDefinition> flow =
+            childrenOf(QStringLiteral("advanced.verticalFlowLayout"));
+        QCOMPARE(flow.size(), 8);
+
+        // Every entry has a preview with ink (the palette renders the actual
+        // geometry for procedural shapes).
+        for (const ShapeDefinition &definition : entries)
+        {
+            const QPixmap preview = ShapeCatalog::instance().iconFor(definition, 48)
+                                        .pixmap(48, 48);
+            QVERIFY2(!preview.isNull(), qPrintable(definition.key));
+
+            const QImage image = preview.toImage();
+            int ink = 0;
+
+            for (int y = 0; y < image.height(); ++y)
+            {
+                for (int x = 0; x < image.width(); ++x)
+                {
+                    if (image.pixelColor(x, y).alpha() > 0
+                        && image.pixelColor(x, y).lightness() < 200)
+                    {
+                        ++ink;
+                    }
+                }
+            }
+
+            QVERIFY2(ink > 0, qPrintable(definition.key));
+        }
+    }
+
+    void advancedShapesFollowShapesJs()
+    {
+        const auto path = [](const QString &style, double w, double h)
+        {
+            return ShapeRegistry::pathForStyle(Style::parse(style), QRectF(0, 0, w, h));
+        };
+
+        // ExtendedShape: the outline is one rectangle; the second frame is a
+        // decoration painted by ShapeRenderer.
+        const QPainterPath doubleRect = path(
+            QStringLiteral("shape=ext;double=1;rounded=0;whiteSpace=wrap;html=1;"), 120, 80);
+        QCOMPARE(doubleRect.elementCount(), 5);
+        QCOMPARE(doubleRect.boundingRect(), QRectF(0, 0, 120, 80));
+
+        // ManualInputShape: the slanted top edge starts at size (default 30).
+        const QPainterPath manual = path(
+            QStringLiteral("shape=manualInput;boundedLbl=1;whiteSpace=wrap;html=1;"), 80, 80);
+        QCOMPARE(manual.elementAt(0), QPointF(0, 80));
+        QCOMPARE(manual.elementAt(1), QPointF(0, 30));
+        QCOMPARE(manual.elementAt(2), QPointF(80, 0));
+
+        // LoopLimitShape: size 20 cuts both top corners.
+        const QPainterPath loop = path(
+            QStringLiteral("shape=loopLimit;whiteSpace=wrap;html=1;"), 100, 80);
+        QCOMPARE(loop.elementAt(0), QPointF(20, 0));
+        QCOMPARE(loop.elementAt(2), QPointF(100, 16));
+
+        // OffPageConnectorShape: the point is 3/8 of the height.
+        const QPainterPath offPage = path(
+            QStringLiteral("shape=offPageConnector;whiteSpace=wrap;html=1;"), 80, 80);
+        QCOMPARE(offPage.elementAt(2), QPointF(80, 50));
+        QCOMPARE(offPage.elementAt(3), QPointF(40, 80));
+
+        // DelayShape: the D-shaped right edge, two quadratics.
+        const QPainterPath delay = path(
+            QStringLiteral("shape=delay;whiteSpace=wrap;html=1;"), 80, 40);
+        // Qt stores each quadratic as a cubic (3 elements) plus the close.
+        QCOMPARE(delay.elementCount(), 10);
+        QCOMPARE(delay.elementAt(1), QPointF(60, 0));
+
+        // DisplayShape: the slanted left edge and the same D-shaped right.
+        const QPainterPath display = path(
+            QStringLiteral("shape=display;whiteSpace=wrap;html=1;"), 80, 40);
+        QCOMPARE(display.elementAt(0), QPointF(0, 20));
+        QCOMPARE(display.elementAt(1), QPointF(20, 0));
+
+        // SingleArrowShape / DoubleArrowShape use arrowWidth 0.3 and
+        // arrowSize 0.2 of the constructor defaults.
+        const QPainterPath arrow = path(
+            QStringLiteral("shape=singleArrow;whiteSpace=wrap;html=1;"), 100, 60);
+        QCOMPARE(arrow.elementCount(), 8);
+        QCOMPARE(arrow.elementAt(0), QPointF(0, 21));
+        QCOMPARE(arrow.elementAt(3), QPointF(100, 30));
+
+        const QPainterPath doubleArrow = path(
+            QStringLiteral("shape=doubleArrow;whiteSpace=wrap;html=1;"), 100, 60);
+        QCOMPARE(doubleArrow.elementCount(), 11);
+        QCOMPARE(doubleArrow.elementAt(0), QPointF(0, 30));
+        QCOMPARE(doubleArrow.elementAt(5), QPointF(100, 30));
+
+        // mxActor: draw.io's `actor` is the filled person silhouette.
+        const QPainterPath actor = path(
+            QStringLiteral("shape=actor;whiteSpace=wrap;html=1;"), 40, 60);
+        QCOMPARE(actor.elementAt(0), QPointF(0, 60));
+        QVERIFY(actor.boundingRect().width() > 39.0);
+
+        // CrossShape: size 0.2 of the smaller side.
+        const QPainterPath cross = path(
+            QStringLiteral("shape=cross;whiteSpace=wrap;html=1;"), 80, 80);
+        QCOMPARE(cross.elementCount(), 13);
+        QCOMPARE(cross.elementAt(0), QPointF(0, 32));
+        QCOMPARE(cross.elementAt(3), QPointF(48, 0));
+
+        // CornerShape / TeeShape use dx = dy = 20.
+        const QPainterPath corner = path(
+            QStringLiteral("shape=corner;whiteSpace=wrap;html=1;"), 80, 80);
+        QCOMPARE(corner.elementAt(3), QPointF(20, 20));
+
+        const QPainterPath tee = path(
+            QStringLiteral("shape=tee;whiteSpace=wrap;html=1;"), 80, 80);
+        QCOMPARE(tee.elementAt(3), QPointF(50, 20));
+        QCOMPARE(tee.elementAt(5), QPointF(30, 80));
+
+        // DataStoreShape: the lid bulge reaches above the cell (dy/3).
+        // The cubic lid's control points sit at -dy/3, so the curve peaks at
+        // y = 0 (draw.io's c.curveTo(0, -dy/3, w, -dy/3, w, dy)).
+        const QPainterPath store = path(
+            QStringLiteral("shape=datastore;whiteSpace=wrap;html=1;"), 60, 60);
+        QVERIFY(qAbs(store.boundingRect().top()) < 0.01);
+        QCOMPARE(store.elementAt(0), QPointF(0, 8));
+
+        // SortShape is the rhombus (the divider is a decoration).
+        const QPainterPath sort = path(
+            QStringLiteral("shape=sortShape;perimeter=rhombusPerimeter;whiteSpace=wrap;"
+                           "html=1;"), 80, 80);
+        QCOMPARE(sort.elementAt(0), QPointF(40, 0));
+        QCOMPARE(sort.elementAt(2), QPointF(40, 80));
+
+        // CollateShape: two triangles.
+        const QPainterPath collate = path(
+            QStringLiteral("shape=collate;whiteSpace=wrap;html=1;"), 80, 80);
+        QCOMPARE(collate.elementCount(), 8);
+
+        // SwitchShape: four quadratics through the centre.
+        const QPainterPath sw = path(
+            QStringLiteral("shape=switch;whiteSpace=wrap;html=1;"), 60, 60);
+        QCOMPARE(sw.elementCount(), 13);
+        QCOMPARE(sw.elementAt(0), QPointF(0, 0));
+        QCOMPARE(sw.boundingRect(), QRectF(0, 0, 60, 60));
+
+        // mxDoubleEllipse: the inner ellipse is a decoration, so the shape
+        // path is a single ellipse.
+        const QPainterPath doubleEllipse = path(
+            QStringLiteral("ellipse;shape=doubleEllipse;whiteSpace=wrap;html=1;"), 100, 60);
+        QCOMPARE(doubleEllipse.elementCount(), 13);
+        QCOMPARE(doubleEllipse.boundingRect(), QRectF(0, 0, 100, 60));
+    }
+
+    void advancedDecorationsMatchShapesJs()
+    {
+        const auto decorations = [](const QString &style, double w, double h)
+        {
+            return ShapeRegistry::decorationsForStyle(Style::parse(style), QRectF(0, 0, w, h));
+        };
+
+        // The double outline of shape=ext is an inner frame inset by 2.
+        const QVector<ShapeDecoration> frame = decorations(
+            QStringLiteral("shape=ext;double=1;rounded=0;whiteSpace=wrap;html=1;"), 120, 80);
+        QVERIFY(frame.isEmpty());
+
+        // OrEllipse / SumEllipse / LineEllipse / SortShape / TapeData paint
+        // their interior lines in ShapeRenderer (no path decorations).
+        QVERIFY(decorations(QStringLiteral(
+            "shape=orEllipse;perimeter=ellipsePerimeter;whiteSpace=wrap;html=1;"),
+            80, 80).isEmpty());
     }
 
     void flowchartStencilsFollowTheOfficialXml()

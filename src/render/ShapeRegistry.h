@@ -19,6 +19,12 @@ struct ShapeChildDefinition
     QRectF geometry;
     QPointF offset;
     bool relative = false;
+    /// Child edges of a palette entry (the connectors seeded between the
+    /// nodes of a layout container); source/target index the entry's child
+    /// vertices in insertion order.
+    bool edge = false;
+    int source = -1;
+    int target = -1;
 };
 
 /// A stroke-only or differently filled detail painted on top of a shape's
@@ -86,6 +92,22 @@ bool isTextShape(const Cell &cell);
 bool isImageShape(const Cell &cell);
 bool isLineArt(const Cell &cell);
 bool isContainerShape(const Cell &cell);
+
+/// True for draw.io's transparentBounds containers (live layout containers,
+/// tree and org chart containers): their stored geometry stays at (0,0,0,0)
+/// and the visible box is derived from the children.
+bool hasTransparentBounds(const Cell &cell);
+
+/// Graph.getTransparentBounds(): the visible box of a transparentBounds
+/// container in the coordinate space of its own geometry (the union of the
+/// children expanded by groupPadding and the swimlane title bar). Returns a
+/// null rectangle when the container has no children with geometry.
+QRectF transparentBounds(const Cell &cell);
+
+/// The rectangle the cell is painted at in page coordinates. Equals
+/// Cell::absoluteRect() except for transparentBounds containers, whose box is
+/// derived from their children.
+QRectF visibleRect(const Cell &cell);
 
 /// Applies a shape preset to an existing cell.
 void applyDefinition(Cell &cell, const ShapeDefinition &definition);

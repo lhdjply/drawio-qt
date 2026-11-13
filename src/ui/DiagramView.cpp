@@ -728,7 +728,13 @@ Cell *DiagramView::cellAt(const QPointF &scenePoint, bool includeEdges) const
             continue;
         }
 
-        if (cell->visualRect().contains(scenePoint))
+        // transparentBounds containers are painted at the box derived from
+        // their children, so hit testing uses that box too.
+        const QRectF hitRect = ShapeRegistry::hasTransparentBounds(*cell)
+            ? ShapeRegistry::visibleRect(*cell)
+            : cell->visualRect();
+
+        if (hitRect.contains(scenePoint))
         {
             return cell;
         }
@@ -857,6 +863,10 @@ QRectF DiagramView::selectionBounds() const
         {
             rect = EdgeRenderer::boundsFor(EdgeRouter::route(*m_page, *cell), *cell);
         }
+        else if (ShapeRegistry::hasTransparentBounds(*cell))
+        {
+            rect = ShapeRegistry::visibleRect(*cell);
+        }
         else
         {
             rect = cell->visualRect();
@@ -892,6 +902,23 @@ Cell *DiagramView::singleRotatedVertex() const
     return cell;
 }
 
+QRectF DiagramView::selectionRectFor(const Cell &cell) const
+{
+    // transparentBounds containers are painted at the box derived from their
+    // children; their stored geometry is empty.
+    if (ShapeRegistry::hasTransparentBounds(cell))
+    {
+        const QRectF box = ShapeRegistry::visibleRect(cell);
+
+        if (!box.isNull())
+        {
+            return box;
+        }
+    }
+
+    return cell.absoluteRect();
+}
+
 QVector<QRectF> DiagramView::handleRects() const
 {
     const double half = kHandleSize / 2.0;
@@ -899,7 +926,7 @@ QVector<QRectF> DiagramView::handleRects() const
 
     if (Cell *rotated = singleRotatedVertex())
     {
-        const QRectF rect = rotated->absoluteRect();
+        const QRectF rect = selectionRectFor(*rotated);
         QTransform transform;
         transform.translate(rect.center().x(), rect.center().y());
         transform.rotate(rotated->effectiveRotation());
@@ -1087,7 +1114,7 @@ void DiagramView::paintSelectionOverlay(QPainter &painter)
             continue;
         }
 
-        const QRectF rect = cell->absoluteRect();
+        const QRectF rect = selectionRectFor(*cell);
         const double angle = cell->effectiveRotation();
 
         QPen pen(accent, 1.5);
@@ -1725,6 +1752,20 @@ void DiagramView::beginMarquee(const QPointF &scenePoint)
     update();
 }
 
+bool DiagramView::isTransparentBoundsContainer(const Cell *cell) const
+{
+    if (cell == nullptr || !cell->isVertex())
+    {
+        return false;
+    }
+
+    const QString value = Style::value(Style::withDefaults(cell->style),
+                                       QStringLiteral("transparentBounds"));
+
+    return value.compare(QLatin1String("1"), Qt::CaseInsensitive) == 0
+        || value.compare(QLatin1String("true"), Qt::CaseInsensitive) == 0;
+}
+
 void DiagramView::beginMove(const QPointF &scenePoint)
 {
     m_dragMode = DragMode::Move;
@@ -1744,6 +1785,38 @@ void DiagramView::beginMove(const QPointF &scenePoint)
         if (cell->isVertex())
         {
             m_dragStartGeometry.insert(cell->id, cell->geometry);
+
+            if (isTransparentBoundsContainer(cell))
+            {
+                for (Cell *child : m_page->cells())
+                {
+                    if (child->parentId != cell->id)
+                    {
+                        continue;
+                    }
+
+                    if (child->isVertex())
+                    {
+                        m_dragStartGeometry.insert(child->id, child->geometry);
+                    }
+                    else
+                    {
+                        m_dragStartWaypoints.insert(child->id, child->waypoints);
+
+                        if (child->sourceId.isEmpty())
+                        {
+                            m_dragStartPoints.insert(child->id + QStringLiteral(":s"),
+                                                     child->sourcePoint);
+                        }
+
+                        if (child->targetId.isEmpty())
+                        {
+                            m_dragStartPoints.insert(child->id + QStringLiteral(":t"),
+                                                     child->targetPoint);
+                        }
+                    }
+                }
+            }
         }
         else
         {
@@ -1853,7 +1926,7 @@ QPointF DiagramView::rotationHandleCenter() const
 {
     if (Cell *rotated = singleRotatedVertex())
     {
-        const QRectF rect = rotated->absoluteRect();
+        const QRectF rect = selectionRectFor(*rotated);
         QTransform transform;
         transform.translate(rect.center().x(), rect.center().y());
         transform.rotate(rotated->effectiveRotation());
@@ -1951,12 +2024,80 @@ void DiagramView::beginSegmentDrag(Cell *edge, const RoutedEdge &route, int inde
     update();
 }
 
+void DiagramView::collectRotatedDescendants(Cell *cell)
+{
+    for (Cell *child : cell->children)
+    {
+        if (!child->isVertex() || child->relativeGeometry)
+        {
+            continue;
+        }
+
+        m_rotateInitialGeometry.insert(child->id, child->geometry);
+        m_rotateInitialRotation.insert(child->id, child->effectiveRotation());
+        collectRotatedDescendants(child);
+    }
+}
+
+void DiagramView::rotateDescendants(Cell *cell, double angle)
+{
+    if (qFuzzyIsNull(angle))
+    {
+        return;
+    }
+
+    // The children of a transparentBounds container orbit the derived box:
+    // the stored geometry is (0,0,0,0), so its own centre would be the page
+    // origin.
+    QPointF pivot(cell->geometry.width() / 2.0, cell->geometry.height() / 2.0);
+
+    if (ShapeRegistry::hasTransparentBounds(*cell))
+    {
+        const QRectF box = ShapeRegistry::transparentBounds(*cell);
+
+        if (!box.isNull())
+        {
+            pivot = box.center();
+        }
+    }
+    const double radians = qDegreesToRadians(angle);
+    const double cosine = std::cos(radians);
+    const double sine = std::sin(radians);
+
+    for (Cell *child : cell->children)
+    {
+        if (!child->isVertex() || child->relativeGeometry)
+        {
+            continue;
+        }
+
+        const QRectF original = m_rotateInitialGeometry.value(child->id, child->geometry);
+        const QPointF offset = original.center() - pivot;
+        const QPointF rotated(pivot.x() + offset.x() * cosine - offset.y() * sine,
+                              pivot.y() + offset.x() * sine + offset.y() * cosine);
+
+        QRectF moved = original;
+        moved.moveCenter(rotated);
+        child->geometry = moved;
+
+        const double initial = m_rotateInitialRotation.value(child->id, 0.0);
+        child->rotation = 0.0;
+        child->setStyleValue(QStringLiteral("rotation"),
+                             QString::number(initial + angle, 'g', 12));
+
+        rotateDescendants(child, angle);
+    }
+}
+
 void DiagramView::beginRotate(const QPointF &scenePoint)
 {
     m_rotateCenter = selectionBounds().center();
     m_rotateStartAngle = qRadiansToDegrees(std::atan2(scenePoint.y() - m_rotateCenter.y(),
                                                      scenePoint.x() - m_rotateCenter.x()));
     m_rotateInitial.clear();
+
+    m_rotateInitialGeometry.clear();
+    m_rotateInitialRotation.clear();
 
     for (const QString &id : m_selection)
     {
@@ -1965,6 +2106,7 @@ void DiagramView::beginRotate(const QPointF &scenePoint)
         if (cell != nullptr && cell->isVertex())
         {
             m_rotateInitial.append({id, cell->effectiveRotation()});
+            collectRotatedDescendants(cell);
         }
     }
 
@@ -2075,6 +2217,17 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
                                                (event->modifiers() & Qt::ShiftModifier) != 0)
                              - baseAngle;
 
+        // Restore the descendants first: the rotation is applied from the
+        // starting geometry on every move so dragging back is exact.
+        for (auto it = m_rotateInitialGeometry.constBegin();
+             it != m_rotateInitialGeometry.constEnd(); ++it)
+        {
+            if (Cell *cell = m_page != nullptr ? m_page->cell(it.key()) : nullptr)
+            {
+                cell->geometry = it.value();
+            }
+        }
+
         for (const auto &entry : m_rotateInitial)
         {
             if (Cell *cell = m_page != nullptr ? m_page->cell(entry.first) : nullptr)
@@ -2082,6 +2235,7 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
                 cell->rotation = 0.0;
                 cell->setStyleValue(QStringLiteral("rotation"),
                                     QString::number(entry.second + delta, 'g', 12));
+                rotateDescendants(cell, delta);
             }
         }
 
@@ -2199,6 +2353,54 @@ void DiagramView::mouseMoveEvent(QMouseEvent *event)
         {
             if (cell->isVertex())
             {
+                // draw.io keeps transparentBounds containers at (0,0,0,0) and
+                // derives the box from their children, so dragging one moves
+                // the children instead of the container geometry.
+                if (isTransparentBoundsContainer(cell))
+                {
+                    for (Cell *child : m_page->cells())
+                    {
+                        if (child->parentId != cell->id)
+                        {
+                            continue;
+                        }
+
+                        const QRectF original = m_dragStartGeometry.value(child->id,
+                                                                          child->geometry);
+
+                        if (child->isVertex())
+                        {
+                            child->geometry.moveTopLeft(original.topLeft() + delta);
+                        }
+                        else
+                        {
+                            const QVector<QPointF> points =
+                                m_dragStartWaypoints.value(child->id);
+
+                            for (int i = 0; i < points.size() && i < child->waypoints.size(); ++i)
+                            {
+                                child->waypoints[i] = points.at(i) + delta;
+                            }
+
+                            if (child->sourceId.isEmpty())
+                            {
+                                child->sourcePoint = m_dragStartPoints.value(
+                                                         child->id + QStringLiteral(":s"))
+                                                     + delta;
+                            }
+
+                            if (child->targetId.isEmpty())
+                            {
+                                child->targetPoint = m_dragStartPoints.value(
+                                                         child->id + QStringLiteral(":t"))
+                                                     + delta;
+                            }
+                        }
+                    }
+
+                    continue;
+                }
+
                 const QRectF original = m_dragStartGeometry.value(cell->id, cell->geometry);
                 cell->geometry.moveTopLeft(original.topLeft() + delta);
             }
@@ -2561,49 +2763,7 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
             m_selection.clear();
         }
 
-        if (sceneMarquee.width() > 2 && sceneMarquee.height() > 2 && m_page != nullptr)
-        {
-            for (Cell *cell : m_page->cells())
-            {
-                // Only top level cells: edge labels and symbols follow their
-                // connector instead of being selected on their own.
-                if (!cell->visible || m_page->layer(cell->parentId) == nullptr
-                    || isLayerLocked(layerIdForCell(cell)))
-                {
-                    continue;
-                }
-
-                if (cell->isVertex())
-                {
-                    if (sceneMarquee.intersects(cell->absoluteRect()))
-                    {
-                        m_selection.insert(cell->id);
-                    }
-
-                    continue;
-                }
-
-                // Connectors have no area, so test the routed path itself.
-                const RoutedEdge route = EdgeRouter::route(*m_page, *cell);
-
-                if (route.points.size() < 2)
-                {
-                    continue;
-                }
-
-                QPainterPath path(route.points.first());
-
-                for (int i = 1; i < route.points.size(); ++i)
-                {
-                    path.lineTo(route.points.at(i));
-                }
-
-                if (path.intersects(sceneMarquee))
-                {
-                    m_selection.insert(cell->id);
-                }
-            }
-        }
+        m_selection.unite(cellsInMarquee(sceneMarquee));
 
         m_dragMode = DragMode::None;
         m_marquee = QRectF();
@@ -2684,6 +2844,8 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
         }
 
         m_rotateInitial.clear();
+        m_rotateInitialGeometry.clear();
+        m_rotateInitialRotation.clear();
         m_dragMoved = false;
         update();
         return;
@@ -2777,6 +2939,65 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
     }
 
     m_dragMode = DragMode::None;
+}
+
+QSet<QString> DiagramView::cellsInMarquee(const QRectF &sceneMarquee) const
+{
+    QSet<QString> result;
+
+    if (m_page == nullptr || sceneMarquee.width() <= 2 || sceneMarquee.height() <= 2)
+    {
+        return result;
+    }
+
+    for (Cell *cell : m_page->cells())
+    {
+        // Only top level cells: edge labels and symbols follow their connector
+        // instead of being selected on their own.
+        if (!cell->visible || m_page->layer(cell->parentId) == nullptr
+            || isLayerLocked(layerIdForCell(cell)))
+        {
+            continue;
+        }
+
+        if (cell->isVertex())
+        {
+            // transparentBounds containers are painted at the box derived from
+            // their children, so the marquee tests that box.
+            const QRectF rect = ShapeRegistry::hasTransparentBounds(*cell)
+                ? ShapeRegistry::visibleRect(*cell)
+                : cell->absoluteRect();
+
+            if (sceneMarquee.intersects(rect))
+            {
+                result.insert(cell->id);
+            }
+
+            continue;
+        }
+
+        // Connectors have no area, so test the routed path itself.
+        const RoutedEdge route = EdgeRouter::route(*m_page, *cell);
+
+        if (route.points.size() < 2)
+        {
+            continue;
+        }
+
+        QPainterPath path(route.points.first());
+
+        for (int i = 1; i < route.points.size(); ++i)
+        {
+            path.lineTo(route.points.at(i));
+        }
+
+        if (path.intersects(sceneMarquee))
+        {
+            result.insert(cell->id);
+        }
+    }
+
+    return result;
 }
 
 void DiagramView::mouseDoubleClickEvent(QMouseEvent *event)
@@ -4272,10 +4493,16 @@ void DiagramView::setRotation(double degrees)
         return;
     }
 
+    const double delta = degrees - cell->effectiveRotation();
+
     beginSnapshot(QStringLiteral("Rotation"));
+    collectRotatedDescendants(cell);
     cell->rotation = 0.0;
     cell->setStyleValue(QStringLiteral("rotation"),
                         QString::number(degrees, 'g', 12));
+    rotateDescendants(cell, delta);
+    m_rotateInitialGeometry.clear();
+    m_rotateInitialRotation.clear();
     commitSnapshot();
     update();
 }
@@ -4604,6 +4831,13 @@ Cell *DiagramView::addShape(const ShapeDefinition &definition, const QPointF &sc
 
     Cell *cell = nullptr;
 
+    // draw.io's transparentBounds containers (live layout / tree containers)
+    // keep their geometry pinned at (0,0,0,0); the visible box is derived from
+    // the children plus padding, and the children carry the page coordinates.
+    const bool transparentBounds = Style::value(
+        Style::withDefaults(style), QStringLiteral("transparentBounds"))
+        == QLatin1String("1");
+
     // draw.io's wedge arrows and the General palette's line/arrow templates
     // are edge shapes; inserting them as vertices would save a cell the
     // original editor cannot paint. Create a floating edge instead.
@@ -4633,7 +4867,9 @@ Cell *DiagramView::addShape(const ShapeDefinition &definition, const QPointF &sc
     }
     else
     {
-        cell = m_page->addVertex(QRectF(topLeft, size), style, definition.value);
+        cell = m_page->addVertex(transparentBounds ? QRectF()
+                                                   : QRectF(topLeft, size),
+                                 style, definition.value);
     }
 
     // Palette entries such as the List container create their child cells too.
@@ -4643,15 +4879,48 @@ Cell *DiagramView::addShape(const ShapeDefinition &definition, const QPointF &sc
         cell->placeholders = definition.placeholders;
         cell->placeholderName = definition.placeholderName;
 
+        QVector<Cell *> vertices;
+        QVector<QPair<const ShapeChildDefinition *, Cell *>> edges;
+
         for (const ShapeChildDefinition &child : definition.children)
         {
-            Cell *created = m_page->addVertex(child.geometry, Style::parse(child.style),
-                                              child.value, cell->id);
+            if (child.edge)
+            {
+                edges.append({&child, nullptr});
+                continue;
+            }
+
+            Cell *created = m_page->addVertex(
+                transparentBounds ? child.geometry.translated(topLeft) : child.geometry,
+                Style::parse(child.style), child.value, cell->id);
 
             if (created != nullptr)
             {
                 created->relativeGeometry = child.relative;
                 created->geometryOffset = child.offset;
+                vertices.append(created);
+            }
+        }
+
+        // Connectors of layout containers run between the entry's nodes.
+        for (const auto &entry : edges)
+        {
+            const int source = entry.first->source;
+            const int target = entry.first->target;
+
+            if (source < 0 || target < 0 || source >= vertices.size()
+                || target >= vertices.size())
+            {
+                continue;
+            }
+
+            Cell *edge = m_page->addEdge(vertices.at(source)->id, vertices.at(target)->id,
+                                         Style::parse(entry.first->style),
+                                         entry.first->value, cell->id);
+
+            if (edge != nullptr)
+            {
+                edge->relativeGeometry = true;
             }
         }
     }
