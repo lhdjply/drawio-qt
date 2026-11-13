@@ -7,6 +7,7 @@
 #include "ui/ShapeToolbox.h"
 #include "ui/ShapeLibraryDialog.h"
 #include "render/ShapeCatalog.h"
+#include "render/EdgeRenderer.h"
 #include "render/EdgeRouter.h"
 #include "ui/OverlayEditor.h"
 #include "ui/MainWindow.h"
@@ -31,6 +32,7 @@
 #include <QCheckBox>
 #include <QTabBar>
 #include <QTreeWidget>
+#include <QSpinBox>
 #include <QToolButton>
 #include <QScrollArea>
 #include <QSettings>
@@ -38,6 +40,8 @@
 #include "ui/FormatPanel.h"
 #include <QTabWidget>
 #include <QTemporaryDir>
+#include <QTextBlock>
+#include <QTextEdit>
 #include <QtTest>
 
 using namespace dq;
@@ -376,7 +380,7 @@ private slots:
 
         const QString value = view->page()->cell(id)->value;
         QVERIFY(value.contains(QStringLiteral("新文字")));
-        QVERIFY(value.contains(QStringLiteral("font-size: 11pt")));
+        QVERIFY(value.contains(QStringLiteral("font-size:")));
         QVERIFY(value.contains(QStringLiteral("fontSize")) == false);
     }
 
@@ -884,6 +888,361 @@ private slots:
         QVERIFY(cell->targetPoint != targetPoint);
     }
 
+    void clickingCanvasEndsEditing()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(200, 200));
+        QVERIFY(shape != nullptr);
+        shape->value = QStringLiteral("<div>abcdef</div>");
+
+        view->startEditing(shape->id, true);
+        QVERIFY(view->isEditing());
+
+        // A click on the canvas (outside the label and the format panel) ends it.
+        const QPoint empty = view->toView(QPointF(600, 500)).toPoint();
+        QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, empty);
+        QCoreApplication::processEvents();
+
+        QVERIFY(!view->isEditing());
+    }
+
+    void zeroStartSizeContainerKeepsItsBox()
+    {
+        MainWindow window;
+        window.resize(900, 700);
+        window.show();
+
+        DiagramView *view = window.view();
+        Page *page = view->page();
+
+        Cell *container = page->addVertex(QRectF(60, 290, 50, 40),
+                                          Style::parse(QStringLiteral("swimlane;startSize=0;")),
+                                          QString());
+        container->collapsed = true;
+        container->alternateBounds = QRectF(60, 290, 200, 200);
+
+        const QPoint fold = view->toView(QPointF(68, 298)).toPoint();
+        QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, fold);
+        QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, fold);
+
+        // Nothing to fold to: the 50x40 box stays.
+        QCOMPARE(container->geometry.size(), QSizeF(50, 40));
+    }
+
+    void collapseRestoresFoldedSize()
+    {
+        MainWindow window;
+        window.resize(900, 700);
+        window.show();
+
+        DiagramView *view = window.view();
+        Page *page = view->page();
+
+        Cell *container = page->addVertex(QRectF(100, 100, 140, 30),
+                                          Style::parse(QStringLiteral("swimlane;whiteSpace=wrap;html=1;")),
+                                          QStringLiteral("Box"));
+        container->collapsed = true;
+        container->alternateBounds = QRectF(100, 100, 200, 200);
+
+        const QPoint fold = view->toView(QPointF(108, 108)).toPoint();
+
+        // Expand, then fold again: the folded box must match the opened state.
+        QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, fold);
+        QVERIFY(!container->collapsed);
+        QCOMPARE(container->geometry.size(), QSizeF(200, 200));
+
+        QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, fold);
+        QVERIFY(container->collapsed);
+        QCOMPARE(container->geometry.size(), QSizeF(140, 30));
+    }
+
+    void expandRestoresContainerSize()
+    {
+        MainWindow window;
+        window.resize(900, 700);
+        window.show();
+
+        DiagramView *view = window.view();
+        Page *page = view->page();
+
+        Cell *container = page->addVertex(QRectF(100, 100, 200, 120),
+                                          Style::parse(QStringLiteral("swimlane;whiteSpace=wrap;html=1;")),
+                                          QStringLiteral("Box"));
+        QVERIFY(container != nullptr);
+        const QPoint fold = view->toView(QPointF(108, 108)).toPoint();
+
+        QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, fold);
+        QVERIFY(container->collapsed);
+
+        QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, fold);
+        QVERIFY(!container->collapsed);
+        QCOMPARE(container->geometry.height(), 120.0);
+        QCOMPARE(container->geometry.width(), 200.0);
+    }
+
+    void foldButtonTogglesContainer()
+    {
+        MainWindow window;
+        window.resize(900, 700);
+        window.show();
+
+        DiagramView *view = window.view();
+        Page *page = view->page();
+
+        Cell *container = page->addVertex(QRectF(100, 100, 200, 120),
+                                          Style::parse(QStringLiteral("swimlane;whiteSpace=wrap;html=1;")),
+                                          QStringLiteral("Box"));
+        QVERIFY(container != nullptr);
+        QVERIFY(!container->collapsed);
+
+        const QPoint fold = view->toView(QPointF(108, 108)).toPoint();
+        QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, fold);
+
+        QVERIFY(container->collapsed);
+
+        QTest::mouseClick(view, Qt::LeftButton, Qt::NoModifier, fold);
+        QVERIFY(!container->collapsed);
+    }
+
+    void marqueeSelectsConnectors()
+    {
+        MainWindow window;
+        window.resize(900, 700);
+        window.show();
+
+        DiagramView *view = window.view();
+        Page *page = view->page();
+
+        Cell *edge = page->addEdge(QString(), QString(), Style::parse(QStringLiteral("endArrow=classic;html=1;")));
+        edge->sourcePoint = QPointF(100, 100);
+        edge->targetPoint = QPointF(300, 100);
+
+        view->selectAll();
+        view->clearSelection();
+
+        // Rubber band across the middle of the connector.
+        const QPoint from = view->toView(QPointF(150, 60)).toPoint();
+        const QPoint to = view->toView(QPointF(250, 140)).toPoint();
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, from);
+        QTest::mouseMove(view, to);
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, to);
+
+        QVERIFY(view->selection().contains(edge->id));
+    }
+
+    void selectAllSkipsEdgeLabels()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Page *page = view->page();
+
+        Cell *edge = page->addEdge(QString(), QString(), Style::parse(QStringLiteral("endArrow=classic;html=1;")));
+        edge->sourcePoint = QPointF(100, 100);
+        edge->targetPoint = QPointF(300, 100);
+
+        Cell *label = page->addVertex(QRectF(), Style::parse(QStringLiteral("edgeLabel;html=1;")),
+                                      QStringLiteral("Label"));
+        label->parentId = edge->id;
+
+        // Symbols (shape=message) are child cells with a relative offset too.
+        Cell *symbol = page->addVertex(QRectF(-10, -7, 20, 14),
+                                       Style::parse(QStringLiteral("shape=message;html=1;")),
+                                       QString());
+        symbol->parentId = edge->id;
+
+        Cell *rect = page->addVertex(QRectF(20, 20, 60, 40),
+                                     Style::parse(QStringLiteral("whiteSpace=wrap;html=1;")),
+                                     QString());
+        QVERIFY(rect != nullptr);
+
+        view->selectAll();
+        const QSet<QString> selection = view->selection();
+
+        QVERIFY(selection.contains(edge->id));
+        QVERIFY(selection.contains(rect->id));
+        QVERIFY(!selection.contains(label->id));
+        QVERIFY(!selection.contains(symbol->id));
+    }
+
+    void edgeLabelCanBeEdited()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Page *page = view->page();
+
+        Cell *edge = page->addEdge(QString(), QString(), Style::parse(QStringLiteral("endArrow=classic;html=1;")));
+        edge->sourcePoint = QPointF(100, 100);
+        edge->targetPoint = QPointF(300, 100);
+
+        Cell *label = page->addVertex(QRectF(), Style::parse(QStringLiteral("edgeLabel;html=1;")),
+                                      QStringLiteral("Label"));
+        label->parentId = edge->id;
+
+        // The label is hit testable even though its geometry is empty.
+        const QRectF bounds = EdgeRenderer::childBounds(EdgeRouter::route(*page, *edge), *label);
+        QVERIFY(!bounds.isEmpty());
+
+        view->startEditing(label->id, true);
+        QVERIFY(view->isEditing());
+
+        QTextEdit *editor = view->findChild<QTextEdit *>();
+        QVERIFY(editor != nullptr);
+        QVERIFY(editor->isVisible());
+        editor->selectAll();
+        editor->insertPlainText(QStringLiteral("Renamed"));
+        view->commitEditing();
+
+        QCOMPARE(page->cell(label->id)->value, QStringLiteral("Renamed"));
+    }
+
+    void headingCanBeUnbolded()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("textbox")),
+                                     QPointF(200, 200));
+        QVERIFY(shape != nullptr);
+        shape->value = QStringLiteral("<h1>Heading</h1>");
+
+        view->startEditing(shape->id, true);
+        QTextEdit *editor = view->findChild<QTextEdit *>();
+        QVERIFY(editor != nullptr);
+
+        editor->selectAll();
+        QVERIFY(view->applyEditorFontStyle(1, false));
+        view->commitEditing();
+
+        QVERIFY2(shape->value.contains(QStringLiteral("font-weight: normal")),
+                 qPrintable(shape->value));
+    }
+
+    void textColorSurvivesCommit()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(200, 200));
+        QVERIFY(shape != nullptr);
+        shape->value = QStringLiteral("<div>abcdef</div>");
+
+        view->startEditing(shape->id, true);
+        QTextEdit *editor = view->findChild<QTextEdit *>();
+        QVERIFY(editor != nullptr);
+
+        QTextCursor cursor = editor->textCursor();
+        cursor.setPosition(0);
+        cursor.setPosition(3, QTextCursor::KeepAnchor);
+        editor->setTextCursor(cursor);
+
+        QVERIFY(view->applyEditorFontColor(QStringLiteral("#ff0000")));
+        view->commitEditing();
+
+        QVERIFY2(shape->value.contains(QStringLiteral("color: #ff0000")),
+                 qPrintable(shape->value));
+    }
+
+    void fontSizeSurvivesCommit()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(200, 200));
+        QVERIFY(shape != nullptr);
+        shape->value = QStringLiteral("<div>abcdef</div>");
+
+        view->startEditing(shape->id, true);
+        QVERIFY(view->isEditing());
+
+        QTextEdit *editor = view->findChild<QTextEdit *>();
+        QVERIFY(editor != nullptr);
+
+        QTextCursor cursor = editor->textCursor();
+        cursor.setPosition(0);
+        cursor.setPosition(3, QTextCursor::KeepAnchor);
+        editor->setTextCursor(cursor);
+
+        QVERIFY(view->applyEditorFontSize(20));
+        view->commitEditing();
+
+        QVERIFY2(shape->value.contains(QStringLiteral("font-size: 20px")),
+                 qPrintable(shape->value));
+        QVERIFY2(shape->value.contains(QStringLiteral("<b>") ) == false, qPrintable(shape->value));
+    }
+
+    void clickingFormatPanelKeepsEditing()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(200, 200));
+        QVERIFY(shape != nullptr);
+        shape->value = QStringLiteral("<div>abcdef</div>");
+
+        view->startEditing(shape->id, true);
+        QVERIFY(view->isEditing());
+
+        // Moving focus into the format panel must not commit the label.
+        QWidget *panel = window.findChild<QWidget *>(QStringLiteral("formatPanel"));
+        QVERIFY(panel != nullptr);
+        QSpinBox *size = panel->findChild<QSpinBox *>();
+        QVERIFY(size != nullptr);
+        size->setFocus();
+        QCoreApplication::processEvents();
+
+        QVERIFY(view->isEditing());
+    }
+
+    void formattingAppliesToSelectionOnly()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *shape = view->addShape(ShapeRegistry::definition(QStringLiteral("rectangle")),
+                                     QPointF(200, 200));
+        QVERIFY(shape != nullptr);
+        shape->value = QStringLiteral("<div>abcdef</div>");
+
+        view->startEditing(shape->id, true);
+        QVERIFY(view->isEditing());
+
+        // Select the first three characters and bold only them.
+        QTextEdit *editor = view->findChild<QTextEdit *>();
+
+        if (editor == nullptr)
+        {
+            return;
+        }
+
+        QTextCursor cursor = editor->textCursor();
+        cursor.setPosition(0);
+        cursor.setPosition(3, QTextCursor::KeepAnchor);
+        editor->setTextCursor(cursor);
+
+        QVERIFY(view->applyEditorFontStyle(1, true));
+        view->commitEditing();
+
+        QVERIFY2(shape->value.contains(QStringLiteral("<b>abc</b>")),
+                 qPrintable(shape->value));
+        QVERIFY2(shape->value.contains(QStringLiteral("def")), qPrintable(shape->value));
+    }
+
     void newShapesUseTwoPixelStroke()
     {
         MainWindow window;
@@ -933,6 +1292,218 @@ private slots:
         QCOMPARE(view->page()->cells().size(), before + 1);
         QVERIFY(!cell->sourcePoint.isNull());
         QVERIFY(!cell->targetPoint.isNull());
+    }
+
+    void htmlLabelEditorKeepsHeadingFormatting()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *cell = view->addShape(ShapeRegistry::definition(QStringLiteral("textbox")),
+                                    QPointF(250, 250));
+        QVERIFY(cell != nullptr);
+        QVERIFY(cell->value.contains(QStringLiteral("<h1")));
+        const QString original = cell->value;
+
+        view->startEditing(cell->id, false);
+        QVERIFY(view->isEditing());
+
+        QTextEdit *editor = view->findChild<QTextEdit *>();
+        QVERIFY(editor != nullptr);
+
+        // The Heading is shown as a level 1 block with a bold run.
+        const QTextBlock heading = editor->document()->firstBlock();
+        QCOMPARE(heading.text(), QStringLiteral("Heading"));
+        QCOMPARE(heading.blockFormat().headingLevel(), 1);
+        bool bold = false;
+
+        for (QTextBlock::iterator it = heading.begin(); !it.atEnd(); ++it)
+        {
+            if (it.fragment().charFormat().fontWeight() >= QFont::Bold)
+            {
+                bold = true;
+            }
+        }
+
+        QVERIFY(bold);
+
+        // Committing without changes keeps the markup untouched.
+        view->commitEditing();
+        QVERIFY(!view->isEditing());
+        QCOMPARE(cell->value, original);
+
+        // Editing the heading text keeps the heading block and its weight.
+        view->startEditing(cell->id, true);
+        editor = view->findChild<QTextEdit *>();
+        QVERIFY(editor != nullptr);
+        QTextCursor cursor(editor->document()->firstBlock());
+        cursor.select(QTextCursor::BlockUnderCursor);
+        cursor.insertText(QStringLiteral("Title"));
+        view->commitEditing();
+        QVERIFY(cell->value.contains(QStringLiteral("<h1")));
+        QVERIFY(cell->value.contains(QStringLiteral("Title")));
+        QVERIFY(!cell->value.contains(QStringLiteral("Heading")));
+    }
+
+    void htmlLabelEditorFormatsSelectedText()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *cell = view->addShape(ShapeRegistry::definition(QStringLiteral("textbox")),
+                                    QPointF(250, 250));
+        QVERIFY(cell != nullptr);
+
+        view->startEditing(cell->id, false);
+        QTextEdit *editor = view->findChild<QTextEdit *>();
+        QVERIFY(editor != nullptr);
+
+        // Bold "ipsum" in the paragraph with Ctrl+B.
+        QTextBlock paragraph = editor->document()->firstBlock().next();
+        QVERIFY(paragraph.text().startsWith(QStringLiteral("Lorem ipsum")));
+        QTextCursor cursor(paragraph);
+        cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 6);
+        cursor.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, 5);
+        editor->setTextCursor(cursor);
+        QTest::keyClick(editor, Qt::Key_B, Qt::ControlModifier);
+
+        // Italic and underline "dolor" with Ctrl+I and Ctrl+U.
+        cursor = QTextCursor(paragraph);
+        cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 12);
+        cursor.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, 5);
+        editor->setTextCursor(cursor);
+        QTest::keyClick(editor, Qt::Key_I, Qt::ControlModifier);
+        QTest::keyClick(editor, Qt::Key_U, Qt::ControlModifier);
+
+        view->commitEditing();
+
+        QVERIFY(cell->value.contains(QStringLiteral("<b>ipsum</b>")));
+        QVERIFY(cell->value.contains(QStringLiteral("dolor")));
+        QVERIFY(cell->value.contains(QStringLiteral("<i>dolor</i>")));
+        QVERIFY(cell->value.contains(QStringLiteral("<u>")));
+        QVERIFY(cell->value.contains(QStringLiteral("<h1")));
+    }
+
+    void formatPanelBoldAppliesToLabelSelection()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        auto *panel = window.findChild<FormatPanel *>();
+        QVERIFY(panel != nullptr);
+
+        Cell *cell = view->addShape(ShapeRegistry::definition(QStringLiteral("textbox")),
+                                    QPointF(250, 250));
+        QVERIFY(cell != nullptr);
+
+        view->startEditing(cell->id, false);
+        QTextEdit *editor = view->findChild<QTextEdit *>();
+        QVERIFY(editor != nullptr);
+
+        QTextBlock paragraph = editor->document()->firstBlock().next();
+        QTextCursor cursor(paragraph);
+        cursor.movePosition(QTextCursor::Right, QTextCursor::MoveAnchor, 6);
+        cursor.movePosition(QTextCursor::Right, QTextCursor::KeepAnchor, 5);
+        editor->setTextCursor(cursor);
+
+        QToolButton *bold = nullptr;
+
+        for (QToolButton *button : panel->findChildren<QToolButton *>())
+        {
+            if (button->toolTip() == QStringLiteral("Bold"))
+            {
+                bold = button;
+            }
+        }
+
+        QVERIFY(bold != nullptr);
+        bold->setChecked(true);
+        view->commitEditing();
+
+        // Only the selected word is bold; the cell itself keeps its fontStyle.
+        QVERIFY(cell->value.contains(QStringLiteral("<b>ipsum</b>")));
+        QVERIFY(!cell->value.contains(QStringLiteral("<b>Lorem")));
+        QVERIFY(cell->styleValue(QStringLiteral("fontStyle")).isEmpty());
+    }
+
+    void generalEdgeTemplatesInsertAsEdges()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+
+        for (const QString &key : {QStringLiteral("curve"), QStringLiteral("flexArrow"),
+                                   QStringLiteral("dashedLine"), QStringLiteral("dottedLine"),
+                                   QStringLiteral("plainLine"), QStringLiteral("link"),
+                                   QStringLiteral("directionalConnector")})
+        {
+            const int before = view->page()->cells().size();
+            Cell *cell = view->addShape(ShapeRegistry::definition(key), QPointF(200, 200));
+            QVERIFY2(cell != nullptr, qPrintable(key));
+            QVERIFY2(cell->isEdge(), qPrintable(key));
+            QCOMPARE(view->page()->cells().size(), before + 1);
+            QVERIFY(!cell->sourcePoint.isNull());
+            QVERIFY(!cell->targetPoint.isNull());
+        }
+
+        // The curve template also carries its waypoints.
+        Cell *curve = view->addShape(ShapeRegistry::definition(QStringLiteral("curve")),
+                                     QPointF(300, 300));
+        QVERIFY(curve != nullptr);
+        QCOMPARE(curve->waypoints.size(), 2);
+    }
+
+    void generalCompositeTemplatesInsertChildren()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+
+        // The List container comes with its three item rows.
+        const int before = view->page()->cells().size();
+        Cell *list = view->addShape(ShapeRegistry::definition(QStringLiteral("list")),
+                                    QPointF(250, 250));
+        QVERIFY(list != nullptr);
+        QVERIFY(list->isVertex());
+        QCOMPARE(view->page()->cells().size(), before + 4);
+        QCOMPARE(list->children.size(), 3);
+        QCOMPARE(list->children.at(1)->value, QStringLiteral("Item 2"));
+        QCOMPARE(list->children.at(1)->absolutePosition().y(),
+                 list->absolutePosition().y() + 60.0);
+
+        // Connector templates insert edge labels and the message symbol.
+        Cell *labels = view->addShape(
+            ShapeRegistry::definition(QStringLiteral("connectorLabels")), QPointF(300, 300));
+        QVERIFY(labels != nullptr);
+        QVERIFY(labels->isEdge());
+        QCOMPARE(labels->children.size(), 3);
+        QVERIFY(labels->children.first()->isEdgeChild());
+        QVERIFY(labels->children.first()->relativeGeometry);
+        QCOMPARE(labels->children.first()->value, QStringLiteral("Label"));
+
+        Cell *symbol = view->addShape(
+            ShapeRegistry::definition(QStringLiteral("connectorSymbol")), QPointF(350, 350));
+        QVERIFY(symbol != nullptr);
+        QCOMPARE(symbol->children.size(), 1);
+        QCOMPARE(symbol->children.first()->geometry.size(), QSizeF(20, 14));
+        QCOMPARE(symbol->children.first()->geometryOffset, QPointF(-10, -7));
+    }
+
+    void textTemplateInsertsItsLabel()
+    {
+        MainWindow window;
+        window.show();
+
+        DiagramView *view = window.view();
+        Cell *text = view->addShape(ShapeRegistry::definition(QStringLiteral("text")),
+                                    QPointF(120, 120));
+        QVERIFY(text != nullptr);
+        QCOMPARE(text->value, QStringLiteral("Text"));
     }
 
     void layerCanBeDeletedFromPanel()

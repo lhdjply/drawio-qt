@@ -1522,6 +1522,7 @@ void MainWindow::createDocks()
     addDockWidget(Qt::LeftDockWidgetArea, shapesDock);
 
     m_formatPanel = new FormatPanel(this);
+    m_formatPanel->setObjectName(QStringLiteral("formatPanel"));
 
     auto *formatDock = new QDockWidget(QStringLiteral("Format"), this);
     formatDock->setObjectName(QStringLiteral("formatDock"));

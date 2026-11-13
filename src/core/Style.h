@@ -39,6 +39,13 @@ public:
 
     /// Joins two style fragments, keeping the keys of the first one first.
     static StyleMap merged(const StyleMap &base, const StyleMap &overrides);
+
+    /// Expands the named styles of draw.io's `styles/default.xml` that a style
+    /// string references by bare keyword (`text;`, `swimlane;`, `group;`,
+    /// `line;`, `ellipse;`, ...). Explicit `key=value` pairs keep precedence.
+    /// The result is only used for reading; the cell keeps the original map so
+    /// files round-trip unchanged.
+    static StyleMap withDefaults(const StyleMap &style);
 };
 
 } // namespace dq

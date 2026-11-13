@@ -123,6 +123,14 @@ public:
     void cancelEditing();
     bool isEditing() const;
 
+    /// While a label is being edited, applies bold/italic/underline to the
+    /// selected text instead of the whole cell. Returns false when the editor
+    /// is not open (the caller then falls back to the cell style).
+    bool applyEditorFontStyle(int bit, bool enabled);
+    bool applyEditorFontFamily(const QString &family);
+    bool applyEditorFontSize(int pointSize);
+    bool applyEditorFontColor(const QString &value);
+
     void setCellValue(const QString &cellId, const QString &value);
     void applyStyle(const QString &key, const QString &value);
     void clearStyle(const QString &key);
@@ -168,6 +176,10 @@ signals:
     void cursorPositionChanged(const QPointF &scenePoint);
     void modified();
     void editStarted();
+    /// Emitted while a rich text label is edited, with the format at the cursor
+    /// or selection so the format panel can mirror it.
+    void editorCharFormatChanged(int pointSize, const QString &family,
+                                 const QColor &color, int styleBits);
     void editFinished();
     void statusMessage(const QString &message);
     void contextMenuRequested(const QPoint &globalPos, const QString &cellId);
@@ -301,6 +313,10 @@ private:
     Tool m_tool = Tool::Select;
 
     QSet<QString> m_selection;
+
+    /// Size a container had while folded, so collapsing again reproduces it.
+    QHash<QString, QRectF> m_foldedBounds;
+
     QString m_hoverCellId;
 
     QUndoStack *m_undoStack = nullptr;

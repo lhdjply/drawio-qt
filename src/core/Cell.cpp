@@ -188,6 +188,11 @@ bool Cell::isGroup() const
                                                            Qt::CaseInsensitive) == 0);
 }
 
+bool Cell::isEdgeChild() const
+{
+    return parent != nullptr && parent->isEdge();
+}
+
 Cell *Cell::topLevelAncestor() const
 {
     const Cell *current = this;

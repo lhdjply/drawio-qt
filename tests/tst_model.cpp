@@ -1,6 +1,8 @@
 #include "core/Document.h"
+#include "core/MxFileIO.h"
 #include "core/Page.h"
 #include "render/ShapeRegistry.h"
+#include "render/ShapeRenderer.h"
 #include "render/ShapeCatalog.h"
 
 #include <QPainterPath>
@@ -370,6 +372,189 @@ private slots:
         QVERIFY(!ShapeCatalog::instance().search(QStringLiteral("star"), 40).isEmpty());
     }
 
+    void collapsedStateAndAlternateBoundsRoundTrip()
+    {
+        const QString xml = QStringLiteral(
+            "<mxGraphModel><root><mxCell id=\"0\"/><mxCell id=\"1\" parent=\"0\"/>"
+            "<mxCell id=\"2\" collapsed=\"1\" parent=\"1\" style=\"swimlane;\" value=\"Box\" vertex=\"1\">"
+            "<mxGeometry x=\"10\" y=\"20\" width=\"140\" height=\"30\" as=\"geometry\">"
+            "<mxRectangle x=\"10\" y=\"20\" width=\"200\" height=\"200\" as=\"alternateBounds\"/>"
+            "</mxGeometry></mxCell></root></mxGraphModel>");
+
+        Page page;
+        QString error;
+        QVERIFY2(MxFileIO::pageFromXml(page, xml, &error), qPrintable(error));
+
+        Cell *cell = page.cell(QStringLiteral("2"));
+        QVERIFY(cell != nullptr);
+        QVERIFY(cell->collapsed);
+        QCOMPARE(cell->alternateBounds, QRectF(10, 20, 200, 200));
+
+        const QString written = MxFileIO::pageToXml(page, false);
+        QVERIFY2(written.contains(QStringLiteral("collapsed=\"1\"")), qPrintable(written));
+        QVERIFY2(written.contains(QStringLiteral("alternateBounds")), qPrintable(written));
+    }
+
+    void foldIconReflectsState()
+    {
+        const auto inkInFold = [](const QString &style, bool collapsed)
+        {
+            Cell container(Cell::Kind::Vertex, QStringLiteral("c"));
+            container.style = Style::parse(style);
+            container.collapsed = collapsed;
+            container.geometry = QRectF(0, 0, 200, 120);
+
+            QImage image(200, 120, QImage::Format_ARGB32_Premultiplied);
+            image.fill(Qt::white);
+            QPainter painter(&image);
+            ShapeRenderer::paint(painter, container);
+            painter.end();
+
+            int ink = 0;
+
+            for (int y = 3; y <= 14; ++y)
+            {
+                for (int x = 3; x <= 14; ++x)
+                {
+                    if (image.pixelColor(x, y).lightness() < 200)
+                    {
+                        ++ink;
+                    }
+                }
+            }
+
+            return ink;
+        };
+
+        const int expanded = inkInFold(QStringLiteral("swimlane;whiteSpace=wrap;html=1;"), false);
+        const int collapsed = inkInFold(QStringLiteral("swimlane;whiteSpace=wrap;html=1;"), true);
+
+        // The collapsed icon has an extra vertical bar (plus instead of minus).
+        QVERIFY2(collapsed > expanded, qPrintable(QString::number(expanded) + "/" + QString::number(collapsed)));
+    }
+
+    void containersDrawFoldIndicator()
+    {
+        Cell container(Cell::Kind::Vertex, QStringLiteral("c"));
+        container.style = Style::parse(QStringLiteral("swimlane;whiteSpace=wrap;html=1;"));
+        container.geometry = QRectF(0, 0, 200, 120);
+
+        QImage image(200, 120, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        QPainter painter(&image);
+        ShapeRenderer::paint(painter, container);
+        painter.end();
+
+        // The fold square sits at 4,4 and has ink for its border and minus.
+        int ink = 0;
+
+        for (int y = 3; y <= 14; ++y)
+        {
+            for (int x = 3; x <= 14; ++x)
+            {
+                if (image.pixelColor(x, y).lightness() < 200)
+                {
+                    ++ink;
+                }
+            }
+        }
+
+        QVERIFY2(ink > 10, qPrintable(QString::number(ink)));
+    }
+
+    void edgeLabelKeepsInlineRuns()
+    {
+        // <b>/<i> carry their own colours in draw.io's edge labels.
+        Cell label(Cell::Kind::Vertex, QStringLiteral("l"));
+        label.style = Style::parse(QStringLiteral("edgeLabel;html=1;"));
+        label.geometry = QRectF(0, 0, 10, 10);
+        label.value = QStringLiteral(
+            "<span style=\"color: rgb(51, 51, 255);\">L</span><u>a</u>"
+            "<span><b style=\"color: rgb(255, 255, 51);\">b</b>"
+            "<i style=\"color: rgb(255, 51, 51);\">el</i></span>");
+
+        QImage image(120, 40, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        QPainter painter(&image);
+        LabelPainter::paint(painter, label, QRectF(0, 0, 120, 40), false);
+        painter.end();
+
+        bool blue = false;
+        bool yellow = false;
+        bool red = false;
+
+        for (int y = 0; y < image.height(); ++y)
+        {
+            for (int x = 0; x < image.width(); ++x)
+            {
+                const QColor c = image.pixelColor(x, y);
+
+                if (c.blue() > 180 && c.red() < 120)
+                {
+                    blue = true;
+                }
+
+                if (c.red() > 180 && c.green() > 180 && c.blue() < 140)
+                {
+                    yellow = true;
+                }
+
+                if (c.red() > 180 && c.green() < 120 && c.blue() < 120)
+                {
+                    red = true;
+                }
+            }
+        }
+
+        QVERIFY(blue);
+        QVERIFY(yellow);
+        QVERIFY(red);
+    }
+
+    void nestedInlineSpansKeepOuterFormat()
+    {
+        // The inner span must not reset the outer colour, and closing it must
+        // restore the outer weight.
+        Cell cell(Cell::Kind::Vertex, QStringLiteral("c"));
+        cell.style = Style::parse(QStringLiteral("text;html=1;"));
+        cell.geometry = QRectF(0, 0, 240, 60);
+        cell.value = QStringLiteral(
+            "<h1><i>H</i><span style=\"color: rgb(103, 255, 100);\">e</span>a"
+            "<span style=\"color: rgb(170, 96, 255);\">di"
+            "<span style=\"font-weight: normal;\"><font style=\"font-size: 42px;\">n</font>"
+            "</span></span><span style=\"font-weight: normal;\">g</span></h1>");
+
+        // Laying the label out must not crash and must keep the run count.
+        QImage image(240, 60, QImage::Format_ARGB32_Premultiplied);
+        image.fill(Qt::white);
+        QPainter painter(&image);
+        ShapeRenderer::paint(painter, cell);
+        painter.end();
+
+        QVERIFY(!image.isNull());
+    }
+
+    void htmlFontTagAndRgbColors()
+    {
+        // draw.io emits <font style="font-size: 18px; color: rgb(...)">, and
+        // only the wrapped run may grow: the surrounding text keeps the cell size.
+        Cell cell(Cell::Kind::Vertex, QStringLiteral("c"));
+        cell.style = Style::parse(QStringLiteral("text;html=1;"));
+        cell.geometry = QRectF(0, 0, 180, 230);
+        cell.value = QStringLiteral(
+            "<h1 style=\"margin-top: 0px;\">Heading</h1><p>Lorem ipsum do"
+            "<b><font style=\"font-size: 18px; color: rgb(153, 255, 255);\">"
+            "lor sit amet</font></b> elit.</p>");
+
+        const QFont base = LabelPainter::fontForLabel(cell);
+        QCOMPARE(base.pixelSize(), 12);
+
+        QCOMPARE(Style::parseColorValue(QStringLiteral("rgb(153, 255, 255)")),
+                 QColor(153, 255, 255));
+        QCOMPARE(Style::parseColorValue(QStringLiteral("rgba(1, 2, 3, 0.5)")),
+                 QColor(1, 2, 3, 128));
+    }
+
     void actorAndHorizontalSwimlane()
     {
         const QPainterPath actor = ShapeRegistry::pathForStyle(
@@ -523,7 +708,8 @@ private slots:
 
     void generalLibraryFollowsSidebar()
     {
-        // Sidebar.prototype.addGeneralPalette, in draw.io order.
+        // Sidebar.prototype.addGeneralPalette, in draw.io order: the vertex
+        // templates followed by the edge templates.
         const QStringList official = {
             QStringLiteral("rectangle"),      QStringLiteral("rounded"),
             QStringLiteral("text"),           QStringLiteral("textbox"),
@@ -540,7 +726,14 @@ private slots:
             QStringLiteral("actor"),          QStringLiteral("or"),
             QStringLiteral("and"),            QStringLiteral("dataStorage"),
             QStringLiteral("container"),      QStringLiteral("containerVertical"),
-            QStringLiteral("containerHorizontal"),
+            QStringLiteral("containerHorizontal"), QStringLiteral("list"),
+            QStringLiteral("listItem"),       QStringLiteral("curve"),
+            QStringLiteral("flexArrow"),      QStringLiteral("flexArrowOneWay"),
+            QStringLiteral("dashedLine"),     QStringLiteral("dottedLine"),
+            QStringLiteral("plainLine"),      QStringLiteral("bidirectionalConnector"),
+            QStringLiteral("directionalConnector"), QStringLiteral("link"),
+            QStringLiteral("connectorLabel"), QStringLiteral("connectorLabels"),
+            QStringLiteral("connectorSymbol"),
         };
 
         QStringList keys;
@@ -564,6 +757,10 @@ private slots:
         QCOMPARE(byKey.value(QStringLiteral("card")).size, QSizeF(80, 100));
         QCOMPARE(byKey.value(QStringLiteral("actor")).size, QSizeF(30, 60));
         QCOMPARE(byKey.value(QStringLiteral("container")).size, QSizeF(200, 200));
+        QCOMPARE(byKey.value(QStringLiteral("list")).size, QSizeF(140, 120));
+        QCOMPARE(byKey.value(QStringLiteral("listItem")).size, QSizeF(80, 30));
+        QCOMPARE(byKey.value(QStringLiteral("curve")).size, QSizeF(50, 50));
+        QCOMPARE(byKey.value(QStringLiteral("link")).size, QSizeF(100, 0));
 
         // The added entries reuse the addGeneralPalette style strings.
         QVERIFY(byKey.value(QStringLiteral("square")).style.startsWith(
@@ -578,14 +775,59 @@ private slots:
             QStringLiteral("swimlane;startSize=0;")));
         QVERIFY(byKey.value(QStringLiteral("containerHorizontal")).style.startsWith(
             QStringLiteral("swimlane;horizontal=0;")));
+        QVERIFY(byKey.value(QStringLiteral("dottedLine")).style.startsWith(
+            QStringLiteral("endArrow=none;dashed=1;html=1;dashPattern=1 3;strokeWidth=2;")));
+        QVERIFY(byKey.value(QStringLiteral("flexArrow")).style.startsWith(
+            QStringLiteral("shape=flexArrow;endArrow=classic;startArrow=classic;")));
+        QVERIFY(byKey.value(QStringLiteral("text")).style.startsWith(
+            QStringLiteral("text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;")));
 
         // draw.io labels the XOR gate "Or" and the D shaped gate "And".
         QVERIFY(byKey.value(QStringLiteral("or")).style.startsWith(QStringLiteral("shape=xor;")));
         QVERIFY(byKey.value(QStringLiteral("and")).style.startsWith(QStringLiteral("shape=or;")));
 
-        // Every general entry is drawable (text and image placeholders aside).
+        // Vertex templates keep their label; edge templates are flagged so the
+        // canvas inserts them as connectors.
+        QCOMPARE(byKey.value(QStringLiteral("text")).value, QStringLiteral("Text"));
+        QCOMPARE(byKey.value(QStringLiteral("actor")).value, QStringLiteral("Actor"));
+        QVERIFY(byKey.value(QStringLiteral("list")).value == QStringLiteral("List"));
+
+        for (const QString &key : official)
+        {
+            const bool edge = byKey.value(key).edge;
+            const bool edgeOnly = key == QStringLiteral("curve")
+                || key == QStringLiteral("flexArrow") || key == QStringLiteral("flexArrowOneWay")
+                || key == QStringLiteral("dashedLine") || key == QStringLiteral("dottedLine")
+                || key == QStringLiteral("plainLine")
+                || key == QStringLiteral("bidirectionalConnector")
+                || key == QStringLiteral("directionalConnector")
+                || key == QStringLiteral("link") || key == QStringLiteral("connectorLabel")
+                || key == QStringLiteral("connectorLabels")
+                || key == QStringLiteral("connectorSymbol");
+            QCOMPARE(edge, edgeOnly);
+        }
+
+        // The List entry carries its three rows, like the sidebar template.
+        const ShapeDefinition list = byKey.value(QStringLiteral("list"));
+        QCOMPARE(list.children.size(), 3);
+        QCOMPARE(list.children.at(0).value, QStringLiteral("Item 1"));
+        QCOMPARE(list.children.at(2).geometry, QRectF(0, 90, 140, 30));
+
+        // Connector templates carry their labels and the message symbol.
+        QCOMPARE(byKey.value(QStringLiteral("connectorLabels")).children.size(), 3);
+        const ShapeDefinition symbol = byKey.value(QStringLiteral("connectorSymbol"));
+        QCOMPARE(symbol.children.size(), 1);
+        QVERIFY(symbol.children.first().relative);
+        QCOMPARE(symbol.children.first().offset, QPointF(-10, -7));
+
+        // Every vertex entry is drawable (text and image placeholders aside).
         for (const ShapeDefinition &definition : byKey)
         {
+            if (definition.edge)
+            {
+                continue;
+            }
+
             Cell probe(Cell::Kind::Vertex, QString());
             probe.style = Style::parse(definition.style);
 
@@ -596,6 +838,41 @@ private slots:
 
             QVERIFY2(!ShapeRegistry::pathForStyle(probe.style, QRectF(0, 0, 120, 80)).isEmpty(),
                      qPrintable(definition.key));
+        }
+    }
+
+    void generalPalettePreviewsArePainted()
+    {
+        // Every General entry, including the edge templates and the composite
+        // List, must produce a visible palette icon.
+        ShapeCatalog &catalog = ShapeCatalog::instance();
+
+        for (const ShapeDefinition &definition : ShapeRegistry::toolboxShapes())
+        {
+            if (definition.category != QLatin1String("general"))
+            {
+                continue;
+            }
+
+            const QIcon icon = catalog.iconFor(definition, 48);
+            QVERIFY2(!icon.isNull(), qPrintable(definition.key));
+
+            const QImage image = icon.pixmap(48, 48).toImage();
+            bool visible = false;
+
+            for (int y = 0; y < image.height() && !visible; ++y)
+            {
+                for (int x = 0; x < image.width(); ++x)
+                {
+                    if (qAlpha(image.pixel(x, y)) > 8)
+                    {
+                        visible = true;
+                        break;
+                    }
+                }
+            }
+
+            QVERIFY2(visible, qPrintable(definition.key));
         }
     }
 

@@ -42,6 +42,26 @@ void writeCellGeometry(QXmlStreamWriter &writer, const Cell &cell)
         writer.writeAttribute(QStringLiteral("y"), QString::number(cell.geometry.y(), 'g', 12));
         writer.writeAttribute(QStringLiteral("width"), QString::number(cell.geometry.width(), 'g', 12));
         writer.writeAttribute(QStringLiteral("height"), QString::number(cell.geometry.height(), 'g', 12));
+
+        if (cell.relativeGeometry)
+        {
+            writer.writeAttribute(QStringLiteral("relative"), QStringLiteral("1"));
+        }
+
+        if (!cell.alternateBounds.isNull())
+        {
+            writer.writeStartElement(QStringLiteral("mxRectangle"));
+            writer.writeAttribute(QStringLiteral("as"), QStringLiteral("alternateBounds"));
+            writer.writeAttribute(QStringLiteral("x"),
+                                  QString::number(cell.alternateBounds.x(), 'g', 12));
+            writer.writeAttribute(QStringLiteral("y"),
+                                  QString::number(cell.alternateBounds.y(), 'g', 12));
+            writer.writeAttribute(QStringLiteral("width"),
+                                  QString::number(cell.alternateBounds.width(), 'g', 12));
+            writer.writeAttribute(QStringLiteral("height"),
+                                  QString::number(cell.alternateBounds.height(), 'g', 12));
+            writer.writeEndElement();
+        }
     }
     else
     {
@@ -75,6 +95,11 @@ void writeCellGeometry(QXmlStreamWriter &writer, const Cell &cell)
 
             writer.writeEndElement();
         }
+    }
+
+    if (cell.isVertex() && cell.relativeGeometry && !cell.geometryOffset.isNull())
+    {
+        writePoint(writer, cell.geometryOffset, "offset");
     }
 
     writer.writeEndElement();
@@ -119,6 +144,11 @@ void writeCell(QXmlStreamWriter &writer, const Cell &cell)
     else
     {
         writer.writeAttribute(QStringLiteral("vertex"), QStringLiteral("1"));
+    }
+
+    if (cell.collapsed)
+    {
+        writer.writeAttribute(QStringLiteral("collapsed"), QStringLiteral("1"));
     }
 
     if (!cell.visible)
@@ -309,6 +339,32 @@ bool readGeometry(Cell *cell, const QDomElement &geometry)
             cell->rotation = geometry.attribute(QStringLiteral("rotation")).toDouble();
         }
 
+        // Edge labels and symbols are vertices with relative geometry; their
+        // position is the point on the parent edge plus the optional offset.
+        cell->relativeGeometry = MxFileIO::xmlBool(
+            geometry.attribute(QStringLiteral("relative")), false);
+
+        const QDomElement offset =
+            geometry.firstChildElement(QStringLiteral("mxPoint"));
+
+        if (!offset.isNull() && offset.attribute(QStringLiteral("as")) == QLatin1String("offset"))
+        {
+            cell->geometryOffset = readPoint(offset);
+        }
+
+        // Folded containers keep the size to restore on expand here.
+        const QDomElement alternate =
+            geometry.firstChildElement(QStringLiteral("mxRectangle"));
+
+        if (!alternate.isNull()
+            && alternate.attribute(QStringLiteral("as")) == QLatin1String("alternateBounds"))
+        {
+            cell->alternateBounds = QRectF(alternate.attribute(QStringLiteral("x")).toDouble(),
+                                           alternate.attribute(QStringLiteral("y")).toDouble(),
+                                           alternate.attribute(QStringLiteral("width")).toDouble(),
+                                           alternate.attribute(QStringLiteral("height")).toDouble());
+        }
+
         return true;
     }
 
@@ -331,6 +387,14 @@ bool readGeometry(Cell *cell, const QDomElement &geometry)
             {
                 cell->waypoints.append(readPoint(child));
             }
+        }
+        else if (child.tagName() == QLatin1String("mxRectangle")
+                 && child.attribute(QStringLiteral("as")) == QLatin1String("alternateBounds"))
+        {
+            cell->alternateBounds = QRectF(child.attribute(QStringLiteral("x")).toDouble(),
+                                           child.attribute(QStringLiteral("y")).toDouble(),
+                                           child.attribute(QStringLiteral("width")).toDouble(),
+                                           child.attribute(QStringLiteral("height")).toDouble());
         }
         else if (child.tagName() == QLatin1String("Array"))
         {
@@ -431,6 +495,7 @@ bool readGraphModel(Page &page, const QDomElement &model, QString *error)
         cell->style = Style::parse(element.attribute(QStringLiteral("style")));
         cell->parentId = parentId.isEmpty() ? QStringLiteral("1") : parentId;
         cell->visible = MxFileIO::xmlBool(element.attribute(QStringLiteral("visible")), true);
+        cell->collapsed = MxFileIO::xmlBool(element.attribute(QStringLiteral("collapsed")), false);
         cell->sourceId = element.attribute(QStringLiteral("source"));
         cell->targetId = element.attribute(QStringLiteral("target"));
 

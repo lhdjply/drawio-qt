@@ -4,29 +4,66 @@
 
 #include <QLineF>
 #include <QPainter>
-
-#include <cmath>
+#include <QTextDocument>
 #include <QPolygonF>
 #include <QtMath>
 
+#include <cmath>
+#include <functional>
+
 namespace dq {
 namespace {
+
+StyleMap edgeStyle(const Cell &edge)
+{
+    return Style::withDefaults(edge.style);
+}
 
 QColor edgeColor(const Cell &edge)
 {
     return ShapeRenderer::strokeColor(edge);
 }
 
+double strokeWidthFor(const Cell &edge)
+{
+    return qMax(0.5, Style::number(edgeStyle(edge), QStringLiteral("strokeWidth"), 1.0));
+}
+
 QPen edgePen(const Cell &edge)
 {
+    const StyleMap style = edgeStyle(edge);
     QPen pen(edgeColor(edge));
-    pen.setWidthF(qMax(0.5, edge.styleNumber(QStringLiteral("strokeWidth"), 1.0)));
+    const double strokeWidth = strokeWidthFor(edge);
+    pen.setWidthF(strokeWidth);
     pen.setCapStyle(Qt::FlatCap);
     pen.setJoinStyle(Qt::MiterJoin);
 
-    if (edge.styleFlag(QStringLiteral("dashed")))
+    if (Style::flag(style, QStringLiteral("dashed")))
     {
-        pen.setDashPattern({4.0, 3.0});
+        const QString dashPattern = Style::value(style, QStringLiteral("dashPattern"));
+        QVector<qreal> dashes;
+        const QStringList parts = dashPattern.split(QLatin1Char(' '), Qt::SkipEmptyParts);
+
+        for (const QString &part : parts)
+        {
+            bool ok = false;
+            const double value = part.toDouble(&ok);
+
+            if (ok && value > 0.0)
+            {
+                dashes.append(value);
+            }
+        }
+
+        if (dashes.isEmpty())
+        {
+            // mxAbstractCanvas2D.setDashed() default pattern.
+            dashes = {3.0, 3.0};
+        }
+
+        // Qt scales dash patterns by the pen width, draw.io by the stroke
+        // width, so the raw style values are used unchanged.
+        pen.setDashPattern(dashes);
     }
 
     return pen;
@@ -38,6 +75,112 @@ QPointF normalized(const QPointF &vector)
     return length < 0.0001 ? QPointF(1, 0) : vector / length;
 }
 
+/// draw.io's half pixel offset for odd effective stroke widths
+/// (mxImageExport.getSvgShapeOffset).
+double crispOffsetFor(QPainter &painter, const Cell &edge)
+{
+    const double strokeWidth = strokeWidthFor(edge);
+
+    if (!edge.hasStroke())
+    {
+        return 0.0;
+    }
+
+    const QTransform transform = painter.transform();
+    const double scale = std::hypot(transform.m11(), transform.m12());
+    const int deviceWidth = qMax(1, qRound(strokeWidth * scale));
+
+    return (deviceWidth % 2 == 1) ? 0.5 : 0.0;
+}
+
+double markerSize(const Cell &edge, const QString &prefix)
+{
+    const double size = Style::number(edgeStyle(edge), prefix + QStringLiteral("Size"), 6.0);
+    return qBound(3.0, size, 40.0);
+}
+
+bool markerPresent(const Cell &edge, const QString &key, bool defaultValue)
+{
+    const QString value = Style::value(edgeStyle(edge), key);
+    return defaultValue ? value.compare(QLatin1String("none"), Qt::CaseInsensitive) != 0
+                        : (!value.isEmpty()
+                           && value.compare(QLatin1String("none"), Qt::CaseInsensitive) != 0);
+}
+
+/// Returns the direction and the point where the line must stop so that the
+/// marker sits on the endpoint exactly like mxMarker.createArrow().
+QPointF shortenedForMarker(const QPointF &tip, const QPointF &direction,
+                           const QString &type, double size, double strokeWidth)
+{
+    const double endOffset = strokeWidth * 1.118;
+    const double length = size + strokeWidth;
+    const QString t = type.toLower();
+    const double factor = (t == QLatin1String("classic")
+                           || t == QLatin1String("classicthin")) ? 0.75 : 1.0;
+
+    if (t == QLatin1String("open") || t == QLatin1String("openasync")
+        || t == QLatin1String("openthin"))
+    {
+        return tip - direction * (2.0 * endOffset);
+    }
+
+    return tip - direction * (length * factor + endOffset);
+}
+
+void drawClassicMarker(QPainter &painter, const QPointF &tip, const QPointF &direction,
+                       const QString &type, double size, double strokeWidth,
+                       const QColor &color, bool filled)
+{
+    const QPointF unit = direction * (size + strokeWidth);
+    const QPointF normal(-direction.y(), direction.x());
+    const QPointF pt = tip - direction * (strokeWidth * 1.118);
+    const double widthFactor = type.compare(QLatin1String("classicThin"), Qt::CaseInsensitive) == 0
+        || type.compare(QLatin1String("blockThin"), Qt::CaseInsensitive) == 0 ? 3.0 : 2.0;
+    const double halfWidth = (size + strokeWidth) / widthFactor;
+
+    QPolygonF polygon;
+    polygon << pt
+            << pt - unit - normal * halfWidth
+            << pt - unit * 0.75
+            << pt + normal * halfWidth - unit;
+
+    painter.save();
+    painter.setPen(filled ? QPen(color, strokeWidth) : QPen(color, qMax(1.0, strokeWidth)));
+
+    if (filled)
+    {
+        painter.setBrush(color);
+        painter.drawPolygon(polygon);
+    }
+    else
+    {
+        painter.setBrush(Qt::NoBrush);
+        painter.drawPolyline(QPolygonF() << polygon.at(0) << polygon.at(1) << polygon.at(2));
+        painter.drawPolyline(QPolygonF() << polygon.at(2) << polygon.at(3));
+    }
+
+    painter.restore();
+}
+
+void drawOpenMarker(QPainter &painter, const QPointF &tip, const QPointF &direction,
+                    double size, double strokeWidth, const QColor &color)
+{
+    const QPointF unit = direction * (size + strokeWidth);
+    const QPointF normal(-direction.y(), direction.x());
+    const QPointF pt = tip - direction * (strokeWidth * 1.118);
+    const double halfWidth = (size + strokeWidth) / 2.0;
+
+    painter.save();
+    QPen pen(color, qMax(1.0, strokeWidth));
+    pen.setCapStyle(Qt::RoundCap);
+    pen.setJoinStyle(Qt::MiterJoin);
+    painter.setPen(pen);
+    painter.setBrush(Qt::NoBrush);
+    painter.drawPolyline(QPolygonF() << (pt - unit - normal * halfWidth) << pt
+                                     << (pt + normal * halfWidth - unit));
+    painter.restore();
+}
+
 void drawArrowHead(QPainter &painter, const QPointF &tip, const QPointF &direction,
                    const QString &type, const QColor &color, double size,
                    double strokeWidth = 1.0, bool filled = true)
@@ -45,7 +188,6 @@ void drawArrowHead(QPainter &painter, const QPointF &tip, const QPointF &directi
     const QPointF dir = normalized(direction);
     const QPointF normal(-dir.y(), dir.x());
     const QString t = type.toLower();
-    // mxMarker.createArrow adds the stroke width to the requested size.
     const double effective = size + qMax(0.0, strokeWidth);
     const QPointF back = tip - dir * effective;
 
@@ -59,16 +201,25 @@ void drawArrowHead(QPainter &painter, const QPointF &tip, const QPointF &directi
         return;
     }
 
-    if (t == QLatin1String("open") || t == QLatin1String("openasync"))
+    if (t == QLatin1String("classic") || t == QLatin1String("classicthin"))
     {
-        QPen pen(color);
-        pen.setWidthF(qMax(1.0, strokeWidth));
-        pen.setCapStyle(Qt::RoundCap);
-        painter.setPen(pen);
-        painter.setBrush(Qt::NoBrush);
-        painter.drawLine(tip, back + normal * effective * 0.55);
-        painter.drawLine(tip, back - normal * effective * 0.55);
         painter.restore();
+        drawClassicMarker(painter, tip, dir, type, size, strokeWidth, color, filled);
+        return;
+    }
+
+    if (t == QLatin1String("block") || t == QLatin1String("blockthin"))
+    {
+        painter.restore();
+        drawClassicMarker(painter, tip, dir, type, size, strokeWidth, color, filled);
+        return;
+    }
+
+    if (t == QLatin1String("open") || t == QLatin1String("openasync")
+        || t == QLatin1String("openthin"))
+    {
+        painter.restore();
+        drawOpenMarker(painter, tip, dir, size, strokeWidth, color);
         return;
     }
 
@@ -162,109 +313,418 @@ void drawArrowHead(QPainter &painter, const QPointF &tip, const QPointF &directi
         return;
     }
 
-    if (t == QLatin1String("block") || t == QLatin1String("blockthin"))
-    {
-        const double halfWidth = effective * (t == QLatin1String("blockthin") ? 1.0 / 3.0 : 0.5);
-        QPolygonF polygon;
-        polygon << tip << back + normal * halfWidth << back - normal * halfWidth;
-        painter.setBrush(filled ? QBrush(color) : QBrush(Qt::NoBrush));
+    painter.restore();
+}
 
-        if (!filled)
+/// Port of mxMarker.createArrow() for the classic family: the line is
+/// shortened by the marker before it is painted.
+QPointF applyMarker(QPainter &painter, const Cell &edge, const QPointF &tip,
+                    const QPointF &direction, bool isStart, bool paint)
+{
+    const QString type = Style::value(edgeStyle(edge),
+        isStart ? QStringLiteral("startArrow") : QStringLiteral("endArrow"),
+        isStart ? QStringLiteral("none") : QStringLiteral("classic"));
+
+    if (type.isEmpty() || type.compare(QLatin1String("none"), Qt::CaseInsensitive) == 0)
+    {
+        return tip;
+    }
+
+    const double size = markerSize(edge, isStart ? QStringLiteral("start")
+                                                : QStringLiteral("end"));
+    const double strokeWidth = strokeWidthFor(edge);
+    const QString fillKey = isStart ? QStringLiteral("startFill") : QStringLiteral("endFill");
+    const bool filled = Style::value(edgeStyle(edge), fillKey, QStringLiteral("1"))
+        != QLatin1String("0");
+
+    if (paint)
+    {
+        drawArrowHead(painter, tip, direction, type, edgeColor(edge), size, strokeWidth, filled);
+    }
+
+    const QString t = type.toLower();
+
+    if (t == QLatin1String("classic") || t == QLatin1String("classicthin")
+        || t == QLatin1String("block") || t == QLatin1String("blockthin")
+        || t == QLatin1String("open") || t == QLatin1String("openasync")
+        || t == QLatin1String("openthin"))
+    {
+        return shortenedForMarker(tip, normalized(direction), type, size, strokeWidth);
+    }
+
+    return tip;
+}
+
+/// mxArrowConnector.paintEdgeShape(): the outline of flexArrow and link.
+/// `openEnded` strokes two parallel lines instead of a closed outline.
+QPainterPath arrowConnectorPath(const Cell &edge, const QVector<QPointF> &input,
+                                bool openEnded, double defaultWidth,
+                                double defaultArrowWidth)
+{
+    QPainterPath path;
+
+    if (input.size() < 2)
+    {
+        return path;
+    }
+
+    const StyleMap style = edgeStyle(edge);
+    const double strokeWidth = strokeWidthFor(edge);
+    const double edgeWidth = Style::number(style, QStringLiteral("width"), defaultWidth)
+        + qMax(0.0, strokeWidth - 1.0);
+    const double startArrowWidth = edgeWidth
+        + Style::number(style, QStringLiteral("startWidth"), defaultArrowWidth);
+    const double endArrowWidth = edgeWidth
+        + Style::number(style, QStringLiteral("endWidth"), defaultArrowWidth);
+    const double startWidth = startArrowWidth + strokeWidth;
+    const double endWidth = endArrowWidth + strokeWidth;
+    const bool markerStart = markerPresent(edge, QStringLiteral("startArrow"), false);
+    const bool markerEnd = markerPresent(edge, QStringLiteral("endArrow"), true);
+    const double spacing = openEnded ? 0.0 : 0.5 * strokeWidth;
+    const double startSize = Style::number(style, QStringLiteral("startSize"), 6.0) * 3.0
+        + strokeWidth;
+    const double endSize = Style::number(style, QStringLiteral("endSize"), 6.0) * 3.0
+        + strokeWidth;
+
+    const QVector<QPointF> &pts = input;
+    const QPointF pe = pts.last();
+    QPointF base = pts.at(1) - pts.first();
+    double dist = std::hypot(base.x(), base.y());
+
+    if (dist == 0.0)
+    {
+        return path;
+    }
+
+    double nx = base.x() / dist;
+    double ny = base.y() / dist;
+    double nx1 = nx;
+    double ny1 = ny;
+    double orthx = edgeWidth * ny;
+    double orthy = -edgeWidth * nx;
+    QVector<std::function<void()>> deferred;
+
+    const auto appendMarker = [&](const QPointF &point, const QPointF &n, double size,
+                                  double arrowWidth, bool initialMove)
+    {
+        const double ratio = edgeWidth / arrowWidth;
+        const QPointF orth(edgeWidth * n.y() / 2.0, -edgeWidth * n.x() / 2.0);
+        const QPointF space = n * (spacing + size);
+        const QPointF p1 = point - orth + space;
+        const QPointF p2 = point - orth / ratio + space;
+        const QPointF p3 = point + n * spacing;
+        const QPointF p4 = point + orth / ratio + space;
+        const QPointF p5 = point + orth + space;
+
+        if (initialMove)
         {
-            QPen pen(color);
-            pen.setWidthF(qMax(1.0, strokeWidth));
-            painter.setPen(pen);
+            path.moveTo(p1);
+        }
+        else
+        {
+            path.lineTo(p1);
         }
 
-        painter.drawPolygon(polygon);
-        painter.restore();
-        return;
-    }
+        path.lineTo(p2);
+        path.lineTo(p3);
+        path.lineTo(p4);
+        path.lineTo(p5);
+    };
 
-    // classic: a concave triangle with a 3/4 notch on the back edge.
-    const double widthFactor = t == QLatin1String("classicthin") ? 3.0 : 2.0;
-    const double halfWidth = effective / widthFactor;
-    const QPointF notch = tip - dir * effective * 0.75;
-    QPolygonF polygon;
-    polygon << tip << back + normal * halfWidth << notch << back - normal * halfWidth;
-    painter.setBrush(filled ? QBrush(color) : QBrush(Qt::NoBrush));
-
-    if (!filled)
+    if (markerStart && !openEnded)
     {
-        QPen pen(color);
-        pen.setWidthF(qMax(1.0, strokeWidth));
-        painter.setPen(pen);
+        appendMarker(pts.first(), QPointF(nx, ny), startSize, startWidth, true);
+    }
+    else
+    {
+        const QPointF outStart = pts.first() + QPointF(orthx / 2.0 + spacing * nx,
+                                                      orthy / 2.0 + spacing * ny);
+        const QPointF inEnd = pts.first() + QPointF(-orthx / 2.0 + spacing * nx,
+                                                    -orthy / 2.0 + spacing * ny);
+
+        if (openEnded)
+        {
+            path.moveTo(outStart);
+            deferred.append([&path, inEnd]() { path.lineTo(inEnd); });
+        }
+        else
+        {
+            path.moveTo(inEnd);
+            path.lineTo(outStart);
+        }
     }
 
-    painter.drawPolygon(polygon);
-    painter.restore();
+    for (int i = 0; i < pts.size() - 2; ++i)
+    {
+        const QPointF delta = pts.at(i + 2) - pts.at(i + 1);
+        const double segment = std::hypot(delta.x(), delta.y());
+
+        if (segment == 0.0)
+        {
+            continue;
+        }
+
+        nx1 = delta.x() / segment;
+        ny1 = delta.y() / segment;
+        const double dot = nx * nx1 + ny * ny1;
+        const double tmp = qMax(std::sqrt(qMax(0.0, (dot + 1.0) / 2.0)), 0.04);
+
+        QPointF normalSum(nx + nx1, ny + ny1);
+        const double normalLength = std::hypot(normalSum.x(), normalSum.y());
+
+        if (normalLength == 0.0)
+        {
+            continue;
+        }
+
+        normalSum /= normalLength;
+        const double angleFactor = qMax(tmp, 0.06);
+
+        const QPointF centre = pts.at(i + 1);
+        const QPointF outPoint = centre + QPointF(normalSum.y() * edgeWidth / 2.0 / angleFactor,
+                                                 -normalSum.x() * edgeWidth / 2.0 / angleFactor);
+        const QPointF inPoint = centre + QPointF(-normalSum.y() * edgeWidth / 2.0 / angleFactor,
+                                                 normalSum.x() * edgeWidth / 2.0 / angleFactor);
+
+        path.lineTo(outPoint);
+        deferred.append([&path, inPoint]() { path.lineTo(inPoint); });
+
+        nx = nx1;
+        ny = ny1;
+    }
+
+    orthx = edgeWidth * ny1;
+    orthy = -edgeWidth * nx1;
+
+    if (markerEnd && !openEnded)
+    {
+        appendMarker(pe, QPointF(-nx, -ny), endSize, endWidth, false);
+    }
+    else
+    {
+        path.lineTo(pe.x() - spacing * nx1 + orthx / 2.0,
+                    pe.y() - spacing * ny1 + orthy / 2.0);
+        const QPointF inStart(pe.x() - spacing * nx1 - orthx / 2.0,
+                              pe.y() - spacing * ny1 - orthy / 2.0);
+
+        if (!openEnded)
+        {
+            path.lineTo(inStart);
+        }
+        else
+        {
+            path.moveTo(inStart);
+            deferred.prepend([&path, inStart]() { path.moveTo(inStart); });
+        }
+    }
+
+    for (int i = deferred.size() - 1; i >= 0; --i)
+    {
+        deferred.at(i)();
+    }
+
+    if (!openEnded)
+    {
+        path.closeSubpath();
+    }
+
+    return path;
 }
 
-double arrowSize(const Cell &edge, const QString &prefix)
+/// draw.io edge labels are relative vertices: the anchor is the point on the
+/// polyline at `0.5 + x/2`, offset along the normal by `y` plus the geometry
+/// offset (mxGraphView.getPoint).
+QPointF anchorOnRoute(const RoutedEdge &route, const Cell &child)
 {
-    const double size = edge.styleNumber(prefix + QStringLiteral("Size"), 6.0);
-    return qBound(3.0, size, 40.0);
-}
-
-void paintLabel(QPainter &painter, const Page &page, const Cell &edge, const RoutedEdge &route)
-{
-    Q_UNUSED(page);
-
-    if (edge.value.isEmpty())
+    if (route.points.isEmpty())
     {
-        return;
+        return QPointF();
     }
 
-    const double fontSize = qMax(1.0, edge.styleNumber(QStringLiteral("fontSize"), 11.0));
-    const double position = edge.styleNumber(QStringLiteral("labelPosition"), 0.5);
-    const QPointF anchor = route.pointAt(position);
+    const double fraction = qBound(0.0, 0.5 + child.geometry.x() / 2.0, 1.0);
+    const double length = route.length();
+    const double target = fraction * length;
+    double walked = 0.0;
+    QPointF point = route.points.first();
+    QPointF direction(1, 0);
 
-    // Size the label box to the text: a full-width white box would cover
-    // neighbouring shapes, which is not what draw.io does.
-    const QString plain = edge.plainLabel();
-    const QFont font = LabelPainter::fontFor(edge);
+    for (int i = 1; i < route.points.size(); ++i)
+    {
+        const QPointF a = route.points.at(i - 1);
+        const QPointF b = route.points.at(i);
+        const double segment = QLineF(a, b).length();
+
+        if (segment <= 0.0)
+        {
+            continue;
+        }
+
+        if (walked + segment >= target || i == route.points.size() - 1)
+        {
+            const double t = qBound(0.0, (target - walked) / segment, 1.0);
+            point = a + (b - a) * t;
+            direction = (b - a) / segment;
+            break;
+        }
+
+        walked += segment;
+    }
+
+    // getPoint() uses (dy / length, dx / length) as the normal and flips the
+    // y component of the perpendicular offset.
+    const QPointF normal(direction.y(), -direction.x());
+    const QPointF offset = normal * child.geometry.y() + child.geometryOffset;
+
+    return point + offset;
+}
+
+QRectF labelBox(const Cell &label, const QPointF &anchor)
+{
+    const StyleMap style = edgeStyle(label);
+    const QFont font = LabelPainter::fontFor(label);
     const QFontMetricsF metrics(font);
-    double textWidth = 0.0;
+    const QString text = label.plainLabel();
+    double width = qMax(1.0, metrics.horizontalAdvance(text));
+    double height = qMax(1.0, font.pixelSize() * 1.2);
 
-    for (const QString &line : plain.split(QLatin1Char('\n')))
+    // Rich labels mix weights and colours, so the plain text width is too
+    // narrow and the label would wrap; measure the markup instead.
+    if (label.isHtmlLabel())
     {
-        textWidth = qMax(textWidth, metrics.horizontalAdvance(line));
+        QTextDocument document;
+        document.setDefaultFont(font);
+        document.setDocumentMargin(0);
+        document.setHtml(label.value);
+        document.setTextWidth(-1);
+        width = qMax(width, document.idealWidth() + 2.0);
+        height = qMax(height, document.size().height());
+    }
+    const double spacing = Style::number(style, QStringLiteral("spacing"), 2.0);
+    const double spacingLeft = Style::number(style, QStringLiteral("spacingLeft"), spacing);
+    const double spacingRight = Style::number(style, QStringLiteral("spacingRight"), spacing);
+    const double spacingTop = Style::number(style, QStringLiteral("spacingTop"), spacing);
+    const double spacingBottom = Style::number(style, QStringLiteral("spacingBottom"), spacing);
+    const Qt::Alignment alignment = LabelPainter::alignmentFor(label);
+
+    QRectF rect(0, 0, width, height);
+
+    if (alignment & Qt::AlignLeft)
+    {
+        rect.moveLeft(anchor.x() + spacingLeft);
+    }
+    else if (alignment & Qt::AlignRight)
+    {
+        rect.moveRight(anchor.x() - spacingRight);
+    }
+    else
+    {
+        rect.moveCenter(QPointF(anchor.x(), rect.center().y()));
     }
 
-    const int lineCount = qMax(1, plain.count(QLatin1Char('\n')) + 1);
-    const double width = qBound(16.0, textWidth + 8.0, qMax(40.0, route.length()));
-    const double height = qMax(fontSize * 1.5 + 4.0, metrics.height() * lineCount + 4.0);
-
-    const QString background = edge.styleValue(QStringLiteral("labelBackgroundColor"),
-                                               QStringLiteral("#ffffff"));
-
-    painter.save();
-    painter.setPen(Qt::NoPen);
-
-    if (!background.isEmpty() && !Style::isNoneColor(background))
+    if (alignment & Qt::AlignTop)
     {
-        painter.setBrush(QColor(background));
-        painter.drawRoundedRect(QRectF(anchor.x() - width / 2.0, anchor.y() - height / 2.0,
-                                       width, height),
-                                2, 2);
+        rect.moveTop(anchor.y() + spacingTop + 5.0);
+    }
+    else if (alignment & Qt::AlignBottom)
+    {
+        rect.moveBottom(anchor.y() - spacingBottom - 1.0);
+    }
+    else
+    {
+        rect.moveCenter(QPointF(rect.center().x(), anchor.y()));
     }
 
-    painter.setBrush(Qt::NoBrush);
-    painter.restore();
+    return rect;
+}
 
-    const QRectF labelBox(anchor.x() - width / 2.0, anchor.y() - height / 2.0, width, height);
+void paintLabelAt(QPainter &painter, const Cell &label, const QPointF &anchor)
+{
+    if (label.value.isEmpty())
+    {
+        return;
+    }
 
-    // Edge labels are centred horizontally; the label painter handles the rest.
-    // Cell is not copyable, so build a lightweight label carrier.
-    Cell labelCell(Cell::Kind::Vertex, QString());
-    labelCell.style = edge.style;
-    labelCell.value = edge.value;
+    const QRectF rect = labelBox(label, anchor);
+    const StyleMap style = edgeStyle(label);
+    const QFont font = LabelPainter::fontFor(label);
+    const Qt::Alignment alignment = LabelPainter::alignmentFor(label);
+    const QString background = Style::value(style, QStringLiteral("labelBackgroundColor"));
+
     painter.save();
-    LabelPainter::paint(painter, labelCell, labelBox);
+
+    // draw.io cuts the label background out of the edge (mxImageExport
+    // addLabelGaps); painting the page colour over the line is equivalent.
+    if (background.isEmpty() || Style::isNoneColor(background)
+        || background.compare(QLatin1String("default"), Qt::CaseInsensitive) == 0)
+    {
+        painter.fillRect(rect.adjusted(-1, -1, 1, 1), QColor(Qt::white));
+    }
+    else
+    {
+        painter.fillRect(rect.adjusted(-1, -1, 1, 1), QColor(background));
+    }
+
+    // Rich labels keep their inline runs (colour, bold, italic, underline).
+    if (label.isHtmlLabel())
+    {
+        // LabelPainter insets its bounds by the label spacing; grow the box by
+        // the same amount so the text lands exactly on the computed rect.
+        const StyleMap labelStyle = Style::withDefaults(label.style);
+        const double spacing = Style::number(labelStyle, QStringLiteral("spacing"), 2.0);
+        const QRectF bounds = rect.adjusted(-(spacing + Style::number(labelStyle, QStringLiteral("spacingLeft"), 0.0)),
+                                            -(spacing + Style::number(labelStyle, QStringLiteral("spacingTop"), 0.0)),
+                                            spacing + Style::number(labelStyle, QStringLiteral("spacingRight"), 0.0),
+                                            spacing + Style::number(labelStyle, QStringLiteral("spacingBottom"), 0.0));
+        LabelPainter::paint(painter, label, bounds, false);
+    }
+    else
+    {
+        painter.setFont(font);
+        painter.setPen(LabelPainter::textColor(label));
+        painter.drawText(rect, alignment, label.plainLabel());
+    }
+
     painter.restore();
+}
+
+void paintChild(QPainter &painter, const Cell &edge, const Cell &child)
+{
+    const RoutedEdge route = EdgeRouter::route(*edge.page, edge);
+    const QPointF anchor = anchorOnRoute(route, child);
+
+    if (child.geometry.width() > 0.0 || child.geometry.height() > 0.0)
+    {
+        ShapeRenderer::paint(painter, child, &anchor);
+    }
+    else
+    {
+        paintLabelAt(painter, child, anchor);
+    }
 }
 
 } // namespace
+
+QPointF EdgeRenderer::childAnchor(const RoutedEdge &route, const Cell &child)
+{
+    return anchorOnRoute(route, child);
+}
+
+QRectF EdgeRenderer::childBounds(const RoutedEdge &route, const Cell &child)
+{
+    if (route.points.isEmpty())
+    {
+        return QRectF();
+    }
+
+    const QPointF anchor = anchorOnRoute(route, child);
+
+    if (child.geometry.width() > 0.0 || child.geometry.height() > 0.0)
+    {
+        return QRectF(anchor, child.geometry.size());
+    }
+
+    return labelBox(child, anchor);
+}
 
 QPainterPath EdgeRenderer::pathFor(const RoutedEdge &route, const Cell &edge)
 {
@@ -275,21 +735,43 @@ QPainterPath EdgeRenderer::pathFor(const RoutedEdge &route, const Cell &edge)
         return path;
     }
 
-    path.moveTo(route.points.first());
+    const StyleMap style = edgeStyle(edge);
+    const bool curved = Style::flag(style, QStringLiteral("curved"));
+    const bool rounded = Style::flag(style, QStringLiteral("rounded"));
+    QVector<QPointF> points = route.points;
 
-    const bool rounded = edge.styleFlag(QStringLiteral("rounded"));
-    double radius = rounded
-        ? qBound(0.0, edge.styleNumber(QStringLiteral("arcSize"), 20.0) / 100.0 * 30.0 + 4.0, 30.0)
+    if (curved && points.size() > 2)
+    {
+        // mxPolyline.paintCurvedLine(): quadratic spline through the midpoints
+        // of the guide points.
+        path.moveTo(points.first());
+
+        for (int i = 1; i < points.size() - 2; ++i)
+        {
+            const QPointF control = points.at(i);
+            const QPointF next = points.at(i + 1);
+            path.quadTo(control, (control + next) / 2.0);
+        }
+
+        path.quadTo(points.at(points.size() - 2), points.last());
+        return path;
+    }
+
+    path.moveTo(points.first());
+
+    const double radius = rounded
+        ? qBound(0.0, Style::number(style, QStringLiteral("arcSize"), 20.0) / 100.0 * 30.0 + 4.0,
+                 30.0)
         : 0.0;
 
-    for (int i = 1; i < route.points.size(); ++i)
+    for (int i = 1; i < points.size(); ++i)
     {
-        const QPointF &previous = route.points.at(i - 1);
-        const QPointF &current = route.points.at(i);
+        const QPointF &previous = points.at(i - 1);
+        const QPointF &current = points.at(i);
 
-        if (i < route.points.size() - 1 && radius > 0.0)
+        if (i < points.size() - 1 && radius > 0.0)
         {
-            const QPointF &next = route.points.at(i + 1);
+            const QPointF &next = points.at(i + 1);
             const QPointF in = normalized(previous - current);
             const QPointF out = normalized(next - current);
             const double inLength = QLineF(current, previous).length();
@@ -308,148 +790,6 @@ QPainterPath EdgeRenderer::pathFor(const RoutedEdge &route, const Cell &edge)
     return path;
 }
 
-namespace {
-
-void paintFlexArrow(QPainter &painter, const Cell &edge, const RoutedEdge &route)
-{
-    if (route.points.size() < 2)
-    {
-        return;
-    }
-
-    // draw.io's default shape fill is white: flexArrow edges without an explicit
-    // fillColor are outlined white arrows, not coloured ones.
-    const QColor fill = edge.styleColor(QStringLiteral("fillColor"), QColor(Qt::white));
-    const QColor stroke = edgeColor(edge);
-
-    // draw.io's flexArrow has a solid shaft and a wide triangular head; its
-    // size is independent of the generic arrow markers.
-    // Matches draw.io's default flexArrow proportions: the head is almost as
-    // wide as the available gap, while the shaft is roughly one third of it.
-    double shaft = edge.styleNumber(QStringLiteral("arrowWidth"), 11.0);
-
-    if (shaft < 2.0)
-    {
-        shaft = 11.0; // style may store a fraction; fall back to the default
-    }
-
-    // draw.io: endSize (default 6) is multiplied by three for flexArrow.
-    const double headLength = qBound(8.0,
-                                     edge.styleNumber(QStringLiteral("endSize"), 6.0) * 3.0,
-                                     60.0);
-    const double headWidth = qMax(headLength, 30.0);
-    shaft = qBound(4.0, shaft, 40.0);
-
-    const QPointF tip = route.points.last();
-    const QPointF previous = route.points.at(route.points.size() - 2);
-    const QPointF direction = normalized(tip - previous);
-    const QPointF normal(-direction.y(), direction.x());
-    const QPointF base = tip - direction * headLength;
-
-    // A straight flexArrow is a single closed polygon. Building it from a
-    // stroked line plus a head leaves the shaft's cap edge visible inside the
-    // head, which draw.io does not show.
-    if (route.points.size() == 2)
-    {
-        const QPointF start = route.points.first();
-        const double shaftHalf = shaft / 2.0;
-        const double headHalf = qMax(headWidth / 2.0, shaftHalf);
-        const double length = QLineF(start, tip).length();
-        const double head = qMin(headLength, length / 2.0);
-        const QPointF startBase = start + direction * head;
-        const QPointF endBase = tip - direction * head;
-
-        const QString startArrow = edge.styleValue(QStringLiteral("startArrow"),
-                                                   QStringLiteral("none"));
-        const QString endArrow = edge.styleValue(QStringLiteral("endArrow"),
-                                                 QStringLiteral("classic"));
-        const bool startHead = startArrow.compare(QLatin1String("none"), Qt::CaseInsensitive) != 0
-            && !startArrow.isEmpty();
-        const bool endHead = endArrow.compare(QLatin1String("none"), Qt::CaseInsensitive) != 0
-            && !endArrow.isEmpty();
-
-        QPolygonF polygon;
-
-        if (startHead)
-        {
-            polygon << start
-                    << startBase + normal * headHalf
-                    << startBase + normal * shaftHalf;
-        }
-        else
-        {
-            polygon << start + normal * shaftHalf;
-        }
-
-        if (endHead)
-        {
-            polygon << endBase + normal * shaftHalf
-                    << endBase + normal * headHalf
-                    << tip
-                    << endBase - normal * headHalf
-                    << endBase - normal * shaftHalf;
-        }
-        else
-        {
-            polygon << tip + normal * shaftHalf
-                    << tip - normal * shaftHalf;
-        }
-
-        if (startHead)
-        {
-            polygon << startBase - normal * shaftHalf
-                    << startBase - normal * headHalf;
-        }
-        else
-        {
-            polygon << start - normal * shaftHalf;
-        }
-
-        QPainterPath outline;
-        outline.addPolygon(polygon);
-        outline.closeSubpath();
-
-        painter.save();
-        painter.setPen(QPen(stroke, 1.0));
-        painter.setBrush(fill);
-        painter.drawPath(outline);
-        painter.restore();
-        return;
-    }
-
-    QPainterPath line;
-    line.moveTo(route.points.first());
-
-    for (int i = 1; i < route.points.size() - 1; ++i)
-    {
-        line.lineTo(route.points.at(i));
-    }
-
-    line.lineTo(base);
-
-    QPainterPathStroker stroker;
-    stroker.setWidth(shaft);
-    stroker.setCapStyle(Qt::FlatCap);
-    stroker.setJoinStyle(Qt::RoundJoin);
-    QPainterPath shaftPath = stroker.createStroke(line);
-
-    QPainterPath headPath;
-    headPath.moveTo(tip);
-    headPath.lineTo(base + normal * (headWidth / 2.0));
-    headPath.lineTo(base - normal * (headWidth / 2.0));
-    headPath.closeSubpath();
-
-    QPainterPath shape = shaftPath.united(headPath);
-
-    painter.save();
-    painter.setPen(QPen(stroke, 1.0));
-    painter.setBrush(fill);
-    painter.drawPath(shape);
-    painter.restore();
-}
-
-} // namespace
-
 QRectF EdgeRenderer::boundsFor(const RoutedEdge &route, const Cell &edge)
 {
     QRectF bounds;
@@ -462,13 +802,13 @@ QRectF EdgeRenderer::boundsFor(const RoutedEdge &route, const Cell &edge)
     const QPolygonF polygon(route.points);
     bounds = polygon.boundingRect();
 
-    double margin = qMax(1.0, edge.styleNumber(QStringLiteral("strokeWidth"), 1.0))
-        + arrowSize(edge, QStringLiteral("end"));
+    double margin = qMax(1.0, strokeWidthFor(edge))
+        + markerSize(edge, QStringLiteral("end"));
 
-    if (edge.styleValue(QStringLiteral("shape")).compare(QLatin1String("flexArrow"),
-                                                         Qt::CaseInsensitive) == 0)
+    if (Style::value(edgeStyle(edge), QStringLiteral("shape"))
+            .compare(QLatin1String("flexArrow"), Qt::CaseInsensitive) == 0)
     {
-        margin = qMax(margin, 18.0);
+        margin = qMax(margin, 24.0);
     }
 
     return bounds.adjusted(-margin, -margin, margin, margin);
@@ -476,8 +816,10 @@ QRectF EdgeRenderer::boundsFor(const RoutedEdge &route, const Cell &edge)
 
 void EdgeRenderer::paintMarkers(QPainter &painter, const Page &page, const Cell &edge)
 {
-    if (edge.styleValue(QStringLiteral("shape")).compare(QLatin1String("flexArrow"),
-                                                         Qt::CaseInsensitive) == 0)
+    Q_UNUSED(page);
+
+    if (Style::value(edgeStyle(edge), QStringLiteral("shape"))
+            .compare(QLatin1String("flexArrow"), Qt::CaseInsensitive) == 0)
     {
         return;
     }
@@ -489,25 +831,12 @@ void EdgeRenderer::paintMarkers(QPainter &painter, const Page &page, const Cell 
         return;
     }
 
-    const QColor color = edgeColor(edge);
-    const double strokeWidth = edge.styleNumber(QStringLiteral("strokeWidth"), 1.0);
-    const QPointF endDirection = route.points.last() - route.points.at(route.points.size() - 2);
-    const QString endArrow = edge.styleValue(QStringLiteral("endArrow"), QStringLiteral("classic"));
-    const bool endFilled = edge.styleValue(QStringLiteral("endFill"), QStringLiteral("1"))
-        != QLatin1String("0");
-    drawArrowHead(painter, route.points.last(), endDirection, endArrow, color,
-                  arrowSize(edge, QStringLiteral("end")), strokeWidth, endFilled);
-
-    const QString startArrow = edge.styleValue(QStringLiteral("startArrow"), QStringLiteral("none"));
-
-    if (startArrow != QLatin1String("none") && !startArrow.isEmpty())
-    {
-        const QPointF startDirection = route.points.first() - route.points.at(1);
-        const bool startFilled = edge.styleValue(QStringLiteral("startFill"), QStringLiteral("1"))
-            != QLatin1String("0");
-        drawArrowHead(painter, route.points.first(), startDirection, startArrow, color,
-                      arrowSize(edge, QStringLiteral("start")), strokeWidth, startFilled);
-    }
+    painter.save();
+    applyMarker(painter, edge, route.points.last(),
+                route.points.last() - route.points.at(route.points.size() - 2), false, true);
+    applyMarker(painter, edge, route.points.first(),
+                route.points.first() - route.points.at(1), true, true);
+    painter.restore();
 }
 
 void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
@@ -519,19 +848,74 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
         return;
     }
 
-    if (edge.styleValue(QStringLiteral("shape")).compare(QLatin1String("flexArrow"),
-                                                         Qt::CaseInsensitive) == 0)
+    const StyleMap style = edgeStyle(edge);
+    const QString shape = Style::value(style, QStringLiteral("shape")).toLower();
+    const QColor color = edgeColor(edge);
+    const double strokeWidth = strokeWidthFor(edge);
+    const double crispOffset = crispOffsetFor(painter, edge);
+
+    painter.save();
+
+    if (crispOffset > 0.0)
     {
-        paintFlexArrow(painter, edge, route);
-        paintLabel(painter, page, edge, route);
+        painter.translate(crispOffset, crispOffset);
+    }
+
+    if (shape == QLatin1String("flexarrow") || shape == QLatin1String("link"))
+    {
+        const bool link = shape == QLatin1String("link");
+        const QPainterPath path = arrowConnectorPath(edge, route.points, link,
+                                                     link ? 4.0 : 10.0, 20.0);
+        QPen pen(color, strokeWidth);
+        pen.setJoinStyle(Qt::MiterJoin);
+        pen.setCapStyle(Qt::FlatCap);
+        painter.setPen(pen);
+
+        // flexArrow honours an explicit fillColor; without one it is a hollow
+        // outline, exactly like draw.io (mxShape.fill is null for edges).
+        QBrush fill(Qt::NoBrush);
+        const QString fillValue = Style::value(style, QStringLiteral("fillColor"));
+
+        if (!link && !fillValue.isEmpty()
+            && fillValue.compare(QLatin1String("default"), Qt::CaseInsensitive) != 0
+            && !Style::isNoneColor(fillValue))
+        {
+            const QColor parsed = Style::parseColorValue(fillValue);
+
+            if (parsed.isValid())
+            {
+                fill = QBrush(parsed);
+            }
+        }
+
+        painter.setBrush(fill);
+
+        if (color.alpha() > 0)
+        {
+            painter.drawPath(path);
+        }
+
+        painter.restore();
+
+        for (const Cell *child : edge.children)
+        {
+            if (child->visible)
+            {
+                paintChild(painter, edge, *child);
+            }
+        }
+
+        if (!edge.value.isEmpty())
+        {
+            paintLabelAt(painter, edge, route.pointAt(0.5));
+        }
+
         return;
     }
 
-    const QString shapeName = edge.styleValue(QStringLiteral("shape")).toLower();
-
-    if (shapeName == QLatin1String("mxgraph.arrows2.wedgearrow")
-        || shapeName == QLatin1String("mxgraph.arrows2.wedgearrowdashed2")
-        || shapeName == QLatin1String("mxgraph.arrows2.wedgearrowdashed"))
+    if (shape == QLatin1String("mxgraph.arrows2.wedgearrow")
+        || shape == QLatin1String("mxgraph.arrows2.wedgearrowdashed2")
+        || shape == QLatin1String("mxgraph.arrows2.wedgearrowdashed"))
     {
         // mxShapeArrowsWedgeArrow*: the wedge is built from the edge endpoints.
         const QPointF p0 = route.points.first();
@@ -539,10 +923,9 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
         const double dx = pe.x() - p0.x();
         const double dy = pe.y() - p0.y();
         const double dist = std::hypot(dx, dy);
-        const double startWidth = qMax(0.0, edge.styleNumber(QStringLiteral("startWidth"), 20.0));
+        const double startWidth = qMax(0.0, Style::number(style, QStringLiteral("startWidth"), 20.0));
 
         painter.save();
-        const QColor color = edgeColor(edge);
         painter.setPen(edgePen(edge));
         painter.setBrush(Qt::NoBrush);
 
@@ -551,14 +934,14 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
             const double nx = dx * startWidth / dist;
             const double ny = dy * startWidth / dist;
 
-            if (shapeName == QLatin1String("mxgraph.arrows2.wedgearrow"))
+            if (shape == QLatin1String("mxgraph.arrows2.wedgearrow"))
             {
                 QPolygonF wedge;
                 wedge << QPointF(p0.x() + ny, p0.y() - nx)
                       << QPointF(p0.x() - ny, p0.y() + nx)
                       << pe;
                 QColor fill = color;
-                const QString fillValue = edge.styleValue(QStringLiteral("fillColor"));
+                const QString fillValue = Style::value(style, QStringLiteral("fillColor"));
 
                 if (fillValue.compare(QLatin1String("strokeColor"), Qt::CaseInsensitive) == 0)
                 {
@@ -574,12 +957,12 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
             }
             else
             {
-                const double stepSize = qMax(0.0, edge.styleNumber(QStringLiteral("stepSize"),
-                                                                   shapeName.endsWith(QLatin1Char('2'))
+                const double stepSize = qMax(0.0, Style::number(style, QStringLiteral("stepSize"),
+                                                                   shape.endsWith(QLatin1Char('2'))
                                                                        ? 10.0 : 20.0));
                 int steps = 8;
 
-                if (shapeName.endsWith(QLatin1Char('2')))
+                if (shape.endsWith(QLatin1Char('2')))
                 {
                     steps = stepSize > 0.0 ? qMin(int(dist / stepSize), 10000) : 0;
                 }
@@ -614,48 +997,64 @@ void EdgeRenderer::paint(QPainter &painter, const Page &page, const Cell &edge)
         }
 
         painter.restore();
-        paintLabel(painter, page, edge, route);
+        painter.restore();
+
+        for (const Cell *child : edge.children)
+        {
+            if (child->visible)
+            {
+                paintChild(painter, edge, *child);
+            }
+        }
+
+        if (!edge.value.isEmpty())
+        {
+            paintLabelAt(painter, edge, route.pointAt(0.5));
+        }
+
         return;
     }
 
-    painter.save();
+    // Plain connectors: shorten the polyline for the markers, paint the line
+    // and then the markers on top.
+    QVector<QPointF> points = route.points;
+    const QPointF endDirection = points.last() - points.at(points.size() - 2);
+    const QPointF startDirection = points.first() - points.at(1);
+    const QPointF endShortened = applyMarker(painter, edge, points.last(), endDirection, false, false);
+    const QPointF startShortened = applyMarker(painter, edge, points.first(), startDirection, true, false);
+    points.last() = endShortened;
+    points.first() = startShortened;
 
-    const QColor color = edgeColor(edge);
+    RoutedEdge shortenedRoute = route;
+    shortenedRoute.points = points;
+
     QPen pen = edgePen(edge);
     pen.setColor(color);
     painter.setPen(pen);
     painter.setBrush(Qt::NoBrush);
 
-    const QPainterPath path = pathFor(route, edge);
-
     if (color.alpha() > 0)
     {
-        painter.drawPath(path);
+        painter.drawPath(pathFor(shortenedRoute, edge));
     }
 
-    // Arrow heads use the adjacent segment orientation.
-    const QPointF endDirection = route.points.last() - route.points.at(route.points.size() - 2);
-    const QString endArrow = edge.styleValue(QStringLiteral("endArrow"), QStringLiteral("classic"));
-    const double strokeWidth = edge.styleNumber(QStringLiteral("strokeWidth"), 1.0);
-    const bool endFilled = edge.styleValue(QStringLiteral("endFill"), QStringLiteral("1"))
-        != QLatin1String("0");
-    drawArrowHead(painter, route.points.last(), endDirection, endArrow, color,
-                  arrowSize(edge, QStringLiteral("end")), strokeWidth, endFilled);
-
-    const QString startArrow = edge.styleValue(QStringLiteral("startArrow"), QStringLiteral("none"));
-
-    if (startArrow != QLatin1String("none") && !startArrow.isEmpty())
-    {
-        const QPointF startDirection = route.points.first() - route.points.at(1);
-        const bool startFilled = edge.styleValue(QStringLiteral("startFill"), QStringLiteral("1"))
-            != QLatin1String("0");
-        drawArrowHead(painter, route.points.first(), startDirection, startArrow, color,
-                      arrowSize(edge, QStringLiteral("start")), strokeWidth, startFilled);
-    }
+    applyMarker(painter, edge, route.points.last(), endDirection, false, true);
+    applyMarker(painter, edge, route.points.first(), startDirection, true, true);
 
     painter.restore();
 
-    paintLabel(painter, page, edge, route);
+    for (const Cell *child : edge.children)
+    {
+        if (child->visible)
+        {
+            paintChild(painter, edge, *child);
+        }
+    }
+
+    if (!edge.value.isEmpty())
+    {
+        paintLabelAt(painter, edge, route.pointAt(0.5));
+    }
 }
 
 } // namespace dq

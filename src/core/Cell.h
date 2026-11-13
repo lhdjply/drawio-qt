@@ -39,9 +39,19 @@ public:
     QString parentId = QStringLiteral("1");
     bool visible = true;
 
+    /// draw.io stores the folded state as a cell attribute and the size to
+    /// restore on expand in <alternateBounds>.
+    bool collapsed = false;
+    QRectF alternateBounds;
+
     // Vertex geometry, expressed in the coordinate space of the parent.
     QRectF geometry;
     double rotation = 0.0;
+    /// draw.io's `relative="1"` geometry: the cell is placed on its parent
+    /// edge (edge labels and symbols such as `shape=message`).
+    bool relativeGeometry = false;
+    /// `<mxPoint as="offset">` of the geometry, in page units.
+    QPointF geometryOffset;
 
     // Edge terminals. A terminal is either a cell reference or a free point.
     QString sourceId;
@@ -85,6 +95,8 @@ public:
     /// Container cells (groups, swimlanes) clip and move their children.
     bool isContainer() const;
     bool isGroup() const;
+    /// True for labels and symbols placed on an edge (parent is an edge).
+    bool isEdgeChild() const;
 
     /// Walks up the parent chain. Never returns the root layer.
     Cell *topLevelAncestor() const;

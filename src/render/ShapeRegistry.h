@@ -9,15 +9,34 @@
 
 namespace dq {
 
+/// A child cell created together with a palette entry (the items of the List
+/// container, the labels and symbol of a connector template).
+struct ShapeChildDefinition
+{
+    QString style;
+    QString value;
+    QRectF geometry;
+    QPointF offset;
+    bool relative = false;
+};
+
 /// A shape offered by the left hand shape palette.
 struct ShapeDefinition
 {
     QString key;
     QString name;
     QString style;
+    QString value;
     QSizeF size = QSizeF(120, 60);
     QString category = QStringLiteral("basic");
     QString imagePath; // set for shapes rendered from a bundled SVG/PNG
+
+    /// draw.io's General palette also holds edge templates (lines, arrows and
+    /// connectors); those are inserted as floating edges, not vertices.
+    bool edge = false;
+    /// Waypoints of an edge template, relative to the cell's top-left corner.
+    QVector<QPointF> waypoints;
+    QVector<ShapeChildDefinition> children;
 };
 
 /// Geometry and defaults for the shape library. The names follow draw.io's

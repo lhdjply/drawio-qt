@@ -15,9 +15,15 @@ class Page;
 namespace EdgeRenderer {
 
 void paint(QPainter &painter, const Page &page, const Cell &edge);
+
 /// Repaints only the arrow heads, after vertices, so markers that land on a
 /// shape border stay visible above its fill (draw.io does the same).
 void paintMarkers(QPainter &painter, const Page &page, const Cell &edge);
+
+/// Position of an edge label or symbol (a vertex whose parent is the edge).
+QPointF childAnchor(const RoutedEdge &route, const Cell &child);
+/// Bounds of an edge label or symbol, used by DiagramRenderer::contentBounds.
+QRectF childBounds(const RoutedEdge &route, const Cell &child);
 QPainterPath pathFor(const RoutedEdge &route, const Cell &edge);
 
 /// Axis aligned bounding box of a routed edge, including arrow heads.

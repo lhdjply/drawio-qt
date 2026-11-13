@@ -738,6 +738,11 @@ void FormatPanel::buildUi()
             return;
         }
 
+        if (m_view->applyEditorFontFamily(m_fontFamily->itemData(index).toString()))
+        {
+            return;
+        }
+
         m_view->applyStyle(QStringLiteral("fontFamily"), m_fontFamily->itemData(index).toString());
     });
     connect(m_fontFamily->lineEdit(), &QLineEdit::editingFinished, this, [this]()
@@ -749,20 +754,25 @@ void FormatPanel::buildUi()
 
         const QString family = m_fontFamily->currentText().trimmed();
 
-        if (!family.isEmpty())
+        if (!family.isEmpty() && !m_view->applyEditorFontFamily(family))
         {
             m_view->applyStyle(QStringLiteral("fontFamily"), family);
         }
     });
     connect(m_fontSize, qOverload<int>(&QSpinBox::valueChanged), this, [this](int value)
     {
-        if (!m_updating)
+        if (!m_updating && !m_view->applyEditorFontSize(value))
         {
             m_view->applyStyle(QStringLiteral("fontSize"), QString::number(value));
         }
     });
     connect(m_fontColor, &ColorButton::valueChanged, this, [this](const QString &value)
     {
+        if (m_view->applyEditorFontColor(value))
+        {
+            return;
+        }
+
         value.isEmpty() ? m_view->clearStyle(QStringLiteral("fontColor"))
                         : m_view->applyStyle(QStringLiteral("fontColor"), value);
     });
@@ -782,23 +792,23 @@ void FormatPanel::buildUi()
         }
     });
 
-    auto updateFontStyle = [this]()
+    // Keep the editor focused while its selection is formatted.
+    m_bold->setFocusPolicy(Qt::NoFocus);
+    m_italic->setFocusPolicy(Qt::NoFocus);
+    m_underline->setFocusPolicy(Qt::NoFocus);
+
+    connect(m_bold, &QToolButton::toggled, this, [this](bool enabled)
     {
-        if (m_updating)
-        {
-            return;
-        }
-
-        int value = 0;
-        value |= m_bold->isChecked() ? 1 : 0;
-        value |= m_italic->isChecked() ? 2 : 0;
-        value |= m_underline->isChecked() ? 4 : 0;
-        m_view->applyStyle(QStringLiteral("fontStyle"), QString::number(value));
-    };
-
-    connect(m_bold, &QToolButton::toggled, this, updateFontStyle);
-    connect(m_italic, &QToolButton::toggled, this, updateFontStyle);
-    connect(m_underline, &QToolButton::toggled, this, updateFontStyle);
+        applyFontStyleBit(1, enabled);
+    });
+    connect(m_italic, &QToolButton::toggled, this, [this](bool enabled)
+    {
+        applyFontStyleBit(2, enabled);
+    });
+    connect(m_underline, &QToolButton::toggled, this, [this](bool enabled)
+    {
+        applyFontStyleBit(4, enabled);
+    });
 
     // --- connectors -------------------------------------------------------
     auto *edgeGroup = new QGroupBox(QStringLiteral("Connector"), content);
@@ -990,6 +1000,33 @@ void FormatPanel::setView(DiagramView *view)
     if (m_view != nullptr)
     {
         connect(m_view, &DiagramView::selectionChanged, this, &FormatPanel::updateFromSelection);
+
+        // While a label is edited, mirror the format under the cursor.
+        connect(m_view, &DiagramView::editorCharFormatChanged, this,
+                [this](int pointSize, const QString &family, const QColor &color, int bits)
+        {
+            m_updating = true;
+
+            if (pointSize > 0)
+            {
+                m_fontSize->setValue(pointSize);
+            }
+
+            if (!family.isEmpty())
+            {
+                m_fontFamily->setCurrentText(family);
+            }
+
+            if (color.isValid())
+            {
+                m_fontColor->setStyleValue(color.name());
+            }
+
+            m_bold->setChecked((bits & 1) != 0);
+            m_italic->setChecked((bits & 2) != 0);
+            m_underline->setChecked((bits & 4) != 0);
+            m_updating = false;
+        });
     }
 
     updateFromSelection();
@@ -1253,6 +1290,27 @@ void FormatPanel::updateEnabled(bool hasSelection, bool hasVertex, bool hasEdge)
     m_startSize->setEnabled(hasEdge);
     m_endSize->setEnabled(hasEdge);
 
+}
+
+
+void FormatPanel::applyFontStyleBit(int bit, bool enabled)
+{
+    if (m_updating)
+    {
+        return;
+    }
+
+    // While a label is open, bold/italic/underline apply to the selection.
+    if (m_view != nullptr && m_view->applyEditorFontStyle(bit, enabled))
+    {
+        return;
+    }
+
+    int value = 0;
+    value |= m_bold->isChecked() ? 1 : 0;
+    value |= m_italic->isChecked() ? 2 : 0;
+    value |= m_underline->isChecked() ? 4 : 0;
+    m_view->applyStyle(QStringLiteral("fontStyle"), QString::number(value));
 }
 
 } // namespace dq

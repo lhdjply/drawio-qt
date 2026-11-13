@@ -80,13 +80,14 @@ QPen penFor(const Cell &cell)
 {
     QPen pen;
 
+    const StyleMap style = Style::withDefaults(cell.style);
     const QColor stroke = ShapeRenderer::strokeColor(cell);
     pen.setColor(stroke);
-    pen.setWidthF(qMax(0.5, cell.styleNumber(QStringLiteral("strokeWidth"), 1.0)));
+    pen.setWidthF(qMax(0.5, Style::number(style, QStringLiteral("strokeWidth"), 1.0)));
 
-    if (cell.styleFlag(QStringLiteral("dashed")))
+    if (Style::flag(style, QStringLiteral("dashed")))
     {
-        const QString dashPattern = cell.styleValue(QStringLiteral("dashPattern"));
+        const QString dashPattern = Style::value(style, QStringLiteral("dashPattern"));
 
         if (!dashPattern.isEmpty())
         {
@@ -115,9 +116,10 @@ QPen penFor(const Cell &cell)
         }
         else
         {
-            // A slightly wider gap than Qt's default keeps dashed outlines
-            // readable when the canvas is zoomed out.
-            pen.setDashPattern({4.0, 3.0});
+            // mxAbstractCanvas2D.setDashed() uses 3 3 for plain dashed
+            // strokes; Qt scales dash patterns by the pen width, exactly like
+            // draw.io scales them by the stroke width.
+            pen.setDashPattern({3.0, 3.0});
         }
     }
 
@@ -131,27 +133,181 @@ QPen penFor(const Cell &cell)
 
 namespace LabelPainter {
 
+namespace {
+
+/// draw.io resolves bare style keywords such as `text;` through its
+/// stylesheet (styles/default.xml). The renderer reads labels and colours
+/// through this resolved view so that those defaults apply without changing
+/// the cell's own style string.
+StyleMap resolvedStyle(const Cell &cell)
+{
+    return Style::withDefaults(cell.style);
+}
+
+QString blockTagName(const QString &tag)
+{
+    int end = 0;
+
+    while (end < tag.size() && (tag.at(end).isLetterOrNumber()))
+    {
+        ++end;
+    }
+
+    return tag.left(end).toLower();
+}
+
+double cssNumber(const QString &value, double emBase, bool *ok)
+{
+    static const QRegularExpression pattern(
+        QStringLiteral("^\\s*(-?[0-9.]+)\\s*(px|pt|em|%)?\\s*$"),
+        QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch match = pattern.match(value);
+
+    if (!match.hasMatch())
+    {
+        *ok = false;
+        return 0.0;
+    }
+
+    *ok = true;
+    double number = match.captured(1).toDouble();
+    const QString unit = match.captured(2).toLower();
+
+    if (unit == QLatin1String("pt"))
+    {
+        number *= 1.3;
+    }
+    else if (unit == QLatin1String("em"))
+    {
+        number *= emBase;
+    }
+    else if (unit == QLatin1String("%"))
+    {
+        number = number * emBase / 100.0;
+    }
+
+    return number;
+}
+
+double cssLength(const QString &tag, const QString &property, double fallback, double emBase)
+{
+    const QRegularExpression pattern(
+        QStringLiteral("(?:^|[;\"'\\s])") + QRegularExpression::escape(property)
+            + QStringLiteral("\\s*:\\s*([^;\"']+)"),
+        QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch match = pattern.match(tag);
+
+    if (!match.hasMatch())
+    {
+        return fallback;
+    }
+
+    bool ok = false;
+    const double value = cssNumber(match.captured(1), emBase, &ok);
+    return ok ? value : fallback;
+}
+
+struct BlockStyle
+{
+    QFont font;
+    Qt::Alignment align = Qt::AlignLeft;
+    double marginTop = 0.0;
+    double marginBottom = 0.0;
+};
+
+BlockStyle blockStyleFor(const QString &tag, const QFont &baseFont, Qt::Alignment baseAlign,
+                         bool isHtml)
+{
+    BlockStyle block;
+    block.font = baseFont;
+    block.align = baseAlign;
+
+    if (!isHtml)
+    {
+        return block;
+    }
+
+    const QString name = blockTagName(tag);
+    static const QHash<QString, double> headings = {
+        {QStringLiteral("h1"), 2.0}, {QStringLiteral("h2"), 1.5},
+        {QStringLiteral("h3"), 1.17}, {QStringLiteral("h4"), 1.0},
+        {QStringLiteral("h5"), 0.83}, {QStringLiteral("h6"), 0.67},
+    };
+
+    const auto heading = headings.constFind(name);
+
+    if (heading != headings.constEnd())
+    {
+        block.font.setPixelSize(qMax(1, qRound(baseFont.pixelSize() * heading.value())));
+        block.font.setBold(true);
+        const double em = block.font.pixelSize();
+        block.marginTop = 0.67 * em;
+        block.marginBottom = 0.67 * em;
+    }
+    else if (name == QLatin1String("p"))
+    {
+        const double em = baseFont.pixelSize();
+        block.marginTop = em;
+        block.marginBottom = em;
+    }
+
+    // Inline style attributes override the tag defaults.
+    const double em = block.font.pixelSize();
+
+    if (tag.contains(QLatin1String("font-size"), Qt::CaseInsensitive))
+    {
+        const double size = cssLength(tag, QStringLiteral("font-size"), em, baseFont.pixelSize());
+
+        if (size > 0.5 && size < 500.0)
+        {
+            block.font.setPixelSize(qRound(size));
+        }
+    }
+
+    block.marginTop = cssLength(tag, QStringLiteral("margin-top"), block.marginTop, em);
+    block.marginBottom = cssLength(tag, QStringLiteral("margin-bottom"), block.marginBottom, em);
+
+    static const QRegularExpression alignPattern(
+        QStringLiteral("text-align\\s*:\\s*(left|right|center|justify)"),
+        QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch alignMatch = alignPattern.match(tag);
+
+    if (alignMatch.hasMatch())
+    {
+        block.align = alignmentFromTag(tag, baseAlign);
+    }
+
+    return block;
+}
+
+} // namespace
+
 QFont fontFor(const Cell &cell)
 {
-    QFont font(normalizedFontFamily(cell.styleValue(QStringLiteral("fontFamily"))));
-    font.setPixelSize(qMax(1, static_cast<int>(cell.styleNumber(QStringLiteral("fontSize"), 11.0))));
+    const StyleMap style = resolvedStyle(cell);
+    QFont font(normalizedFontFamily(Style::value(style, QStringLiteral("fontFamily"))));
+    const double fallback = cell.isEdge() ? 11.0 : 12.0;
+    font.setPixelSize(qMax(1, qRound(Style::number(style, QStringLiteral("fontSize"), fallback))));
 
-    const int style = static_cast<int>(cell.styleNumber(QStringLiteral("fontStyle"), 0));
-    font.setBold((style & 1) != 0);
-    font.setItalic((style & 2) != 0);
-    font.setUnderline((style & 4) != 0);
+    const int fontStyle = static_cast<int>(Style::number(style, QStringLiteral("fontStyle"), 0));
+    font.setBold((fontStyle & 1) != 0);
+    font.setItalic((fontStyle & 2) != 0);
+    font.setUnderline((fontStyle & 4) != 0);
     return font;
 }
 
 QColor textColor(const Cell &cell)
 {
-    return cell.styleColor(QStringLiteral("fontColor"), QColor(Qt::black));
+    const StyleMap style = resolvedStyle(cell);
+    return Style::color(style, QStringLiteral("fontColor"), QColor(Qt::black));
 }
 
 Qt::Alignment alignmentFor(const Cell &cell)
 {
-    const QString align = cell.styleValue(QStringLiteral("align"), QStringLiteral("center"));
-    const QString valign = cell.styleValue(QStringLiteral("verticalAlign"), QStringLiteral("middle"));
+    const StyleMap style = resolvedStyle(cell);
+    const QString align = Style::value(style, QStringLiteral("align"), QStringLiteral("center"));
+    const QString valign = Style::value(style, QStringLiteral("verticalAlign"),
+                                        QStringLiteral("middle"));
 
     Qt::Alignment result;
 
@@ -186,22 +342,22 @@ Qt::Alignment alignmentFor(const Cell &cell)
 
 QRectF labelRect(const Cell &cell, const QRectF &bounds)
 {
-    // draw.io's default label box keeps only a hair of horizontal padding;
-    // using 2 px on both sides made CJK text wrap one character earlier than
-    // in the reference editor.
-    const double spacing = cell.styleNumber(QStringLiteral("spacing"), 1.0);
-    const double spacingLeft = cell.styleNumber(QStringLiteral("spacingLeft"), spacing);
-    const double spacingRight = cell.styleNumber(QStringLiteral("spacingRight"), spacing);
-    const double spacingTop = cell.styleNumber(QStringLiteral("spacingTop"), spacing);
-    const double spacingBottom = cell.styleNumber(QStringLiteral("spacingBottom"), spacing);
+    const StyleMap style = resolvedStyle(cell);
+    // mxText.apply() adds the base spacing to the side specific values, so a
+    // cell with spacingLeft=4 uses 6 pixels (2 + 4).
+    const double spacing = Style::number(style, QStringLiteral("spacing"), 2.0);
+    const double spacingLeft = spacing + Style::number(style, QStringLiteral("spacingLeft"), 0.0);
+    const double spacingRight = spacing + Style::number(style, QStringLiteral("spacingRight"), 0.0);
+    const double spacingTop = spacing + Style::number(style, QStringLiteral("spacingTop"), 0.0);
+    const double spacingBottom = spacing + Style::number(style, QStringLiteral("spacingBottom"), 0.0);
 
     QRectF rect = bounds.adjusted(spacingLeft, spacingTop, -spacingRight, -spacingBottom);
 
     if (ShapeRegistry::isContainerShape(cell) && cell.styleFlag(QStringLiteral("swimlane")))
     {
-        const double startSize = cell.styleNumber(QStringLiteral("startSize"), 23.0);
+        const double startSize = Style::number(style, QStringLiteral("startSize"), 23.0);
 
-        if (cell.styleFlag(QStringLiteral("horizontal"), true))
+        if (Style::flag(style, QStringLiteral("horizontal"), true))
         {
             rect.setHeight(qMax(0.0, startSize - spacingTop));
         }
@@ -212,18 +368,18 @@ QRectF labelRect(const Cell &cell, const QRectF &bounds)
     }
 
     // Labels below / above the shape (used by umlActor and image shapes).
-    const QString verticalLabelPosition = cell.styleValue(QStringLiteral("verticalLabelPosition"));
+    // mxGraphView.updateVertexLabelOffset moves the whole label box by the
+    // height of the cell, it does not shrink it.
+    const QString verticalLabelPosition =
+        Style::value(style, QStringLiteral("verticalLabelPosition"));
 
     if (verticalLabelPosition == QLatin1String("bottom"))
     {
-        rect = QRectF(bounds.left(), bounds.bottom() + spacing,
-                      bounds.width(), qMax(16.0, cell.styleNumber(QStringLiteral("fontSize"), 11.0) * 1.6));
+        rect = bounds.translated(0.0, bounds.height());
     }
     else if (verticalLabelPosition == QLatin1String("top"))
     {
-        rect = QRectF(bounds.left(), bounds.top() - spacing
-                                        - qMax(16.0, cell.styleNumber(QStringLiteral("fontSize"), 11.0) * 1.6),
-                      bounds.width(), qMax(16.0, cell.styleNumber(QStringLiteral("fontSize"), 11.0) * 1.6));
+        rect = bounds.translated(0.0, -bounds.height());
     }
 
     return rect;
@@ -231,6 +387,21 @@ QRectF labelRect(const Cell &cell, const QRectF &bounds)
 
 void applyInlineFont(const QString &html, QFont &font)
 {
+    // Only a label that is entirely wrapped in one inline element takes that
+    // element's font for the whole text. Mixed markup (headings, paragraphs,
+    // partly coloured runs) is formatted per run by the HTML parser instead.
+    static const QRegularExpression wrapper(
+        QStringLiteral("^\\s*<(span|font)\\b[^>]*>.*</\\1>\\s*$"),
+        QRegularExpression::DotMatchesEverythingOption);
+    static const QRegularExpression blockTag(
+        QStringLiteral("<\\s*(h[1-6]|p|div|br|table|ul|ol)\\b"),
+        QRegularExpression::CaseInsensitiveOption);
+
+    if (!wrapper.match(html).hasMatch() || blockTag.match(html).hasMatch())
+    {
+        return;
+    }
+
     static const QRegularExpression sizePattern(
         QStringLiteral("font-size\\s*:\\s*([0-9.]+)\\s*(pt|px)"),
         QRegularExpression::CaseInsensitiveOption);
@@ -289,6 +460,84 @@ QFont fontForLabel(const Cell &cell)
     return font;
 }
 
+namespace {
+
+struct TextRun
+{
+    QString text;
+    QFont font;
+    QColor color;
+};
+
+struct TextParagraph
+{
+    QVector<TextRun> runs;
+    Qt::Alignment align = Qt::AlignLeft;
+    QFont font;
+    double marginTop = 0.0;
+    double marginBottom = 0.0;
+};
+
+QColor inlineSpanColor(const QString &tag)
+{
+    static const QRegularExpression pattern(
+        QStringLiteral("color\\s*:\\s*(#[0-9a-fA-F]{3,8}|rgba?\\([^)]*\\)|[a-zA-Z]+)"),
+        QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch match = pattern.match(tag);
+
+    if (!match.hasMatch())
+    {
+        return QColor();
+    }
+
+    const QColor color = Style::parseColorValue(match.captured(1).trimmed());
+    return color.isValid() ? color : QColor();
+}
+
+QFont inlineSpanFont(const QString &tag, const QFont &base)
+{
+    QFont font = base;
+
+    static const QRegularExpression weightPattern(
+        QStringLiteral("font-weight\\s*:\\s*(bold|[0-9]{3})"),
+        QRegularExpression::CaseInsensitiveOption);
+    const QRegularExpressionMatch weight = weightPattern.match(tag);
+
+    if (weight.hasMatch())
+    {
+        const QString value = weight.captured(1).toLower();
+        font.setBold(value == QLatin1String("bold") || value.toInt() >= 600);
+    }
+    else if (QRegularExpression(QStringLiteral("font-weight\\s*:\\s*(normal|[1-5][0-9]{2})"),
+                                QRegularExpression::CaseInsensitiveOption).match(tag).hasMatch())
+    {
+        font.setBold(false);
+    }
+
+    if (QRegularExpression(QStringLiteral("font-style\\s*:\\s*italic"),
+                           QRegularExpression::CaseInsensitiveOption).match(tag).hasMatch())
+    {
+        font.setItalic(true);
+    }
+
+    if (QRegularExpression(QStringLiteral("text-decoration\\s*:\\s*[^;\"']*underline"),
+                           QRegularExpression::CaseInsensitiveOption).match(tag).hasMatch())
+    {
+        font.setUnderline(true);
+    }
+
+    const double size = cssLength(tag, QStringLiteral("font-size"), 0.0, base.pixelSize());
+
+    if (size > 0.5 && size < 500.0)
+    {
+        font.setPixelSize(qRound(size));
+    }
+
+    return font;
+}
+
+} // namespace
+
 void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawBackground)
 {
     if (cell.value.isEmpty())
@@ -296,57 +545,114 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
         return;
     }
 
-    const QRectF rect = labelRect(cell, bounds);
-
-    if (rect.width() <= 0 || rect.height() <= 0)
-    {
-        return;
-    }
+    const StyleMap style = resolvedStyle(cell);
 
     painter.save();
 
+    // Vertical swimlanes rotate their title by -90 degrees so that it runs
+    // along the header instead of wrapping inside its 23 pixel width.
+    const bool verticalSwimlane = ShapeRegistry::isContainerShape(cell)
+        && cell.styleFlag(QStringLiteral("swimlane"))
+        && !Style::flag(style, QStringLiteral("horizontal"), true);
+    QRectF rect = labelRect(cell, bounds);
+
+    if (verticalSwimlane)
+    {
+        const double startSize = Style::number(style, QStringLiteral("startSize"), 23.0);
+        const double spacing = Style::number(style, QStringLiteral("spacing"), 2.0);
+        const double width = qMax(1.0, bounds.height() - 2.0 * spacing);
+        const double height = qMax(1.0, startSize - 2.0 * spacing);
+
+        painter.translate(startSize / 2.0, bounds.height() / 2.0);
+        painter.rotate(-90.0);
+        // The text block of a rotated label sits two pixels off the label
+        // centre in draw.io (the label image is not centred on the line box).
+        rect = QRectF(-width / 2.0 + 2.0, -height / 2.0, width, height);
+    }
+
+    if (rect.width() <= 0 || rect.height() <= 0)
+    {
+        painter.restore();
+        return;
+    }
+
     if (drawBackground)
     {
-        const QString background = cell.styleValue(QStringLiteral("labelBackgroundColor"));
+        const QString background = Style::value(style, QStringLiteral("labelBackgroundColor"));
 
-        if (!background.isEmpty() && !Style::isNoneColor(background))
+        if (!background.isEmpty() && !Style::isNoneColor(background)
+            && background.compare(QLatin1String("default"), Qt::CaseInsensitive) != 0)
         {
             painter.fillRect(rect, QColor(background));
         }
     }
 
-    QFont font = fontForLabel(cell);
-    painter.setFont(font);
+    const QFont font = fontForLabel(cell);
     painter.setPen(textColor(cell));
 
-    const QFontMetricsF metrics(font);
-    const bool wrap = cell.styleValue(QStringLiteral("whiteSpace")) == QLatin1String("wrap")
+    const bool wrap = Style::value(style, QStringLiteral("whiteSpace")) == QLatin1String("wrap")
         || cell.isHtmlLabel();
     const double maxWidth = wrap ? rect.width() : 100000.0;
     const Qt::Alignment baseAlignment = alignmentFor(cell) & Qt::AlignHorizontal_Mask;
 
-    struct Paragraph
-    {
-        QString text;
-        Qt::Alignment align;
-    };
-
-    QVector<Paragraph> paragraphs;
+    QVector<TextParagraph> paragraphs;
 
     if (cell.isHtmlLabel())
     {
         QString buffer;
-        Qt::Alignment current = baseAlignment;
+        QFont runFont = font;
+        QColor runColor;
+        QVector<QPair<QFont, QColor>> inlineStack;
+        BlockStyle block;
+        block.font = font;
+        block.align = baseAlignment;
+        bool blockPending = true;
+        bool paragraphStarted = false;
 
-        const auto flush = [&](bool force)
+        const auto beginParagraph = [&]()
         {
-            const QString text = decodeHtmlEntities(buffer);
-            buffer.clear();
+            TextParagraph paragraph;
+            paragraph.align = block.align;
+            paragraph.font = block.font;
+            paragraph.marginTop = blockPending ? block.marginTop : 0.0;
+            paragraph.marginBottom = blockPending ? block.marginBottom : 0.0;
+            blockPending = false;
+            paragraphs.append(paragraph);
+            paragraphStarted = true;
+        };
 
-            if (!text.isEmpty() || force)
+        const auto flushRun = [&]()
+        {
+            if (buffer.isEmpty())
             {
-                paragraphs.append(Paragraph{text, current});
+                return;
             }
+
+            if (!paragraphStarted)
+            {
+                beginParagraph();
+            }
+
+            TextRun run;
+            run.text = decodeHtmlEntities(buffer);
+            run.font = runFont;
+            run.color = runColor;
+            buffer.clear();
+            paragraphs.last().runs.append(run);
+        };
+
+        // A block boundary closes the current paragraph; the next run starts a
+        // new one with the block's font and margins.
+        const auto flushParagraph = [&](bool force)
+        {
+            flushRun();
+
+            if (force && !paragraphStarted)
+            {
+                beginParagraph();
+            }
+
+            paragraphStarted = false;
         };
 
         const QString html = cell.value;
@@ -365,33 +671,123 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
 
                 const QString tag = html.mid(i + 1, end - i - 1).trimmed();
                 const QString lower = tag.toLower();
+                const bool closing = lower.startsWith(QLatin1Char('/'));
+                const QString name = blockTagName(closing ? lower.mid(1) : lower);
 
                 if (lower.startsWith(QLatin1String("br")))
                 {
-                    flush(true);
+                    flushRun();
+
+                    if (!paragraphStarted)
+                    {
+                        beginParagraph();
+                    }
+
+                    // A line break ends the current line but stays in the
+                    // same paragraph: store it as an explicit empty run.
+                    paragraphs.last().runs.append(
+                        TextRun{QStringLiteral("\n"), runFont, runColor});
                 }
-                else if (lower.startsWith(QLatin1String("p"))
-                         && !lower.startsWith(QLatin1String("/p"))
-                         && !lower.startsWith(QLatin1String("pre")))
+                else if (name == QLatin1String("p") || name == QLatin1String("div")
+                         || (name.size() == 2 && name.startsWith(QLatin1Char('h'))
+                             && name.at(1).isDigit()))
                 {
-                    flush(false);
-                    current = alignmentFromTag(tag, baseAlignment);
+                    if (closing)
+                    {
+                        flushParagraph(false);
+                        block = BlockStyle();
+                        block.font = font;
+                        block.align = baseAlignment;
+                        runFont = font;
+                        blockPending = true;
+                    }
+                    else
+                    {
+                        flushParagraph(false);
+                        block = blockStyleFor(tag, font, baseAlignment, true);
+                        runFont = block.font;
+                        blockPending = true;
+                    }
                 }
-                else if (lower.startsWith(QLatin1String("/p")))
+                else if (name == QLatin1String("b") || name == QLatin1String("strong")
+                         || name == QLatin1String("i") || name == QLatin1String("em")
+                         || name == QLatin1String("u"))
                 {
-                    flush(false);
-                    current = baseAlignment;
+                    flushRun();
+
+                    // draw.io writes colours on the weight tags too
+                    // (<b style="color: ...">), so these nest like spans.
+                    if (closing)
+                    {
+                        if (!inlineStack.isEmpty())
+                        {
+                            const auto state = inlineStack.takeLast();
+                            runFont = state.first;
+                            runColor = state.second;
+                        }
+                    }
+                    else
+                    {
+                        inlineStack.append({runFont, runColor});
+
+                        if (name == QLatin1String("b") || name == QLatin1String("strong"))
+                        {
+                            runFont.setBold(true);
+                        }
+                        else if (name == QLatin1String("i") || name == QLatin1String("em"))
+                        {
+                            runFont.setItalic(true);
+                        }
+                        else
+                        {
+                            runFont.setUnderline(true);
+                        }
+
+                        const QColor color = inlineSpanColor(tag);
+
+                        if (color.isValid())
+                        {
+                            runColor = color;
+                        }
+                    }
                 }
-                else if (lower.startsWith(QLatin1String("div"))
-                         && !lower.startsWith(QLatin1String("/div")))
+                else if (name == QLatin1String("span") || name == QLatin1String("font"))
                 {
-                    flush(false);
-                    current = alignmentFromTag(tag, baseAlignment);
-                }
-                else if (lower.startsWith(QLatin1String("/div")))
-                {
-                    flush(false);
-                    current = baseAlignment;
+                    flushRun();
+
+                    // Inline elements nest (a coloured span can contain a
+                    // normal-weight span with its own size), so the outer
+                    // format has to be restored when the inner one closes.
+                    if (closing)
+                    {
+                        if (!inlineStack.isEmpty())
+                        {
+                            const auto state = inlineStack.takeLast();
+                            runFont = state.first;
+                            runColor = state.second;
+                        }
+                        else
+                        {
+                            runFont = block.font;
+                            runColor = QColor();
+                        }
+                    }
+                    else
+                    {
+                        inlineStack.append({runFont, runColor});
+
+                        QFont nextFont = inlineSpanFont(tag, runFont);
+
+                        // A span without its own colour inherits the outer one.
+                        const QColor color = inlineSpanColor(tag);
+
+                        runFont = nextFont;
+
+                        if (color.isValid())
+                        {
+                            runColor = color;
+                        }
+                    }
                 }
 
                 i = end + 1;
@@ -403,11 +799,15 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
             }
         }
 
-        flush(false);
+        flushParagraph(false);
 
         if (paragraphs.isEmpty())
         {
-            paragraphs.append(Paragraph{cell.plainLabel(), baseAlignment});
+            TextParagraph paragraph;
+            paragraph.align = baseAlignment;
+            paragraph.font = font;
+            paragraph.runs.append(TextRun{cell.plainLabel(), font, QColor()});
+            paragraphs.append(paragraph);
         }
     }
     else
@@ -416,99 +816,196 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
 
         for (const QString &part : parts)
         {
-            paragraphs.append(Paragraph{part, baseAlignment});
+            TextParagraph paragraph;
+            paragraph.align = baseAlignment;
+            paragraph.font = font;
+            paragraph.runs.append(TextRun{part, font, QColor()});
+            paragraphs.append(paragraph);
         }
     }
+
+    struct Glyph
+    {
+        QChar character;
+        QFont font;
+        QColor color;
+    };
 
     struct RenderLine
     {
-        QString text;
-        Qt::Alignment align;
+        QVector<Glyph> glyphs;
+        QFont font;
+        double lineHeight = 0.0;
+        Qt::Alignment align = Qt::AlignLeft;
     };
 
-    QVector<RenderLine> lines;
-
-    for (const Paragraph &paragraph : paragraphs)
+    struct LaidOutParagraph
     {
-        if (paragraph.text.isEmpty())
+        QVector<RenderLine> lines;
+        double marginTop = 0.0;
+        double marginBottom = 0.0;
+    };
+
+    QVector<LaidOutParagraph> layout;
+
+    for (const TextParagraph &paragraph : paragraphs)
+    {
+        LaidOutParagraph laid;
+        laid.marginTop = paragraph.marginTop;
+        laid.marginBottom = paragraph.marginBottom;
+
+        const double lineHeight = qMax(1.0, paragraph.font.pixelSize() * 1.2);
+        QVector<Glyph> current;
+        double currentWidth = 0.0;
+
+        const auto emitLine = [&](QVector<Glyph> glyphs)
         {
-            lines.append(RenderLine{QString(), paragraph.align});
-            continue;
-        }
+            RenderLine line;
+            line.glyphs = glyphs;
+            line.font = paragraph.font;
+            line.lineHeight = lineHeight;
+            line.align = paragraph.align;
 
-        QVector<RenderLine> paragraphLines;
-        QString current;
-
-        for (const QChar character : paragraph.text)
-        {
-            const QString candidate = current + character;
-
-            if (!current.isEmpty() && metrics.horizontalAdvance(candidate) > maxWidth)
+            for (const Glyph &glyph : glyphs)
             {
-                const int lastSpace = current.lastIndexOf(QLatin1Char(' '));
-
-                if (isClosingPunctuation(character) && current.size() > 1)
-                {
-                    const QChar moved = current.at(current.size() - 1);
-                    current.chop(1);
-                    paragraphLines.append(RenderLine{current, paragraph.align});
-                    current = QString(moved) + character;
-                }
-                else if (lastSpace > 0 && !character.isSpace())
-                {
-                    paragraphLines.append(RenderLine{current.left(lastSpace), paragraph.align});
-                    current = current.mid(lastSpace + 1) + character;
-                }
-                else
-                {
-                    paragraphLines.append(RenderLine{current, paragraph.align});
-                    current = QString(character);
-                }
+                line.lineHeight = qMax(line.lineHeight, glyph.font.pixelSize() * 1.2);
             }
-            else
+
+            laid.lines.append(line);
+        };
+
+        // Measures glyphs run by run so that kerning matches the painted text.
+        const auto measureGlyphs = [](const QVector<Glyph> &glyphs)
+        {
+            double width = 0.0;
+
+            for (int i = 0; i < glyphs.size();)
             {
-                current = candidate;
+                const QFont runFont = glyphs.at(i).font;
+                const QColor runColor = glyphs.at(i).color;
+                QString text;
+
+                while (i < glyphs.size() && glyphs.at(i).font == runFont
+                       && glyphs.at(i).color == runColor)
+                {
+                    text += glyphs.at(i).character;
+                    ++i;
+                }
+
+                width += QFontMetricsF(runFont).horizontalAdvance(text);
+            }
+
+            return width;
+        };
+
+        for (const TextRun &run : paragraph.runs)
+        {
+            if (run.text == QLatin1String("\n"))
+            {
+                emitLine(current);
+                current.clear();
+                currentWidth = 0.0;
+                continue;
+            }
+
+            const QFontMetricsF metrics(run.font);
+            QString runOnLine;
+
+            for (const QChar character : run.text)
+            {
+                const QString candidate = runOnLine + character;
+                const double advance = metrics.horizontalAdvance(candidate)
+                    - metrics.horizontalAdvance(runOnLine);
+                // Half a pixel of tolerance absorbs the rounding difference
+                // between per-character advances and the browser's text width.
+                const bool exceeds = !current.isEmpty()
+                    && currentWidth + advance > maxWidth + 0.5;
+
+                if (exceeds)
+                {
+                    int lastSpace = -1;
+
+                    for (int i = 0; i < current.size(); ++i)
+                    {
+                        if (current.at(i).character == QLatin1Char(' '))
+                        {
+                            lastSpace = i;
+                        }
+                    }
+
+                    if (isClosingPunctuation(character) && current.size() > 1)
+                    {
+                        const Glyph moved = current.last();
+                        current.removeLast();
+                        emitLine(current);
+                        current.clear();
+                        current.append(moved);
+                    }
+                    else if (lastSpace > 0 && !character.isSpace())
+                    {
+                        QVector<Glyph> next = current.mid(lastSpace + 1);
+                        current.resize(lastSpace);
+                        emitLine(current);
+                        current = next;
+                    }
+                    else
+                    {
+                        emitLine(current);
+                        current.clear();
+                    }
+
+                    runOnLine.clear();
+                    currentWidth = measureGlyphs(current);
+                }
+
+                current.append(Glyph{character, run.font, run.color});
+                runOnLine = candidate;
+                currentWidth += advance;
             }
         }
 
-        if (!current.isEmpty())
+        emitLine(current);
+
+        if (laid.lines.size() == 1 && !cell.isHtmlLabel())
         {
-            paragraphLines.append(RenderLine{current, paragraph.align});
+            laid.lines.first().align = baseAlignment;
         }
 
-        // A single line behaves like a normal centred label; inline
-        // text-align only matters when the paragraph actually wraps.
-        if (paragraphLines.size() == 1)
-        {
-            paragraphLines.first().align = baseAlignment;
-        }
-
-        lines.append(paragraphLines);
+        layout.append(laid);
     }
 
-    if (lines.isEmpty())
+    if (layout.isEmpty())
     {
         painter.restore();
         return;
     }
 
-    double lineHeight = qMax(1, font.pixelSize()) * 1.05;
+    // Vertical layout: block margins collapse like in CSS.
+    double totalHeight = 0.0;
+    double previousBottom = 0.0;
 
-    if (lineHeight <= 0.0)
+    for (const LaidOutParagraph &paragraph : layout)
     {
-        lineHeight = metrics.height();
+        totalHeight += qMax(previousBottom, paragraph.marginTop);
+
+        for (const RenderLine &line : paragraph.lines)
+        {
+            totalHeight += line.lineHeight;
+        }
+
+        previousBottom = paragraph.marginBottom;
     }
 
-    const double totalHeight = lineHeight * lines.size();
-    double top = rect.top();
+    const Qt::Alignment vertical = alignmentFor(cell) & Qt::AlignVertical_Mask;
+    double y = rect.top() + 5.0; // mxText.baseSpacingTop
 
-    if (alignmentFor(cell) & Qt::AlignVCenter)
+    if (vertical & Qt::AlignVCenter)
     {
-        top = rect.center().y() - totalHeight / 2.0;
+        y = rect.center().y() - totalHeight / 2.0;
     }
-    else if (alignmentFor(cell) & Qt::AlignBottom)
+    else if (vertical & Qt::AlignBottom)
     {
-        top = rect.bottom() - totalHeight;
+        y = rect.bottom() - 1.0 - totalHeight; // mxText.baseSpacingBottom
     }
 
     if (!ShapeRegistry::isTextShape(cell))
@@ -516,16 +1013,90 @@ void paint(QPainter &painter, const Cell &cell, const QRectF &bounds, bool drawB
         painter.setClipRect(rect.adjusted(-1, -1, 1, 1));
     }
 
-    double y = top;
-
     const Qt::TextFlag clipFlag = ShapeRegistry::isTextShape(cell)
         ? Qt::TextDontClip : Qt::TextFlag(0);
+    Q_UNUSED(clipFlag);
 
-    for (const RenderLine &line : lines)
+    previousBottom = 0.0;
+
+    for (const LaidOutParagraph &paragraph : layout)
     {
-        painter.drawText(QRectF(rect.left(), y, rect.width(), lineHeight),
-                         line.align | Qt::AlignVCenter | clipFlag, line.text);
-        y += lineHeight;
+        y += qMax(previousBottom, paragraph.marginTop);
+        previousBottom = paragraph.marginBottom;
+
+        for (const RenderLine &line : paragraph.lines)
+        {
+            // Measure the line so that alignment can position the runs. Runs
+            // are measured as whole strings so that kerning matches draw.io.
+            double lineWidth = 0.0;
+
+            for (int i = 0; i < line.glyphs.size();)
+            {
+                const QFont runFont = line.glyphs.at(i).font;
+                QString text;
+
+                while (i < line.glyphs.size() && line.glyphs.at(i).font == runFont)
+                {
+                    text += line.glyphs.at(i).character;
+                    ++i;
+                }
+
+                lineWidth += QFontMetricsF(runFont).horizontalAdvance(text);
+            }
+
+            double x = rect.left();
+
+            if (line.align & Qt::AlignHCenter)
+            {
+                x = rect.center().x() - lineWidth / 2.0;
+            }
+            else if (line.align & Qt::AlignRight)
+            {
+                x = rect.right() - lineWidth;
+            }
+
+            int index = 0;
+
+            while (index < line.glyphs.size())
+            {
+                const QFont runFont = line.glyphs.at(index).font;
+                const QColor runColor = line.glyphs.at(index).color;
+                QString text;
+
+                while (index < line.glyphs.size()
+                       && line.glyphs.at(index).font == runFont
+                       && line.glyphs.at(index).color == runColor)
+                {
+                    text += line.glyphs.at(index).character;
+                    ++index;
+                }
+
+                const QFontMetricsF metrics(runFont);
+                // Qt's font metrics carry more leading than the browser
+                // metrics draw.io lays labels out with; shift the glyphs up by
+                // one pixel per 12 pixels of font size so baselines match.
+                const double baselineShift = runFont.pixelSize() / 12.0;
+                const double baseline = y + (line.lineHeight - metrics.height()) / 2.0
+                    + metrics.ascent() - baselineShift;
+
+                painter.setFont(runFont);
+
+                if (runColor.isValid())
+                {
+                    painter.setPen(runColor);
+                }
+
+                painter.drawText(QPointF(x, baseline), text);
+
+                if (runColor.isValid())
+                {
+                    painter.setPen(textColor(cell));
+                }
+                x += metrics.horizontalAdvance(text);
+            }
+
+            y += line.lineHeight;
+        }
     }
 
     painter.restore();
@@ -575,7 +1146,8 @@ namespace ShapeRenderer {
 
 QColor fillColor(const Cell &cell)
 {
-    const QString value = cell.styleValue(QStringLiteral("fillColor"));
+    const StyleMap style = Style::withDefaults(cell.style);
+    const QString value = Style::value(style, QStringLiteral("fillColor"));
 
     if (value.isEmpty())
     {
@@ -593,7 +1165,8 @@ QColor fillColor(const Cell &cell)
 
 QColor strokeColor(const Cell &cell)
 {
-    const QString value = cell.styleValue(QStringLiteral("strokeColor"));
+    const StyleMap style = Style::withDefaults(cell.style);
+    const QString value = Style::value(style, QStringLiteral("strokeColor"));
 
     if (value.isEmpty())
     {
@@ -624,7 +1197,44 @@ void paintShadow(QPainter &painter, const Cell &cell)
     painter.restore();
 }
 
-void paint(QPainter &painter, const Cell &cell)
+namespace {
+
+/// draw.io snaps shapes with an odd effective stroke width to half pixels
+/// (mxImageExport.getSvgShapeOffset). The offset is applied to the shape and
+/// its decorations, not to the label.
+double crispOffsetFor(QPainter &painter, const Cell &cell)
+{
+    const StyleMap style = Style::withDefaults(cell.style);
+    const double strokeWidth = Style::number(style, QStringLiteral("strokeWidth"), 1.0);
+
+    if (strokeWidth <= 0.0 || !cell.hasStroke())
+    {
+        return 0.0;
+    }
+
+    const QTransform transform = painter.transform();
+    const double scale = std::hypot(transform.m11(), transform.m12());
+    const int deviceWidth = qMax(1, qRound(strokeWidth * scale));
+
+    return (deviceWidth % 2 == 1) ? 0.5 : 0.0;
+}
+
+void paintLabel(QPainter &painter, const Cell &cell, const QRectF &local, double offset)
+{
+    painter.save();
+
+    if (offset > 0.0)
+    {
+        painter.translate(-offset, -offset);
+    }
+
+    LabelPainter::paint(painter, cell, local);
+    painter.restore();
+}
+
+} // namespace
+
+void paint(QPainter &painter, const Cell &cell, const QPointF *absolutePosition)
 {
     // draw.io groups are invisible containers: their children carry the
     // visible geometry. Painting a group produced a stray black outline.
@@ -635,8 +1245,10 @@ void paint(QPainter &painter, const Cell &cell)
 
     painter.save();
 
+    const QPointF position = absolutePosition != nullptr ? *absolutePosition
+                                                         : cell.absolutePosition();
     const QRectF local(QPointF(0, 0), cell.geometry.size());
-    const QPointF center = cell.absolutePosition() + local.center();
+    const QPointF center = position + local.center();
     const QString direction = cell.styleValue(QStringLiteral("direction")).toLower();
 
     // mxShape.isPaintBoundsInverted(): north/south swap the paint box so the
@@ -687,8 +1299,14 @@ void paint(QPainter &painter, const Cell &cell)
         painter.translate(-center);
     }
 
-    painter.translate(cell.absolutePosition());
+    painter.translate(position);
 
+    const double crispOffset = crispOffsetFor(painter, cell);
+
+    if (crispOffset > 0.0)
+    {
+        painter.translate(crispOffset, crispOffset);
+    }
 
     const double opacity = qBound(0.0, cell.styleNumber(QStringLiteral("opacity"), 100.0), 100.0);
     painter.setOpacity(opacity / 100.0);
@@ -744,7 +1362,7 @@ void paint(QPainter &painter, const Cell &cell)
             }
         }
 
-        LabelPainter::paint(painter, cell, local);
+        paintLabel(painter, cell, local, crispOffset);
         painter.restore();
         return;
     }
@@ -866,7 +1484,7 @@ void paint(QPainter &painter, const Cell &cell)
             painter.drawRect(local);
         }
 
-        LabelPainter::paint(painter, cell, local);
+        paintLabel(painter, cell, local, crispOffset);
         painter.restore();
         return;
     }
@@ -1029,9 +1647,41 @@ void paint(QPainter &painter, const Cell &cell)
         }
         else if (key == QLatin1String("note"))
         {
-            const double fold = qMin(qMin(local.width(), local.height()) * 0.22, 24.0);
-            painter.drawLine(QPointF(local.width() - fold, 0), QPointF(local.width() - fold, fold));
-            painter.drawLine(QPointF(local.width() - fold, fold), QPointF(local.width(), fold));
+            // NoteShape.paintVertexShape: the folded corner is filled with
+            // darkOpacity and then stroked.
+            const double size = qBound(0.0,
+                cell.styleNumber(QStringLiteral("size"), 30.0),
+                qMin(local.width(), local.height()));
+            const double op = qBound(-1.0,
+                cell.styleNumber(QStringLiteral("darkOpacity"), 0.0), 1.0);
+
+            if (op != 0.0)
+            {
+                QPolygonF corner;
+                corner << QPointF(local.width() - size, 0)
+                       << QPointF(local.width() - size, size)
+                       << QPointF(local.width(), size);
+                QColor color = op < 0 ? QColor(255, 255, 255) : QColor(0, 0, 0);
+                color.setAlphaF(qAbs(op));
+                painter.save();
+                painter.setPen(Qt::NoPen);
+                painter.setBrush(color);
+                painter.drawPolygon(corner);
+                painter.restore();
+            }
+
+            painter.drawLine(QPointF(local.width() - size, 0),
+                             QPointF(local.width() - size, size));
+            painter.drawLine(QPointF(local.width() - size, size),
+                             QPointF(local.width(), size));
+        }
+        else if (key == QLatin1String("message"))
+        {
+            // MessageShape foreground: the envelope fold.
+            painter.drawLine(QPointF(0, 0),
+                             QPointF(local.width() / 2.0, local.height() / 2.0));
+            painter.drawLine(QPointF(local.width(), 0),
+                             QPointF(local.width() / 2.0, local.height() / 2.0));
         }
         else if (key == QLatin1String("smiley"))
         {
@@ -1145,6 +1795,27 @@ void paint(QPainter &painter, const Cell &cell)
         else if (key == QLatin1String("swimlane") || cell.styleFlag(QStringLiteral("swimlane")))
         {
             const double startSize = cell.styleNumber(QStringLiteral("startSize"), 23.0);
+
+            // Fold indicator: draw.io shows a small square with a minus (or a
+            // plus once collapsed) at the top left of collapsible containers.
+            if (cell.styleFlag(QStringLiteral("collapsible"), true)
+                && local.width() > 20.0 && local.height() > 20.0)
+            {
+                const QRectF fold(4.0, 4.0, 9.0, 9.0);
+                const QColor fill = fillColor(cell);
+                painter.setPen(QPen(strokeColor(cell), 1.0));
+                painter.setBrush(fill.alpha() == 0 ? QColor(Qt::white) : fill);
+                painter.drawRect(fold);
+                painter.setBrush(Qt::NoBrush);
+                painter.drawLine(QPointF(fold.left() + 2.0, fold.center().y()),
+                                 QPointF(fold.right() - 2.0, fold.center().y()));
+
+                if (cell.collapsed)
+                {
+                    painter.drawLine(QPointF(fold.center().x(), fold.top() + 2.0),
+                                     QPointF(fold.center().x(), fold.bottom() - 2.0));
+                }
+            }
 
             // swimlane;horizontal=0 puts the title bar on the left edge.
             if (cell.styleFlag(QStringLiteral("horizontal"), true))
@@ -1493,7 +2164,7 @@ void paint(QPainter &painter, const Cell &cell)
         }
     }
 
-    LabelPainter::paint(painter, cell, local);
+    paintLabel(painter, cell, local, crispOffset);
     painter.restore();
 }
 

@@ -31,7 +31,10 @@ namespace ShapeRenderer {
 QColor fillColor(const Cell &cell);
 QColor strokeColor(const Cell &cell);
 
-void paint(QPainter &painter, const Cell &cell);
+/// Paints a vertex. `absolutePosition` overrides the position derived from the
+/// parent chain; edge labels and symbols pass the point on their edge.
+void paint(QPainter &painter, const Cell &cell,
+           const QPointF *absolutePosition = nullptr);
 void paintShadow(QPainter &painter, const Cell &cell);
 
 } // namespace ShapeRenderer

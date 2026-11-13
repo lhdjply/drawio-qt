@@ -64,12 +64,14 @@ QVector<Cell *> paintOrder(const Page &page)
             continue;
         }
 
-        // A child whose ancestor is hidden must not be painted.
+        // A child whose ancestor is hidden or collapsed must not be painted.
         bool hiddenAncestor = false;
 
         for (Cell *parent = cell->parent; parent != nullptr; parent = parent->parent)
         {
-            if (!parent->visible)
+            if (!parent->visible
+                || (parent->collapsed
+                    && parent->styleFlag(QStringLiteral("swimlane"), false)))
             {
                 hiddenAncestor = true;
                 break;
@@ -189,7 +191,15 @@ QRectF DiagramRenderer::contentBounds(const Page &page)
 
         QRectF bounds;
 
-        if (cell->isVertex())
+        if (cell->isEdgeChild())
+        {
+            bounds = EdgeRenderer::childBounds(EdgeRouter::route(page, *cell->parent), *cell);
+            // mxShape.augmentBoundingBox grows the box by half the stroke
+            // width, not by the full width.
+            const double stroke = qMax(1.0, cell->styleNumber(QStringLiteral("strokeWidth"), 1.0));
+            bounds = bounds.adjusted(-stroke / 2.0, -stroke / 2.0, stroke / 2.0, stroke / 2.0);
+        }
+        else if (cell->isVertex())
         {
             bounds = cell->visualRect();
 
@@ -202,8 +212,10 @@ QRectF DiagramRenderer::contentBounds(const Page &page)
                 bounds = bounds.united(local.translated(cell->absolutePosition()));
             }
 
+            // mxShape.augmentBoundingBox grows the box by half the stroke
+            // width, not by the full width.
             const double stroke = qMax(1.0, cell->styleNumber(QStringLiteral("strokeWidth"), 1.0));
-            bounds = bounds.adjusted(-stroke, -stroke, stroke, stroke);
+            bounds = bounds.adjusted(-stroke / 2.0, -stroke / 2.0, stroke / 2.0, stroke / 2.0);
 
             if (cell->styleFlag(QStringLiteral("shadow")))
             {
@@ -295,9 +307,45 @@ void DiagramRenderer::paint(QPainter &painter, const Page &page, const RenderOpt
         {
             EdgeRenderer::paint(painter, page, *cell);
         }
-        else if (cell->isVertex())
+        else if (cell->isVertex() && !cell->isEdgeChild())
         {
+            // Children of a container are clipped to it, so a collapsed
+            // container hides its rows instead of spilling them below.
+            painter.save();
+
+            for (Cell *parent = cell->parent; parent != nullptr; parent = parent->parent)
+            {
+                if (parent->isVertex() && parent->styleFlag(QStringLiteral("swimlane"), false))
+                {
+                    painter.setClipRect(parent->absoluteRect(), Qt::IntersectClip);
+                    break;
+                }
+            }
+
+            // mxGraphView folds the geometry before painting, so the title,
+            // fold icon and children clipping all use the folded size.
+            const QRectF savedGeometry = cell->geometry;
+
+            // A zero title size leaves nothing to fold to, so draw.io keeps
+            // the container as it is.
+            if (cell->collapsed && cell->styleFlag(QStringLiteral("swimlane"), false)
+                && cell->styleNumber(QStringLiteral("startSize"), 23.0) > 0.0)
+            {
+                const double startSize = cell->styleNumber(QStringLiteral("startSize"), 23.0);
+
+                if (cell->styleFlag(QStringLiteral("horizontal"), true))
+                {
+                    cell->geometry.setHeight(qMin(cell->geometry.height(), startSize));
+                }
+                else
+                {
+                    cell->geometry.setWidth(qMin(cell->geometry.width(), startSize));
+                }
+            }
+
             ShapeRenderer::paint(painter, *cell);
+            cell->geometry = savedGeometry;
+            painter.restore();
         }
     }
 

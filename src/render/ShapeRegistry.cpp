@@ -390,12 +390,14 @@ QVector<ShapeDefinition> toolboxShapes()
     QVector<ShapeDefinition> shapes;
 
     auto add = [&shapes](const QString &key, const QString &name, const QString &style,
-                         const QSizeF &size, const QString &category)
+                         const QSizeF &size, const QString &category,
+                         const QString &value = QString())
     {
         ShapeDefinition definition;
         definition.key = key;
         definition.name = name;
         definition.style = style;
+        definition.value = value;
         definition.size = size;
         definition.category = category;
         shapes.append(definition);
@@ -404,136 +406,338 @@ QVector<ShapeDefinition> toolboxShapes()
     // --- general ---------------------------------------------------------
     // Exactly the entries of Sidebar.prototype.addGeneralPalette in draw.io's
     // grapheditor/Sidebar.js: same order, same style strings, same default
-    // sizes. Only the white fill / black outline defaults are appended.
+    // sizes and template values. Vertex entries get the editor's white fill,
+    // black outline defaults; edge templates stay exactly as draw.io defines
+    // them and are inserted as floating edges.
+    const QString vertexColors = QStringLiteral("fillColor=#ffffff;strokeColor=#000000;");
+    const QString edgeLabelStyle =
+        QStringLiteral("edgeLabel;resizable=0;html=1;inheritText=1;");
+    const QString fieldStyle =
+        QStringLiteral("text;strokeColor=none;fillColor=none;align=left;"
+                       "verticalAlign=middle;spacingLeft=4;spacingRight=4;overflow=hidden;"
+                       "points=[[0,0.5],[1,0.5]];portConstraint=eastwest;rotatable=0;"
+                       "whiteSpace=wrap;html=1;");
+
     add(QStringLiteral("rectangle"), QStringLiteral("Rectangle"),
-        QStringLiteral("rounded=0;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("rounded=0;whiteSpace=wrap;html=1;") + vertexColors,
         QSizeF(120, 60), QStringLiteral("general"));
     add(QStringLiteral("rounded"), QStringLiteral("Rounded Rectangle"),
-        QStringLiteral("rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("rounded=1;whiteSpace=wrap;html=1;roundedPerimeter=1;") + vertexColors,
         QSizeF(120, 60), QStringLiteral("general"));
     add(QStringLiteral("text"), QStringLiteral("Text"),
-        QStringLiteral("text;html=1;strokeColor=none;fillColor=none;align=center;"
-                       "verticalAlign=middle;whiteSpace=wrap;rounded=0;"),
-        QSizeF(60, 30), QStringLiteral("general"));
+        QStringLiteral("text;html=1;whiteSpace=wrap;strokeColor=none;fillColor=none;"
+                       "align=center;verticalAlign=middle;rounded=0;"),
+        QSizeF(60, 30), QStringLiteral("general"), QStringLiteral("Text"));
     add(QStringLiteral("textbox"), QStringLiteral("Textbox"),
         QStringLiteral("text;html=1;whiteSpace=wrap;overflow=hidden;rounded=0;"
                        "fillColor=none;strokeColor=none;"),
-        QSizeF(180, 120), QStringLiteral("general"));
+        QSizeF(180, 120), QStringLiteral("general"),
+        QStringLiteral("<h1 style=\"margin-top: 0px;\">Heading</h1>"
+                       "<p>Lorem ipsum dolor sit amet, consectetur adipisicing elit, "
+                       "sed do eiusmod tempor incididunt ut labore et dolore magna "
+                       "aliqua.</p>"));
     add(QStringLiteral("ellipse"), QStringLiteral("Ellipse"),
-        QStringLiteral("ellipse;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("ellipse;whiteSpace=wrap;html=1;shapeInside=1;") + vertexColors,
         QSizeF(120, 80), QStringLiteral("general"));
     add(QStringLiteral("square"), QStringLiteral("Square"),
-        QStringLiteral("whiteSpace=wrap;html=1;aspect=fixed;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("whiteSpace=wrap;html=1;aspect=fixed;") + vertexColors,
         QSizeF(80, 80), QStringLiteral("general"));
     add(QStringLiteral("circle"), QStringLiteral("Circle"),
-        QStringLiteral("ellipse;aspect=fixed;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("ellipse;whiteSpace=wrap;html=1;shapeInside=1;aspect=fixed;")
+            + vertexColors,
         QSizeF(80, 80), QStringLiteral("general"));
     add(QStringLiteral("process"), QStringLiteral("Process"),
-        QStringLiteral("shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("shape=process;whiteSpace=wrap;html=1;backgroundOutline=1;")
+            + vertexColors,
         QSizeF(120, 60), QStringLiteral("general"));
     add(QStringLiteral("diamond"), QStringLiteral("Diamond"),
-        QStringLiteral("rhombus;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("rhombus;whiteSpace=wrap;html=1;shapeInside=1;") + vertexColors,
         QSizeF(80, 80), QStringLiteral("general"));
     add(QStringLiteral("parallelogram"), QStringLiteral("Parallelogram"),
         QStringLiteral("shape=parallelogram;perimeter=parallelogramPerimeter;"
-                       "whiteSpace=wrap;html=1;fixedSize=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+                       "whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;") + vertexColors,
         QSizeF(120, 60), QStringLiteral("general"));
     add(QStringLiteral("hexagon"), QStringLiteral("Hexagon"),
         QStringLiteral("shape=hexagon;perimeter=hexagonPerimeter2;whiteSpace=wrap;"
-                       "html=1;fixedSize=1;fillColor=#ffffff;strokeColor=#000000;"),
+                       "html=1;shapeInside=1;fixedSize=1;") + vertexColors,
         QSizeF(120, 80), QStringLiteral("general"));
     add(QStringLiteral("triangle"), QStringLiteral("Triangle"),
-        QStringLiteral("shape=mxgraph.basic.acute_triangle;dx=0.5;whiteSpace=wrap;"
-                       "html=1;fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("triangle;whiteSpace=wrap;html=1;shapeInside=1;") + vertexColors,
         QSizeF(60, 80), QStringLiteral("general"));
     add(QStringLiteral("cylinder"), QStringLiteral("Cylinder"),
         QStringLiteral("shape=cylinder3;whiteSpace=wrap;html=1;boundedLbl=1;"
-                       "backgroundOutline=1;size=15;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+                       "backgroundOutline=1;size=15;") + vertexColors,
         QSizeF(60, 80), QStringLiteral("general"));
     add(QStringLiteral("cloud"), QStringLiteral("Cloud"),
         QStringLiteral("ellipse;shape=cloud;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+                       "perimeter=cloudPerimeter;") + vertexColors,
         QSizeF(120, 80), QStringLiteral("general"));
     add(QStringLiteral("document"), QStringLiteral("Document"),
-        QStringLiteral("shape=document;whiteSpace=wrap;html=1;boundedLbl=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("shape=document;whiteSpace=wrap;html=1;boundedLbl=1;") + vertexColors,
         QSizeF(120, 80), QStringLiteral("general"));
     add(QStringLiteral("internalStorage"), QStringLiteral("Internal Storage"),
-        QStringLiteral("shape=internalStorage;whiteSpace=wrap;html=1;backgroundOutline=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("shape=internalStorage;whiteSpace=wrap;html=1;backgroundOutline=1;")
+            + vertexColors,
         QSizeF(80, 80), QStringLiteral("general"));
     add(QStringLiteral("cube"), QStringLiteral("Cube"),
         QStringLiteral("shape=cube;whiteSpace=wrap;html=1;boundedLbl=1;backgroundOutline=1;"
-                       "darkOpacity=0.05;fillColor=#ffffff;strokeColor=#000000;"),
+                       "darkOpacity=0.05;darkOpacity2=0.1;") + vertexColors,
         QSizeF(120, 80), QStringLiteral("general"));
     add(QStringLiteral("step"), QStringLiteral("Step"),
         QStringLiteral("shape=step;perimeter=stepPerimeter;whiteSpace=wrap;html=1;"
-                       "shapeInside=1;fixedSize=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+                       "shapeInside=1;fixedSize=1;") + vertexColors,
         QSizeF(120, 80), QStringLiteral("general"));
     add(QStringLiteral("trapezoid"), QStringLiteral("Trapezoid"),
         QStringLiteral("shape=trapezoid;perimeter=trapezoidPerimeter;whiteSpace=wrap;"
-                       "html=1;fixedSize=1;fillColor=#ffffff;strokeColor=#000000;"),
+                       "html=1;shapeInside=1;fixedSize=1;") + vertexColors,
         QSizeF(120, 60), QStringLiteral("general"));
     add(QStringLiteral("tape"), QStringLiteral("Tape"),
-        QStringLiteral("shape=tape;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("shape=tape;whiteSpace=wrap;html=1;") + vertexColors,
         QSizeF(120, 100), QStringLiteral("general"));
     add(QStringLiteral("note"), QStringLiteral("Note"),
         QStringLiteral("shape=note;whiteSpace=wrap;html=1;backgroundOutline=1;"
-                       "darkOpacity=0.05;fillColor=#ffffff;strokeColor=#000000;"),
+                       "darkOpacity=0.05;") + vertexColors,
         QSizeF(80, 100), QStringLiteral("general"));
     add(QStringLiteral("card"), QStringLiteral("Card"),
-        QStringLiteral("shape=card;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("shape=card;whiteSpace=wrap;html=1;") + vertexColors,
         QSizeF(80, 100), QStringLiteral("general"));
     add(QStringLiteral("callout"), QStringLiteral("Callout"),
-        QStringLiteral("shape=callout;whiteSpace=wrap;html=1;perimeter=calloutPerimeter;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("shape=callout;whiteSpace=wrap;html=1;perimeter=calloutPerimeter;")
+            + vertexColors,
         QSizeF(120, 80), QStringLiteral("general"));
     add(QStringLiteral("wedgeCallout"), QStringLiteral("Wedge Callout"),
-        QStringLiteral("shape=wedgeCallout;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("shape=wedgeCallout;whiteSpace=wrap;html=1;") + vertexColors,
         QSizeF(120, 80), QStringLiteral("general"));
     add(QStringLiteral("actor"), QStringLiteral("Actor"),
         QStringLiteral("shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;"
-                       "html=1;outlineConnect=0;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(30, 60), QStringLiteral("general"));
-    // draw.io labels the XOR gate "Or" and the D shaped gate "And"; the style
-    // strings below are the ones addGeneralPalette uses for those entries.
+                       "html=1;outlineConnect=0;") + vertexColors,
+        QSizeF(30, 60), QStringLiteral("general"), QStringLiteral("Actor"));
+    // draw.io labels the XOR gate "Or" and the D shaped gate "And".
     add(QStringLiteral("or"), QStringLiteral("Or"),
-        QStringLiteral("shape=xor;whiteSpace=wrap;html=1;shapeInside=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("shape=xor;whiteSpace=wrap;html=1;shapeInside=1;") + vertexColors,
         QSizeF(60, 80), QStringLiteral("general"));
     add(QStringLiteral("and"), QStringLiteral("And"),
-        QStringLiteral("shape=or;whiteSpace=wrap;html=1;shapeInside=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("shape=or;whiteSpace=wrap;html=1;shapeInside=1;") + vertexColors,
         QSizeF(60, 80), QStringLiteral("general"));
     add(QStringLiteral("dataStorage"), QStringLiteral("Data Storage"),
-        QStringLiteral("shape=dataStorage;whiteSpace=wrap;html=1;fixedSize=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("shape=dataStorage;whiteSpace=wrap;html=1;shapeInside=1;fixedSize=1;")
+            + vertexColors,
         QSizeF(100, 80), QStringLiteral("general"));
     add(QStringLiteral("container"), QStringLiteral("Container"),
-        QStringLiteral("swimlane;startSize=0;fillColor=#ffffff;strokeColor=#000000;"),
+        QStringLiteral("swimlane;startSize=0;") + vertexColors,
         QSizeF(200, 200), QStringLiteral("general"));
     add(QStringLiteral("containerVertical"), QStringLiteral("Container"),
-        QStringLiteral("swimlane;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(200, 200), QStringLiteral("general"));
+        QStringLiteral("swimlane;whiteSpace=wrap;html=1;") + vertexColors,
+        QSizeF(200, 200), QStringLiteral("general"), QStringLiteral("Vertical Container"));
     add(QStringLiteral("containerHorizontal"), QStringLiteral("Horizontal Container"),
-        QStringLiteral("swimlane;horizontal=0;whiteSpace=wrap;html=1;"
-                       "fillColor=#ffffff;strokeColor=#000000;"),
-        QSizeF(200, 200), QStringLiteral("general"));
+        QStringLiteral("swimlane;horizontal=0;whiteSpace=wrap;html=1;") + vertexColors,
+        QSizeF(200, 200), QStringLiteral("general"), QStringLiteral("Horizontal Container"));
+
+    // List container with its three item rows (Sidebar's reusable field cell).
+    {
+        ShapeDefinition list;
+        list.key = QStringLiteral("list");
+        list.name = QStringLiteral("List");
+        list.value = QStringLiteral("List");
+        list.style = QStringLiteral("swimlane;fontStyle=0;childLayout=stackLayout;"
+                                    "horizontal=1;startSize=30;horizontalStack=0;"
+                                    "resizeParent=1;resizeParentMax=0;resizeLast=0;"
+                                    "collapsible=1;marginBottom=0;whiteSpace=wrap;html=1;")
+            + vertexColors;
+        list.size = QSizeF(140, 120);
+        list.category = QStringLiteral("general");
+
+        for (int i = 1; i <= 3; ++i)
+        {
+            ShapeChildDefinition child;
+            child.style = fieldStyle;
+            child.value = QStringLiteral("Item %1").arg(i);
+            child.geometry = QRectF(0, 30.0 * i, 140, 30);
+            list.children.append(child);
+        }
+
+        shapes.append(list);
+    }
+
+    {
+        ShapeDefinition field;
+        field.key = QStringLiteral("listItem");
+        field.name = QStringLiteral("List Item");
+        field.value = QStringLiteral("List Item");
+        field.style = fieldStyle;
+        field.size = QSizeF(80, 30);
+        field.category = QStringLiteral("general");
+        shapes.append(field);
+    }
+
+    // --- edge templates of the General palette ---------------------------
+    {
+        ShapeDefinition curve;
+        curve.key = QStringLiteral("curve");
+        curve.name = QStringLiteral("Curve");
+        curve.style = QStringLiteral("curved=1;curveGeometry=1;endArrow=classic;html=1;");
+        curve.size = QSizeF(50, 50);
+        curve.category = QStringLiteral("general");
+        curve.edge = true;
+        curve.waypoints = {QPointF(50, 50), QPointF(0, 0)};
+        shapes.append(curve);
+    }
+
+    {
+        ShapeDefinition arrow;
+        arrow.key = QStringLiteral("flexArrow");
+        arrow.name = QStringLiteral("Bidirectional Arrow");
+        arrow.style = QStringLiteral("shape=flexArrow;endArrow=classic;startArrow=classic;"
+                                     "html=1;");
+        arrow.size = QSizeF(100, 100);
+        arrow.category = QStringLiteral("general");
+        arrow.edge = true;
+        shapes.append(arrow);
+    }
+
+    {
+        ShapeDefinition arrow;
+        arrow.key = QStringLiteral("flexArrowOneWay");
+        arrow.name = QStringLiteral("Arrow");
+        arrow.style = QStringLiteral("shape=flexArrow;endArrow=classic;html=1;");
+        arrow.size = QSizeF(50, 50);
+        arrow.category = QStringLiteral("general");
+        arrow.edge = true;
+        shapes.append(arrow);
+    }
+
+    {
+        ShapeDefinition dashed;
+        dashed.key = QStringLiteral("dashedLine");
+        dashed.name = QStringLiteral("Dashed Line");
+        dashed.style = QStringLiteral("endArrow=none;dashed=1;html=1;");
+        dashed.size = QSizeF(50, 50);
+        dashed.category = QStringLiteral("general");
+        dashed.edge = true;
+        shapes.append(dashed);
+    }
+
+    {
+        ShapeDefinition dotted;
+        dotted.key = QStringLiteral("dottedLine");
+        dotted.name = QStringLiteral("Dotted Line");
+        dotted.style = QStringLiteral("endArrow=none;dashed=1;html=1;dashPattern=1 3;"
+                                      "strokeWidth=2;");
+        dotted.size = QSizeF(50, 50);
+        dotted.category = QStringLiteral("general");
+        dotted.edge = true;
+        shapes.append(dotted);
+    }
+
+    {
+        ShapeDefinition line;
+        line.key = QStringLiteral("plainLine");
+        line.name = QStringLiteral("Line");
+        line.style = QStringLiteral("endArrow=none;html=1;");
+        line.size = QSizeF(50, 50);
+        line.category = QStringLiteral("general");
+        line.edge = true;
+        shapes.append(line);
+    }
+
+    {
+        ShapeDefinition connector;
+        connector.key = QStringLiteral("bidirectionalConnector");
+        connector.name = QStringLiteral("Bidirectional Connector");
+        connector.style = QStringLiteral("endArrow=classic;startArrow=classic;html=1;");
+        connector.size = QSizeF(50, 50);
+        connector.category = QStringLiteral("general");
+        connector.edge = true;
+        shapes.append(connector);
+    }
+
+    {
+        ShapeDefinition connector;
+        connector.key = QStringLiteral("directionalConnector");
+        connector.name = QStringLiteral("Directional Connector");
+        connector.style = QStringLiteral("endArrow=classic;html=1;");
+        connector.size = QSizeF(50, 50);
+        connector.category = QStringLiteral("general");
+        connector.edge = true;
+        shapes.append(connector);
+    }
+
+    {
+        ShapeDefinition link;
+        link.key = QStringLiteral("link");
+        link.name = QStringLiteral("Link");
+        link.style = QStringLiteral("shape=link;html=1;");
+        link.size = QSizeF(100, 0);
+        link.category = QStringLiteral("general");
+        link.edge = true;
+        shapes.append(link);
+    }
+
+    {
+        ShapeDefinition connector;
+        connector.key = QStringLiteral("connectorLabel");
+        connector.name = QStringLiteral("Connector with Label");
+        connector.style = QStringLiteral("endArrow=classic;html=1;");
+        connector.size = QSizeF(100, 0);
+        connector.category = QStringLiteral("general");
+        connector.edge = true;
+
+        ShapeChildDefinition label;
+        label.style = edgeLabelStyle + QStringLiteral("align=center;verticalAlign=middle;");
+        label.value = QStringLiteral("Label");
+        label.relative = true;
+        connector.children.append(label);
+        shapes.append(connector);
+    }
+
+    {
+        ShapeDefinition connector;
+        connector.key = QStringLiteral("connectorLabels");
+        connector.name = QStringLiteral("Connector with Labels");
+        connector.style = QStringLiteral("endArrow=classic;html=1;");
+        connector.size = QSizeF(160, 0);
+        connector.category = QStringLiteral("general");
+        connector.edge = true;
+
+        ShapeChildDefinition label;
+        label.style = edgeLabelStyle + QStringLiteral("align=center;verticalAlign=middle;");
+        label.value = QStringLiteral("Label");
+        label.relative = true;
+        connector.children.append(label);
+
+        ShapeChildDefinition source;
+        source.style = edgeLabelStyle + QStringLiteral("align=left;verticalAlign=bottom;");
+        source.value = QStringLiteral("Source");
+        source.geometry = QRectF(-1, 0, 0, 0);
+        source.relative = true;
+        connector.children.append(source);
+
+        ShapeChildDefinition target;
+        target.style = edgeLabelStyle + QStringLiteral("align=right;verticalAlign=bottom;");
+        target.value = QStringLiteral("Target");
+        target.geometry = QRectF(1, 0, 0, 0);
+        target.relative = true;
+        connector.children.append(target);
+        shapes.append(connector);
+    }
+
+    {
+        ShapeDefinition connector;
+        connector.key = QStringLiteral("connectorSymbol");
+        connector.name = QStringLiteral("Connector with Symbol");
+        connector.style = QStringLiteral("endArrow=classic;html=1;");
+        connector.size = QSizeF(100, 0);
+        connector.category = QStringLiteral("general");
+        connector.edge = true;
+
+        ShapeChildDefinition symbol;
+        symbol.style = QStringLiteral("shape=message;html=1;outlineConnect=0;");
+        symbol.geometry = QRectF(0, 0, 20, 14);
+        symbol.offset = QPointF(-10, -7);
+        symbol.relative = true;
+        connector.children.append(symbol);
+        shapes.append(connector);
+    }
 
     // --- basic -----------------------------------------------------------
     // Sidebar-Basic.js: the mxgraph.basic stencil collection plus the shapes
@@ -1749,7 +1953,24 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
         return path;
     }
 
-    if (key == QLatin1String("cloud") || key == QLatin1String("cloudCallout"))
+    if (key == QLatin1String("cloud"))
+    {
+        // mxCloud.redrawPath: the six bumps of draw.io's cloud outline.
+        path.moveTo(point(0.25 * w, 0.25 * h));
+        path.cubicTo(point(0.05 * w, 0.25 * h), point(0.0, 0.5 * h),
+                     point(0.16 * w, 0.55 * h));
+        path.cubicTo(point(0.0, 0.66 * h), point(0.18 * w, 0.9 * h),
+                     point(0.31 * w, 0.8 * h));
+        path.cubicTo(point(0.4 * w, h), point(0.7 * w, h), point(0.8 * w, 0.8 * h));
+        path.cubicTo(point(w, 0.8 * h), point(w, 0.6 * h), point(0.875 * w, 0.5 * h));
+        path.cubicTo(point(w, 0.3 * h), point(0.8 * w, 0.1 * h), point(0.625 * w, 0.2 * h));
+        path.cubicTo(point(0.5 * w, 0.05 * h), point(0.3 * w, 0.05 * h),
+                     point(0.25 * w, 0.25 * h));
+        path.closeSubpath();
+        return path;
+    }
+
+    if (key == QLatin1String("cloudCallout"))
     {
         // mxgraph.basic.cloud_callout / cloud (90.41 x 61.4) bump outline.
         const auto px = [&](double v) { return x + w * (v / 90.41); };
@@ -1774,14 +1995,10 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
         path.closeSubpath();
 
-        if (key == QLatin1String("cloudCallout"))
-        {
-            // Three bubbles in the foreground path.
-            path.addEllipse(QPointF(px(15.1), py(48.8)), w * 6.0 / 90.41, h * 2.7 / 61.4);
-            path.addEllipse(QPointF(px(8.1), py(55.3)), w * 3.8 / 90.41, h * 1.8 / 61.4);
-            path.addEllipse(QPointF(px(2.4), py(60.1)), w * 2.4 / 90.41, h * 1.3 / 61.4);
-        }
-
+        // Three bubbles in the foreground path.
+        path.addEllipse(QPointF(px(15.1), py(48.8)), w * 6.0 / 90.41, h * 2.7 / 61.4);
+        path.addEllipse(QPointF(px(8.1), py(55.3)), w * 3.8 / 90.41, h * 1.8 / 61.4);
+        path.addEllipse(QPointF(px(2.4), py(60.1)), w * 2.4 / 90.41, h * 1.3 / 61.4);
         return path;
     }
 
@@ -1822,10 +2039,13 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("note"))
     {
-        const double fold = qMin(qMin(w, h) * 0.22, 24.0);
+        // NoteShape: the folded corner is `size` pixels (default 30).
+        const double size = qBound(0.0,
+            Style::number(probe.style, QStringLiteral("size"), 30.0), qMin(w, h));
+
         path.moveTo(point(0, 0));
-        path.lineTo(point(w - fold, 0));
-        path.lineTo(point(w, fold));
+        path.lineTo(point(w - size, 0));
+        path.lineTo(point(w, size));
         path.lineTo(point(w, h));
         path.lineTo(point(0, h));
         path.closeSubpath();
@@ -1877,18 +2097,19 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
 
     if (key == QLatin1String("umlActor") || key == QLatin1String("actor"))
     {
-        const double headRadius = qMin(w * 0.25, h * 0.14);
-        const double cx = w / 2;
-        path.addEllipse(QPointF(x + cx, y + headRadius), headRadius, headRadius);
-        const double bodyTop = headRadius * 2;
-        const double bodyBottom = h * 0.7;
-        path.addRect(QRectF(x + cx - 3, y + bodyTop, 6, bodyBottom - bodyTop));
-        path.moveTo(point(cx - w * 0.3, y + bodyTop + (bodyBottom - bodyTop) * 0.2));
-        path.lineTo(point(cx + w * 0.3, y + bodyTop + (bodyBottom - bodyTop) * 0.2));
-        path.moveTo(point(cx, y + bodyBottom));
-        path.lineTo(point(cx - w * 0.28, y + h));
-        path.moveTo(point(cx, y + bodyBottom));
-        path.lineTo(point(cx + w * 0.28, y + h));
+        // UmlActorShape.paintBackground: head ellipse in the top quarter, the
+        // body, arms at one third and legs from two thirds to the bottom.
+        path.addEllipse(QRectF(x + w / 4.0, y, w / 2.0, h / 4.0));
+        path.moveTo(point(w / 2.0, h / 4.0));
+        path.lineTo(point(w / 2.0, 2.0 * h / 3.0));
+        path.moveTo(point(w / 2.0, h / 3.0));
+        path.lineTo(point(0, h / 3.0));
+        path.moveTo(point(w / 2.0, h / 3.0));
+        path.lineTo(point(w, h / 3.0));
+        path.moveTo(point(w / 2.0, 2.0 * h / 3.0));
+        path.lineTo(point(0, h));
+        path.moveTo(point(w / 2.0, 2.0 * h / 3.0));
+        path.lineTo(point(w, h));
         return path;
     }
 
@@ -4081,6 +4302,14 @@ QPainterPath pathForStyle(const StyleMap &style, const QRectF &rect)
     }
 
     // CardShape.redrawPath
+    if (key == QLatin1String("message"))
+    {
+        // MessageShape extends mxCylinder: a plain rectangle body; the
+        // envelope fold is stroked by ShapeRenderer.
+        path.addRect(rect);
+        return path;
+    }
+
     if (key == QLatin1String("card"))
     {
         const double s = qBound(0.0,

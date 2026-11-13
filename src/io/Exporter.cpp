@@ -13,6 +13,8 @@
 #include <QSvgGenerator>
 #include <QtMath>
 
+#include <cmath>
+
 namespace dq {
 namespace {
 
@@ -64,6 +66,12 @@ QRectF baseBounds(const Page &page, const ExportOptions &options)
         {
             bounds = bounds.adjusted(-border, -border, border, border);
         }
+
+        // draw.io crops diagram exports to whole pixels: the translate is
+        // floored (Graph.getSvg) and the size is the ceiling of the graph
+        // bounds, so fractional stroke extents do not shift the content.
+        bounds = QRectF(std::ceil(bounds.left()), std::ceil(bounds.top()),
+                        std::ceil(bounds.width()), std::ceil(bounds.height()));
     }
 
     return bounds;

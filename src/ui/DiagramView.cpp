@@ -27,7 +27,9 @@
 #include <QUuid>
 #include <QRegularExpression>
 #include <QScrollBar>
+#include <QTextBlock>
 #include <QTextDocument>
+#include <QTextFragment>
 #include <QUndoCommand>
 #include <QUndoStack>
 #include <QWheelEvent>
@@ -122,6 +124,27 @@ DiagramView::DiagramView(QWidget *parent)
     connect(m_editor, &OverlayEditor::cancelled, this, [this]()
     {
         cancelEditing();
+    });
+
+    // Mirror the format at the cursor so the panel shows the selected run.
+    connect(m_editor, &QTextEdit::currentCharFormatChanged, this,
+            [this](const QTextCharFormat &format)
+    {
+        if (!m_editor->isRichText())
+        {
+            return;
+        }
+
+        int bits = 0;
+        bits |= format.fontWeight() >= QFont::Bold ? 1 : 0;
+        bits |= format.fontItalic() ? 2 : 0;
+        bits |= format.fontUnderline() ? 4 : 0;
+
+        const QStringList families = format.fontFamilies().toStringList();
+        const QString family = families.isEmpty() ? QString() : families.first();
+
+        emit editorCharFormatChanged(static_cast<int>(format.fontPointSize()),
+                                     family, format.foreground().color(), bits);
     });
 }
 
@@ -640,6 +663,23 @@ Cell *DiagramView::cellAt(const QPointF &scenePoint, bool includeEdges) const
 
             const RoutedEdge route = EdgeRouter::route(*m_page, *cell);
 
+            // Edge labels are child cells with relative geometry; hit test
+            // them first so the text can be selected and edited.
+            for (Cell *child : m_page->cells())
+            {
+                if (child->parentId == cell->id && child->visible
+                    && child->styleValue(QStringLiteral("shape")).isEmpty())
+                {
+                    const QRectF labelBounds = EdgeRenderer::childBounds(route, *child);
+
+                    if (!labelBounds.isEmpty()
+                        && labelBounds.adjusted(-2, -2, 2, 2).contains(scenePoint))
+                    {
+                        return child;
+                    }
+                }
+            }
+
             for (int p = 1; p < route.points.size(); ++p)
             {
                 const QLineF segment(route.points.at(p - 1), route.points.at(p));
@@ -738,7 +778,10 @@ void DiagramView::selectAll()
 
     for (Cell *cell : m_page->cells())
     {
-        if (cell->visible)
+        // Like draw.io, only top level cells are selected: edge labels and
+        // other children keep their relative geometry and would drag the
+        // selection box to the origin.
+        if (cell->visible && m_page->layer(cell->parentId) != nullptr)
         {
             m_selection.insert(cell->id);
         }
@@ -1397,6 +1440,77 @@ void DiagramView::mousePressEvent(QMouseEvent *event)
         return;
     }
 
+    // 2b. Fold indicator of a container toggles its collapsed state.
+    if (m_tool == Tool::Select && m_page != nullptr
+        && !(event->modifiers() & Qt::ShiftModifier))
+    {
+        for (Cell *cell : m_page->cells())
+        {
+            if (!cell->visible || !cell->isVertex()
+                || !cell->styleFlag(QStringLiteral("swimlane"), false)
+                || !cell->styleFlag(QStringLiteral("collapsible"), true)
+                || isLayerLocked(layerIdForCell(cell)))
+            {
+                continue;
+            }
+
+            const QRectF fold(cell->absolutePosition() + QPointF(4, 4), QSizeF(9, 9));
+
+            if (fold.contains(scenePoint))
+            {
+                beginSnapshot(QStringLiteral("Toggle Container"));
+
+                // mxGraph.cellsFolded(): the folded size is stored in the
+                // geometry and the size to restore in alternateBounds.
+                const double startSize = cell->styleNumber(QStringLiteral("startSize"), 23.0);
+                const bool horizontal = cell->styleFlag(QStringLiteral("horizontal"), true);
+
+                if (cell->collapsed)
+                {
+                    m_foldedBounds.insert(cell->id, cell->geometry);
+
+                    if (!cell->alternateBounds.isNull())
+                    {
+                        cell->geometry = cell->alternateBounds;
+                    }
+
+                    cell->collapsed = false;
+                }
+                else
+                {
+                    cell->alternateBounds = cell->geometry;
+                    cell->collapsed = true;
+
+                    const QRectF folded = m_foldedBounds.value(cell->id);
+
+                    if (!folded.isNull())
+                    {
+                        cell->geometry = folded;
+                    }
+                    else if (startSize <= 0.0)
+                    {
+                        // Nothing to fold to: keep the size, like draw.io.
+                    }
+                    else if (horizontal)
+                    {
+                        cell->geometry.setHeight(qMin(cell->geometry.height(), startSize));
+                    }
+                    else
+                    {
+                        cell->geometry.setWidth(qMin(cell->geometry.width(), startSize));
+                    }
+                }
+
+                commitSnapshot();
+                notifyModified();
+                selectCell(cell->id, false);
+                update();
+                return;
+            }
+        }
+    }
+
+
     if (m_editor->isVisible())
     {
         commitEditing();
@@ -1519,6 +1633,18 @@ void DiagramView::mousePressEvent(QMouseEvent *event)
 
     // 3. Shape hit testing.
     Cell *hit = cellAt(scenePoint);
+
+    // Clicking an edge label selects (and drags) the connector, like draw.io.
+    if (hit != nullptr && !hit->parentId.isEmpty() && !hit->isEdge())
+    {
+        Cell *parent = m_page->cell(hit->parentId);
+
+        if (parent != nullptr && parent->isEdge()
+            && hit->styleValue(QStringLiteral("shape")).isEmpty())
+        {
+            hit = parent;
+        }
+    }
 
     if (m_tool == Tool::Connector)
     {
@@ -2425,24 +2551,40 @@ void DiagramView::mouseReleaseEvent(QMouseEvent *event)
         {
             for (Cell *cell : m_page->cells())
             {
-                if (!cell->visible || (cell->isVertex()
-                    && isLayerLocked(layerIdForCell(cell))))
+                // Only top level cells: edge labels and symbols follow their
+                // connector instead of being selected on their own.
+                if (!cell->visible || m_page->layer(cell->parentId) == nullptr
+                    || isLayerLocked(layerIdForCell(cell)))
                 {
                     continue;
                 }
-
-                QRectF bounds;
 
                 if (cell->isVertex())
                 {
-                    bounds = cell->absoluteRect();
+                    if (sceneMarquee.intersects(cell->absoluteRect()))
+                    {
+                        m_selection.insert(cell->id);
+                    }
+
+                    continue;
                 }
-                else
+
+                // Connectors have no area, so test the routed path itself.
+                const RoutedEdge route = EdgeRouter::route(*m_page, *cell);
+
+                if (route.points.size() < 2)
                 {
                     continue;
                 }
 
-                if (sceneMarquee.intersects(bounds))
+                QPainterPath path(route.points.first());
+
+                for (int i = 1; i < route.points.size(); ++i)
+                {
+                    path.lineTo(route.points.at(i));
+                }
+
+                if (path.intersects(sceneMarquee))
                 {
                     m_selection.insert(cell->id);
                 }
@@ -2635,6 +2777,22 @@ void DiagramView::mouseDoubleClickEvent(QMouseEvent *event)
 
     if (hit != nullptr)
     {
+        // Double clicking a connector edits its label, which draw.io stores in
+        // a child cell.
+        if (hit->isEdge())
+        {
+            for (Cell *child : m_page->cells())
+            {
+                if (child->parentId == hit->id && !child->isEdge()
+                    && child->styleValue(QStringLiteral("shape")).isEmpty())
+                {
+                    selectCell(hit->id, false);
+                    startEditing(child->id, true);
+                    return;
+                }
+            }
+        }
+
         if (!m_selection.contains(topLevelSelectable(hit)->id))
         {
             selectCell(topLevelSelectable(hit)->id, false);
@@ -3691,7 +3849,19 @@ void DiagramView::startEditing(const QString &cellId, bool selectAll)
 
     QRect viewRect;
 
-    if (cell->isEdge())
+    // An edge label is a child cell whose geometry is relative to the edge.
+    Cell *labelParent = cell->parentId.isEmpty() ? nullptr : m_page->cell(cell->parentId);
+
+    if (labelParent != nullptr && labelParent->isEdge() && !cell->isEdge()
+        && cell->styleValue(QStringLiteral("shape")).isEmpty())
+    {
+        const RoutedEdge route = EdgeRouter::route(*m_page, *labelParent);
+        const QRectF bounds = EdgeRenderer::childBounds(route, *cell);
+        const QPoint topLeft = toView(bounds.topLeft()).toPoint();
+        const QPoint bottomRight = toView(bounds.bottomRight()).toPoint();
+        viewRect = QRect(topLeft, bottomRight).normalized().adjusted(-4, -2, 4, 2);
+    }
+    else if (cell->isEdge())
     {
         const RoutedEdge route = EdgeRouter::route(*m_page, *cell);
         const QPointF anchor = toView(route.pointAt(0.5));
@@ -3719,7 +3889,17 @@ void DiagramView::startEditing(const QString &cellId, bool selectAll)
     QFont font = LabelPainter::fontForLabel(*cell);
     font.setPixelSize(qMax(9, static_cast<int>(font.pixelSize() * m_zoom)));
     m_editor->setFont(font);
-    m_editor->begin(viewRect, cell->plainLabel(), selectAll);
+
+    // HTML labels are edited as rich text so that formatting such as the bold
+    // Heading of the Textbox template stays visible while editing.
+    if (cell->isHtmlLabel())
+    {
+        m_editor->beginHtml(viewRect, cell->value, selectAll, m_zoom);
+    }
+    else
+    {
+        m_editor->begin(viewRect, cell->plainLabel(), selectAll);
+    }
 
     emit editStarted();
 }
@@ -3769,6 +3949,8 @@ void DiagramView::commitEditing()
 
     Cell *cell = m_page->cell(m_editorCellId);
     const QString text = m_editor->toPlainText();
+    const bool rich = m_editor->isRichText();
+    const QTextDocument *document = m_editor->document();
     m_editor->hide();
 
     if (cell == nullptr)
@@ -3781,18 +3963,43 @@ void DiagramView::commitEditing()
 
     if (cell->isHtmlLabel())
     {
-        value = htmlEscape(text);
-        value.replace(QStringLiteral("\n"), QStringLiteral("<br>"));
-
-        // Keep Word/draw.io inline typography when the plain-text editor
-        // replaces an HTML label; otherwise the cell's fontSize (often 28)
-        // takes over and the text size jumps after a double click.
-        const QString inlineStyle = inlineFontStyle(cell->value);
-
-        if (!inlineStyle.isEmpty())
+        if (rich && !m_editor->contentChanged())
         {
-            value = QStringLiteral("<span style=\"%1\">%2</span>")
-                        .arg(inlineStyle, value);
+            // Nothing changed: keep the original markup (and its formatting).
+            value = cell->value;
+        }
+        else if (rich)
+        {
+            value = OverlayEditor::htmlFromDocument(*document);
+
+            // Qt drops the character format when the whole label is replaced;
+            // keep the label's original inline typography in that case.
+            if (!value.contains(QLatin1String("font-size")))
+            {
+                const QString inlineStyle = inlineFontStyle(cell->value);
+
+                if (!inlineStyle.isEmpty())
+                {
+                    value = QStringLiteral("<span style=\"%1\">%2</span>")
+                                .arg(inlineStyle, value);
+                }
+            }
+        }
+        else
+        {
+            value = htmlEscape(text);
+            value.replace(QStringLiteral("\n"), QStringLiteral("<br>"));
+
+            // Keep Word/draw.io inline typography when the plain-text editor
+            // replaces an HTML label; otherwise the cell's fontSize (often 28)
+            // takes over and the text size jumps after a double click.
+            const QString inlineStyle = inlineFontStyle(cell->value);
+
+            if (!inlineStyle.isEmpty())
+            {
+                value = QStringLiteral("<span style=\"%1\">%2</span>")
+                            .arg(inlineStyle, value);
+            }
         }
     }
 
@@ -3831,6 +4038,68 @@ void DiagramView::cancelEditing()
 bool DiagramView::isEditing() const
 {
     return m_editor != nullptr && m_editor->isVisible();
+}
+
+bool DiagramView::applyEditorFontStyle(int bit, bool enabled)
+{
+    if (!isEditing() || m_editor == nullptr || !m_editor->isRichText())
+    {
+        return false;
+    }
+
+    m_editor->setFormat(static_cast<OverlayEditor::Format>(bit), enabled);
+    return true;
+}
+
+bool DiagramView::applyEditorFontFamily(const QString &family)
+{
+    if (!isEditing() || m_editor == nullptr || !m_editor->isRichText())
+    {
+        return false;
+    }
+
+    m_editor->setFontFamily(family);
+    m_editor->setFocus();
+    return true;
+}
+
+bool DiagramView::applyEditorFontSize(int pointSize)
+{
+    if (!isEditing() || m_editor == nullptr || !m_editor->isRichText())
+    {
+        return false;
+    }
+
+    m_editor->setFontSize(pointSize);
+    m_editor->setFocus();
+    return true;
+}
+
+bool DiagramView::applyEditorFontColor(const QString &value)
+{
+    if (!isEditing() || m_editor == nullptr || !m_editor->isRichText())
+    {
+        return false;
+    }
+
+    if (value.isEmpty() || Style::isNoneColor(value))
+    {
+        m_editor->setTextColor(palette().color(QPalette::Text));
+    }
+    else
+    {
+        const QColor color = Style::parseColorValue(value);
+
+        if (!color.isValid())
+        {
+            return false;
+        }
+
+        m_editor->setTextColor(color);
+    }
+
+    m_editor->setFocus();
+    return true;
 }
 
 void DiagramView::setCellValue(const QString &cellId, const QString &value)
@@ -4273,18 +4542,52 @@ Cell *DiagramView::addShape(const ShapeDefinition &definition, const QPointF &sc
 
     Cell *cell = nullptr;
 
-    // draw.io's wedge arrows are edge shapes; inserting them as vertices would
-    // save a cell the original editor cannot paint. Create a floating edge.
-    if (Style::value(style, QStringLiteral("shape")).startsWith(
-            QLatin1String("mxgraph.arrows2.wedgeArrow")))
+    // draw.io's wedge arrows and the General palette's line/arrow templates
+    // are edge shapes; inserting them as vertices would save a cell the
+    // original editor cannot paint. Create a floating edge instead.
+    if (definition.edge
+        || Style::value(style, QStringLiteral("shape")).startsWith(
+               QLatin1String("mxgraph.arrows2.wedgeArrow")))
     {
-        cell = m_page->addEdge(QString(), QString(), style);
-        cell->sourcePoint = topLeft;
-        cell->targetPoint = topLeft + QPointF(size.width(), 0);
+        cell = m_page->addEdge(QString(), QString(), style, definition.value);
+
+        if (definition.edge)
+        {
+            // Edge templates run from the bottom left to the top right corner
+            // of their bounds (Sidebar.createEdgeTemplate).
+            cell->sourcePoint = topLeft + QPointF(0, size.height());
+            cell->targetPoint = topLeft + QPointF(size.width(), 0);
+
+            for (const QPointF &point : definition.waypoints)
+            {
+                cell->waypoints.append(topLeft + point);
+            }
+        }
+        else
+        {
+            cell->sourcePoint = topLeft;
+            cell->targetPoint = topLeft + QPointF(size.width(), 0);
+        }
     }
     else
     {
-        cell = m_page->addVertex(QRectF(topLeft, size), style, QStringLiteral(""));
+        cell = m_page->addVertex(QRectF(topLeft, size), style, definition.value);
+    }
+
+    // Palette entries such as the List container create their child cells too.
+    if (cell != nullptr)
+    {
+        for (const ShapeChildDefinition &child : definition.children)
+        {
+            Cell *created = m_page->addVertex(child.geometry, Style::parse(child.style),
+                                              child.value, cell->id);
+
+            if (created != nullptr)
+            {
+                created->relativeGeometry = child.relative;
+                created->geometryOffset = child.offset;
+            }
+        }
     }
 
     m_selection = {cell->id};

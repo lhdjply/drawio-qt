@@ -35,6 +35,10 @@ private:
     void buildUi();
     void updateEnabled(bool hasSelection, bool hasVertex, bool hasEdge);
 
+    /// Applies one bold/italic/underline toggle. While a label is edited the
+    /// format goes to the selected text, otherwise to the cell's fontStyle.
+    void applyFontStyleBit(int bit, bool enabled);
+
     DiagramView *m_view = nullptr;
     bool m_updating = false;
     bool m_dark = false;

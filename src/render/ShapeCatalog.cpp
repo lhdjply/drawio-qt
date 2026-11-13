@@ -2,6 +2,9 @@
 
 #include "app/I18n.h"
 
+#include "core/Page.h"
+
+#include "render/DiagramRenderer.h"
 #include "render/ShapeRenderer.h"
 
 #include <QDirIterator>
@@ -481,27 +484,90 @@ QIcon ShapeCatalog::iconFor(const ShapeDefinition &definition, int size) const
         QPixmap pixmap(size, size);
         pixmap.fill(Qt::transparent);
 
-        Cell cell(Cell::Kind::Vertex, QStringLiteral("preview"));
-        cell.style = Style::parse(definition.style);
+        StyleMap style = Style::parse(definition.style);
 
         // Palette previews use the same 2px outline as newly inserted shapes.
-        if (!cell.style.contains(QStringLiteral("strokeWidth")))
+        if (!style.contains(QStringLiteral("strokeWidth")))
         {
-            cell.style.insert(QStringLiteral("strokeWidth"), QStringLiteral("2"));
+            style.insert(QStringLiteral("strokeWidth"), QStringLiteral("2"));
         }
 
         const QSizeF target = definition.size.isEmpty() ? QSizeF(80, 50) : definition.size;
-        const double scale = (size - 8.0) / qMax(target.width(), target.height());
-        cell.geometry = QRectF(0, 0, target.width(), target.height());
 
         QPainter painter(&pixmap);
         painter.setRenderHint(QPainter::Antialiasing, true);
         painter.setRenderHint(QPainter::TextAntialiasing, true);
-        painter.translate((size - target.width() * scale) / 2.0,
-                          (size - target.height() * scale) / 2.0);
-        painter.scale(scale, scale);
-        painter.translate(-cell.absolutePosition());
-        ShapeRenderer::paint(painter, cell);
+
+        if (definition.edge || !definition.children.isEmpty())
+        {
+            // Edge templates and composite entries are previewed by painting a
+            // temporary page, so connectors, labels and list rows all show.
+            Page page;
+            Cell *root = nullptr;
+
+            if (definition.edge)
+            {
+                root = page.addEdge(QString(), QString(), style, definition.value);
+                root->sourcePoint = QPointF(0, target.height());
+                root->targetPoint = QPointF(target.width(), 0);
+
+                for (const QPointF &point : definition.waypoints)
+                {
+                    root->waypoints.append(point);
+                }
+            }
+            else
+            {
+                root = page.addVertex(QRectF(QPointF(0, 0), target), style, definition.value);
+            }
+
+            if (root != nullptr)
+            {
+                for (const ShapeChildDefinition &child : definition.children)
+                {
+                    Cell *created = page.addVertex(child.geometry,
+                                                   Style::parse(child.style), child.value,
+                                                   root->id);
+                    if (created != nullptr)
+                    {
+                        created->relativeGeometry = child.relative;
+                        created->geometryOffset = child.offset;
+                    }
+                }
+            }
+
+            QRectF bounds = DiagramRenderer::contentBounds(page);
+
+            if (bounds.isEmpty())
+            {
+                bounds = QRectF(0, 0, qMax(1.0, target.width()), qMax(1.0, target.height()));
+            }
+
+            const double scale = (size - 8.0) / qMax(qMax(bounds.width(), bounds.height()), 1.0);
+            painter.translate((size - bounds.width() * scale) / 2.0,
+                              (size - bounds.height() * scale) / 2.0);
+            painter.scale(scale, scale);
+            painter.translate(-bounds.topLeft());
+
+            RenderOptions options;
+            options.grid = false;
+            options.page = false;
+            DiagramRenderer::paint(painter, page, options);
+        }
+        else
+        {
+            Cell cell(Cell::Kind::Vertex, QStringLiteral("preview"));
+            cell.style = style;
+            const double scale = (size - 8.0) / qMax(target.width(), target.height());
+            cell.geometry = QRectF(0, 0, target.width(), target.height());
+
+            painter.translate((size - target.width() * scale) / 2.0,
+                              (size - target.height() * scale) / 2.0);
+            painter.scale(scale, scale);
+            painter.translate(-cell.absolutePosition());
+            ShapeRenderer::paint(painter, cell);
+        }
+
         painter.end();
 
         if (!hasVisiblePixels(pixmap))
